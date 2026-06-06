@@ -1,0 +1,9 @@
+-- Highway Grill HRMS — database entry point
+--
+-- Drop highway_grill_hrms in phpMyAdmin, then:
+--   mysql -u root < database/schema.sql
+--   mysql -u root < database/seed.sql
+--
+-- Or:  .\scripts\setup-database.ps1
+--
+-- Legacy POS SQL: database/archive/tables_pos_legacy.sql

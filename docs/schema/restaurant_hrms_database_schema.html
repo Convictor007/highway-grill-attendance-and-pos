@@ -1,0 +1,636 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.schema-root { padding: 1rem 0; }
+.header { margin-bottom: 1.5rem; }
+.header h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); }
+.header p { font-size: 13px; color: var(--color-text-secondary); margin-top: 4px; }
+.modules-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; }
+.mod-btn {
+  font-size: 12px; font-weight: 500; padding: 5px 12px;
+  border-radius: 20px; border: 0.5px solid var(--color-border-secondary);
+  background: var(--color-background-primary); color: var(--color-text-secondary);
+  cursor: pointer; transition: all .15s;
+}
+.mod-btn:hover { background: var(--color-background-secondary); }
+.mod-btn.active { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); }
+.tables-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.table-card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.table-card:hover { border-color: var(--color-border-secondary); }
+.table-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  user-select: none;
+}
+.table-header-left { display: flex; align-items: center; gap: 8px; flex: 1; }
+.mod-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.table-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); font-family: var(--font-mono); }
+.table-desc { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; }
+.row-count { font-size: 11px; color: var(--color-text-tertiary); }
+.chevron { font-size: 14px; color: var(--color-text-tertiary); transition: transform .2s; }
+.chevron.open { transform: rotate(180deg); }
+.fields-list { display: none; padding: 6px 0; }
+.fields-list.open { display: block; }
+.field-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 14px; font-size: 12px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.field-row:last-child { border-bottom: none; }
+.field-row:hover { background: var(--color-background-secondary); }
+.field-icon { font-size: 12px; color: var(--color-text-tertiary); width: 16px; flex-shrink: 0; }
+.field-name { font-family: var(--font-mono); color: var(--color-text-primary); flex: 1; min-width: 0; }
+.field-type { font-size: 11px; color: var(--color-text-secondary); white-space: nowrap; }
+.badge {
+  font-size: 10px; font-weight: 500; padding: 2px 6px;
+  border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+}
+.badge-pk { background: var(--color-background-warning); color: var(--color-text-warning); }
+.badge-fk { background: var(--color-background-info); color: var(--color-text-info); }
+.badge-idx { background: var(--color-background-secondary); color: var(--color-text-secondary); }
+.badge-uniq { background: var(--color-background-success); color: var(--color-text-success); }
+.stats-row { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.stat-card {
+  background: var(--color-background-secondary);
+  border-radius: var(--border-radius-md);
+  padding: 10px 16px; flex: 1; min-width: 80px;
+}
+.stat-num { font-size: 22px; font-weight: 500; color: var(--color-text-primary); }
+.stat-label { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+</style>
+
+<div class="schema-root">
+  <h2 class="sr-only">Restaurant HRMS Database Schema</h2>
+  <div class="header">
+    <h2>Restaurant HRMS — Database Schema</h2>
+    <p>Click any table to expand columns · Filter by module</p>
+  </div>
+
+  <div class="stats-row" id="stats"></div>
+  <div class="modules-nav" id="modsNav"></div>
+  <div class="tables-grid" id="tablesGrid"></div>
+</div>
+
+<script>
+const MODULES = [
+  { id: 'core',       label: 'Core / Auth',       color: '#888780' },
+  { id: 'employees',  label: 'Employees',          color: '#378ADD' },
+  { id: 'shifts',     label: 'Shifts & Attendance',color: '#1D9E75' },
+  { id: 'payroll',    label: 'Payroll',            color: '#BA7517' },
+  { id: 'leave',      label: 'Leave',              color: '#D4537E' },
+  { id: 'training',   label: 'Training',           color: '#7F77DD' },
+  { id: 'performance',label: 'Performance',        color: '#639922' },
+  { id: 'recruitment',label: 'Recruitment',        color: '#D85A30' },
+  { id: 'documents',  label: 'Documents',          color: '#3B8BD4' },
+  { id: 'compliance', label: 'Compliance',         color: '#A32D2D' },
+];
+
+const TABLES = [
+  // ── CORE / AUTH ──────────────────────────────────────────────
+  { id:'users', module:'core', name:'users', desc:'System login accounts',
+    fields:[
+      {name:'id',           type:'UUID',        badge:'pk'},
+      {name:'email',        type:'VARCHAR(255)', badge:'uniq'},
+      {name:'password_hash',type:'TEXT'},
+      {name:'role',         type:'ENUM(admin,manager,staff,payroll_officer)'},
+      {name:'employee_id',  type:'UUID',        badge:'fk', ref:'employees'},
+      {name:'is_active',    type:'BOOLEAN',     default:'true'},
+      {name:'last_login_at',type:'TIMESTAMPTZ'},
+      {name:'created_at',   type:'TIMESTAMPTZ'},
+      {name:'updated_at',   type:'TIMESTAMPTZ'},
+    ]},
+  { id:'branches', module:'core', name:'branches', desc:'Restaurant locations/outlets',
+    fields:[
+      {name:'id',           type:'UUID',        badge:'pk'},
+      {name:'name',         type:'VARCHAR(100)'},
+      {name:'address',      type:'TEXT'},
+      {name:'phone',        type:'VARCHAR(20)'},
+      {name:'manager_id',   type:'UUID',        badge:'fk', ref:'employees'},
+      {name:'timezone',     type:'VARCHAR(50)'},
+      {name:'is_active',    type:'BOOLEAN'},
+      {name:'created_at',   type:'TIMESTAMPTZ'},
+    ]},
+  { id:'departments', module:'core', name:'departments', desc:'Kitchen, FOH, Bar, Delivery…',
+    fields:[
+      {name:'id',           type:'UUID',        badge:'pk'},
+      {name:'branch_id',    type:'UUID',        badge:'fk', ref:'branches'},
+      {name:'name',         type:'VARCHAR(100)'},
+      {name:'head_id',      type:'UUID',        badge:'fk', ref:'employees'},
+      {name:'cost_center',  type:'VARCHAR(50)'},
+    ]},
+  { id:'positions', module:'core', name:'positions', desc:'Job titles & pay grades',
+    fields:[
+      {name:'id',           type:'UUID',        badge:'pk'},
+      {name:'department_id',type:'UUID',        badge:'fk', ref:'departments'},
+      {name:'title',        type:'VARCHAR(100)'},
+      {name:'pay_grade',    type:'SMALLINT'},
+      {name:'min_hourly',   type:'NUMERIC(8,2)'},
+      {name:'max_hourly',   type:'NUMERIC(8,2)'},
+      {name:'is_tipped',    type:'BOOLEAN'},
+    ]},
+
+  // ── EMPLOYEES ─────────────────────────────────────────────────
+  { id:'employees', module:'employees', name:'employees', desc:'Core staff record',
+    fields:[
+      {name:'id',              type:'UUID',        badge:'pk'},
+      {name:'branch_id',       type:'UUID',        badge:'fk', ref:'branches'},
+      {name:'department_id',   type:'UUID',        badge:'fk', ref:'departments'},
+      {name:'position_id',     type:'UUID',        badge:'fk', ref:'positions'},
+      {name:'emp_number',      type:'VARCHAR(20)',  badge:'uniq'},
+      {name:'first_name',      type:'VARCHAR(80)'},
+      {name:'last_name',       type:'VARCHAR(80)'},
+      {name:'date_of_birth',   type:'DATE'},
+      {name:'gender',          type:'ENUM(male,female,other,prefer_not)'},
+      {name:'nationality',     type:'VARCHAR(60)'},
+      {name:'national_id',     type:'VARCHAR(50)', badge:'uniq'},
+      {name:'phone',           type:'VARCHAR(20)'},
+      {name:'email',           type:'VARCHAR(255)'},
+      {name:'address',         type:'TEXT'},
+      {name:'hire_date',       type:'DATE'},
+      {name:'probation_end',   type:'DATE'},
+      {name:'employment_type', type:'ENUM(full_time,part_time,casual,seasonal)'},
+      {name:'status',          type:'ENUM(active,on_leave,resigned,terminated)'},
+      {name:'photo_url',       type:'TEXT'},
+      {name:'emergency_name',  type:'VARCHAR(100)'},
+      {name:'emergency_phone', type:'VARCHAR(20)'},
+      {name:'created_at',      type:'TIMESTAMPTZ'},
+      {name:'updated_at',      type:'TIMESTAMPTZ'},
+    ]},
+  { id:'employee_contracts', module:'employees', name:'employee_contracts', desc:'Employment contract versions',
+    fields:[
+      {name:'id',           type:'UUID',        badge:'pk'},
+      {name:'employee_id',  type:'UUID',        badge:'fk', ref:'employees'},
+      {name:'contract_type',type:'ENUM(permanent,fixed_term,probation)'},
+      {name:'start_date',   type:'DATE'},
+      {name:'end_date',     type:'DATE'},
+      {name:'hourly_rate',  type:'NUMERIC(8,2)'},
+      {name:'weekly_hours', type:'NUMERIC(5,2)'},
+      {name:'signed_at',    type:'TIMESTAMPTZ'},
+      {name:'document_id',  type:'UUID',        badge:'fk', ref:'documents'},
+      {name:'created_at',   type:'TIMESTAMPTZ'},
+    ]},
+  { id:'employee_bank_accounts', module:'employees', name:'employee_bank_accounts', desc:'Payroll banking details',
+    fields:[
+      {name:'id',           type:'UUID',        badge:'pk'},
+      {name:'employee_id',  type:'UUID',        badge:'fk', ref:'employees'},
+      {name:'bank_name',    type:'VARCHAR(100)'},
+      {name:'account_name', type:'VARCHAR(100)'},
+      {name:'account_no',   type:'VARCHAR(40)'},
+      {name:'routing_no',   type:'VARCHAR(20)'},
+      {name:'is_primary',   type:'BOOLEAN'},
+      {name:'created_at',   type:'TIMESTAMPTZ'},
+    ]},
+  { id:'employee_skills', module:'employees', name:'employee_skills', desc:'Certified skills per staff',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'employee_id', type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'skill',       type:'VARCHAR(100)'},
+      {name:'level',       type:'ENUM(beginner,intermediate,expert)'},
+      {name:'certified_at',type:'DATE'},
+    ]},
+
+  // ── SHIFTS & ATTENDANCE ───────────────────────────────────────
+  { id:'shift_templates', module:'shifts', name:'shift_templates', desc:'Reusable shift definitions',
+    fields:[
+      {name:'id',          type:'UUID',        badge:'pk'},
+      {name:'branch_id',   type:'UUID',        badge:'fk', ref:'branches'},
+      {name:'name',        type:'VARCHAR(80)'},
+      {name:'start_time',  type:'TIME'},
+      {name:'end_time',    type:'TIME'},
+      {name:'break_mins',  type:'SMALLINT'},
+      {name:'color_hex',   type:'CHAR(7)'},
+    ]},
+  { id:'schedules', module:'shifts', name:'schedules', desc:'Published weekly rosters',
+    fields:[
+      {name:'id',          type:'UUID',        badge:'pk'},
+      {name:'branch_id',   type:'UUID',        badge:'fk', ref:'branches'},
+      {name:'week_start',  type:'DATE'},
+      {name:'status',      type:'ENUM(draft,published,locked)'},
+      {name:'published_by',type:'UUID',        badge:'fk', ref:'users'},
+      {name:'published_at',type:'TIMESTAMPTZ'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+  { id:'shift_assignments', module:'shifts', name:'shift_assignments', desc:'Staff assigned to shifts',
+    fields:[
+      {name:'id',               type:'UUID',   badge:'pk'},
+      {name:'schedule_id',      type:'UUID',   badge:'fk', ref:'schedules'},
+      {name:'employee_id',      type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'shift_template_id',type:'UUID',   badge:'fk', ref:'shift_templates'},
+      {name:'shift_date',       type:'DATE'},
+      {name:'start_time',       type:'TIME'},
+      {name:'end_time',         type:'TIME'},
+      {name:'break_mins',       type:'SMALLINT'},
+      {name:'notes',            type:'TEXT'},
+    ]},
+  { id:'attendance', module:'shifts', name:'attendance', desc:'Clock-in / clock-out records',
+    fields:[
+      {name:'id',              type:'UUID',   badge:'pk'},
+      {name:'employee_id',     type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'shift_assignment_id',type:'UUID',badge:'fk', ref:'shift_assignments'},
+      {name:'clock_in',        type:'TIMESTAMPTZ'},
+      {name:'clock_out',       type:'TIMESTAMPTZ'},
+      {name:'break_start',     type:'TIMESTAMPTZ'},
+      {name:'break_end',       type:'TIMESTAMPTZ'},
+      {name:'actual_hours',    type:'NUMERIC(5,2)'},
+      {name:'method',          type:'ENUM(biometric,pin,manual,app)'},
+      {name:'ip_address',      type:'INET'},
+      {name:'latitude',        type:'NUMERIC(9,6)'},
+      {name:'longitude',       type:'NUMERIC(9,6)'},
+      {name:'approved_by',     type:'UUID',   badge:'fk', ref:'users'},
+      {name:'approved_at',     type:'TIMESTAMPTZ'},
+    ]},
+  { id:'overtime_requests', module:'shifts', name:'overtime_requests', desc:'OT request & approval',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'employee_id', type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'date',        type:'DATE'},
+      {name:'extra_hours', type:'NUMERIC(4,2)'},
+      {name:'reason',      type:'TEXT'},
+      {name:'status',      type:'ENUM(pending,approved,rejected)'},
+      {name:'approved_by', type:'UUID',   badge:'fk', ref:'users'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+
+  // ── PAYROLL ───────────────────────────────────────────────────
+  { id:'payroll_runs', module:'payroll', name:'payroll_runs', desc:'One record per pay period run',
+    fields:[
+      {name:'id',           type:'UUID',   badge:'pk'},
+      {name:'branch_id',    type:'UUID',   badge:'fk', ref:'branches'},
+      {name:'period_start', type:'DATE'},
+      {name:'period_end',   type:'DATE'},
+      {name:'pay_date',     type:'DATE'},
+      {name:'status',       type:'ENUM(draft,processing,approved,paid,cancelled)'},
+      {name:'total_gross',  type:'NUMERIC(12,2)'},
+      {name:'total_net',    type:'NUMERIC(12,2)'},
+      {name:'processed_by', type:'UUID',   badge:'fk', ref:'users'},
+      {name:'processed_at', type:'TIMESTAMPTZ'},
+      {name:'created_at',   type:'TIMESTAMPTZ'},
+    ]},
+  { id:'payslips', module:'payroll', name:'payslips', desc:'Individual employee payslip',
+    fields:[
+      {name:'id',              type:'UUID',        badge:'pk'},
+      {name:'payroll_run_id',  type:'UUID',        badge:'fk', ref:'payroll_runs'},
+      {name:'employee_id',     type:'UUID',        badge:'fk', ref:'employees'},
+      {name:'regular_hours',   type:'NUMERIC(6,2)'},
+      {name:'overtime_hours',  type:'NUMERIC(6,2)'},
+      {name:'holiday_hours',   type:'NUMERIC(6,2)'},
+      {name:'basic_pay',       type:'NUMERIC(10,2)'},
+      {name:'overtime_pay',    type:'NUMERIC(10,2)'},
+      {name:'tips_amount',     type:'NUMERIC(10,2)'},
+      {name:'service_charge',  type:'NUMERIC(10,2)'},
+      {name:'gross_pay',       type:'NUMERIC(10,2)'},
+      {name:'tax_amount',      type:'NUMERIC(10,2)'},
+      {name:'sss_amount',      type:'NUMERIC(10,2)'},
+      {name:'philhealth_amount',type:'NUMERIC(10,2)'},
+      {name:'pagibig_amount',  type:'NUMERIC(10,2)'},
+      {name:'other_deductions',type:'NUMERIC(10,2)'},
+      {name:'net_pay',         type:'NUMERIC(10,2)'},
+      {name:'generated_at',    type:'TIMESTAMPTZ'},
+      {name:'document_id',     type:'UUID',        badge:'fk', ref:'documents'},
+    ]},
+  { id:'payroll_adjustments', module:'payroll', name:'payroll_adjustments', desc:'Bonuses, loans, deductions',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'employee_id', type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'payroll_run_id',type:'UUID', badge:'fk', ref:'payroll_runs'},
+      {name:'type',        type:'ENUM(bonus,advance,loan_repay,penalty,allowance,meal,transport)'},
+      {name:'amount',      type:'NUMERIC(10,2)'},
+      {name:'description', type:'TEXT'},
+      {name:'approved_by', type:'UUID',   badge:'fk', ref:'users'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+  { id:'tips_pool', module:'payroll', name:'tips_pool', desc:'Pooled tips distribution',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'branch_id',   type:'UUID',   badge:'fk', ref:'branches'},
+      {name:'date',        type:'DATE'},
+      {name:'total_tips',  type:'NUMERIC(10,2)'},
+      {name:'shift_type',  type:'ENUM(breakfast,lunch,dinner,all_day)'},
+      {name:'status',      type:'ENUM(pending,distributed)'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+  { id:'tips_distribution', module:'payroll', name:'tips_distribution', desc:'Per-employee tip share',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'tips_pool_id',type:'UUID',   badge:'fk', ref:'tips_pool'},
+      {name:'employee_id', type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'percentage',  type:'NUMERIC(5,2)'},
+      {name:'amount',      type:'NUMERIC(10,2)'},
+    ]},
+
+  // ── LEAVE ─────────────────────────────────────────────────────
+  { id:'leave_types', module:'leave', name:'leave_types', desc:'Vacation, sick, emergency…',
+    fields:[
+      {name:'id',              type:'UUID',   badge:'pk'},
+      {name:'name',            type:'VARCHAR(80)'},
+      {name:'paid',            type:'BOOLEAN'},
+      {name:'days_per_year',   type:'NUMERIC(5,2)'},
+      {name:'carry_forward',   type:'BOOLEAN'},
+      {name:'max_carry_days',  type:'NUMERIC(5,2)'},
+      {name:'requires_approval',type:'BOOLEAN'},
+      {name:'color_hex',       type:'CHAR(7)'},
+    ]},
+  { id:'leave_balances', module:'leave', name:'leave_balances', desc:'Accrued leave per employee',
+    fields:[
+      {name:'id',             type:'UUID',   badge:'pk'},
+      {name:'employee_id',    type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'leave_type_id',  type:'UUID',   badge:'fk', ref:'leave_types'},
+      {name:'year',           type:'SMALLINT'},
+      {name:'accrued',        type:'NUMERIC(6,2)'},
+      {name:'used',           type:'NUMERIC(6,2)'},
+      {name:'pending',        type:'NUMERIC(6,2)'},
+      {name:'carried_forward',type:'NUMERIC(6,2)'},
+    ]},
+  { id:'leave_requests', module:'leave', name:'leave_requests', desc:'Leave application workflow',
+    fields:[
+      {name:'id',            type:'UUID',   badge:'pk'},
+      {name:'employee_id',   type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'leave_type_id', type:'UUID',   badge:'fk', ref:'leave_types'},
+      {name:'start_date',    type:'DATE'},
+      {name:'end_date',      type:'DATE'},
+      {name:'days_count',    type:'NUMERIC(5,2)'},
+      {name:'reason',        type:'TEXT'},
+      {name:'status',        type:'ENUM(pending,approved,rejected,cancelled)'},
+      {name:'reviewed_by',   type:'UUID',   badge:'fk', ref:'users'},
+      {name:'reviewed_at',   type:'TIMESTAMPTZ'},
+      {name:'notes',         type:'TEXT'},
+      {name:'created_at',    type:'TIMESTAMPTZ'},
+    ]},
+  { id:'holidays', module:'leave', name:'holidays', desc:'Public & restaurant holidays',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'branch_id',   type:'UUID',   badge:'fk', ref:'branches', nullable:'nullable'},
+      {name:'date',        type:'DATE'},
+      {name:'name',        type:'VARCHAR(100)'},
+      {name:'type',        type:'ENUM(national,special_non_working,local,company)'},
+      {name:'pay_multiplier',type:'NUMERIC(4,2)', default:'1.30'},
+    ]},
+
+  // ── TRAINING ──────────────────────────────────────────────────
+  { id:'training_programs', module:'training', name:'training_programs', desc:'Food safety, HACCP, service…',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'title',       type:'VARCHAR(150)'},
+      {name:'description', type:'TEXT'},
+      {name:'type',        type:'ENUM(onboarding,food_safety,service,compliance,upselling)'},
+      {name:'duration_hrs',type:'NUMERIC(5,2)'},
+      {name:'passing_score',type:'SMALLINT'},
+      {name:'is_mandatory',type:'BOOLEAN'},
+      {name:'valid_months',type:'SMALLINT'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+  { id:'training_sessions', module:'training', name:'training_sessions', desc:'Scheduled training runs',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'program_id',  type:'UUID',   badge:'fk', ref:'training_programs'},
+      {name:'branch_id',   type:'UUID',   badge:'fk', ref:'branches'},
+      {name:'trainer_id',  type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'scheduled_at',type:'TIMESTAMPTZ'},
+      {name:'location',    type:'VARCHAR(150)'},
+      {name:'max_seats',   type:'SMALLINT'},
+      {name:'status',      type:'ENUM(scheduled,ongoing,completed,cancelled)'},
+    ]},
+  { id:'training_enrollments', module:'training', name:'training_enrollments', desc:'Employee enrollment & results',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'session_id',  type:'UUID',   badge:'fk', ref:'training_sessions'},
+      {name:'employee_id', type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'status',      type:'ENUM(enrolled,attended,passed,failed,no_show)'},
+      {name:'score',       type:'SMALLINT'},
+      {name:'completed_at',type:'TIMESTAMPTZ'},
+      {name:'expiry_date', type:'DATE'},
+      {name:'certificate_id',type:'UUID', badge:'fk', ref:'documents'},
+    ]},
+
+  // ── PERFORMANCE ───────────────────────────────────────────────
+  { id:'appraisal_cycles', module:'performance', name:'appraisal_cycles', desc:'Quarterly / annual review periods',
+    fields:[
+      {name:'id',         type:'UUID',   badge:'pk'},
+      {name:'name',       type:'VARCHAR(100)'},
+      {name:'start_date', type:'DATE'},
+      {name:'end_date',   type:'DATE'},
+      {name:'status',     type:'ENUM(upcoming,active,closed)'},
+    ]},
+  { id:'appraisals', module:'performance', name:'appraisals', desc:'Individual employee review',
+    fields:[
+      {name:'id',           type:'UUID',   badge:'pk'},
+      {name:'cycle_id',     type:'UUID',   badge:'fk', ref:'appraisal_cycles'},
+      {name:'employee_id',  type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'reviewer_id',  type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'overall_score',type:'NUMERIC(4,2)'},
+      {name:'status',       type:'ENUM(pending,self_review,manager_review,completed)'},
+      {name:'comments',     type:'TEXT'},
+      {name:'submitted_at', type:'TIMESTAMPTZ'},
+      {name:'created_at',   type:'TIMESTAMPTZ'},
+    ]},
+  { id:'appraisal_criteria', module:'performance', name:'appraisal_criteria', desc:'Scored KPI line items',
+    fields:[
+      {name:'id',           type:'UUID',   badge:'pk'},
+      {name:'appraisal_id', type:'UUID',   badge:'fk', ref:'appraisals'},
+      {name:'criterion',    type:'VARCHAR(150)'},
+      {name:'weight',       type:'NUMERIC(5,2)'},
+      {name:'self_score',   type:'NUMERIC(4,2)'},
+      {name:'manager_score',type:'NUMERIC(4,2)'},
+      {name:'notes',        type:'TEXT'},
+    ]},
+  { id:'disciplinary_records', module:'performance', name:'disciplinary_records', desc:'Warnings, suspensions, PIPs',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'employee_id', type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'type',        type:'ENUM(verbal_warning,written_warning,suspension,pip,termination)'},
+      {name:'incident_date',type:'DATE'},
+      {name:'description', type:'TEXT'},
+      {name:'issued_by',   type:'UUID',   badge:'fk', ref:'users'},
+      {name:'document_id', type:'UUID',   badge:'fk', ref:'documents'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+
+  // ── RECRUITMENT ───────────────────────────────────────────────
+  { id:'job_postings', module:'recruitment', name:'job_postings', desc:'Open positions',
+    fields:[
+      {name:'id',           type:'UUID',   badge:'pk'},
+      {name:'branch_id',    type:'UUID',   badge:'fk', ref:'branches'},
+      {name:'position_id',  type:'UUID',   badge:'fk', ref:'positions'},
+      {name:'title',        type:'VARCHAR(150)'},
+      {name:'description',  type:'TEXT'},
+      {name:'vacancies',    type:'SMALLINT'},
+      {name:'status',       type:'ENUM(draft,open,closed,filled)'},
+      {name:'posted_at',    type:'TIMESTAMPTZ'},
+      {name:'closes_at',    type:'TIMESTAMPTZ'},
+    ]},
+  { id:'applicants', module:'recruitment', name:'applicants', desc:'Candidate records',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'posting_id',  type:'UUID',   badge:'fk', ref:'job_postings'},
+      {name:'first_name',  type:'VARCHAR(80)'},
+      {name:'last_name',   type:'VARCHAR(80)'},
+      {name:'email',       type:'VARCHAR(255)'},
+      {name:'phone',       type:'VARCHAR(20)'},
+      {name:'resume_url',  type:'TEXT'},
+      {name:'source',      type:'ENUM(website,referral,walk_in,agency,linkedin)'},
+      {name:'status',      type:'ENUM(applied,screening,interview,offer,hired,rejected)'},
+      {name:'applied_at',  type:'TIMESTAMPTZ'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+  { id:'interviews', module:'recruitment', name:'interviews', desc:'Interview scheduling & feedback',
+    fields:[
+      {name:'id',           type:'UUID',   badge:'pk'},
+      {name:'applicant_id', type:'UUID',   badge:'fk', ref:'applicants'},
+      {name:'interviewer_id',type:'UUID',  badge:'fk', ref:'employees'},
+      {name:'scheduled_at', type:'TIMESTAMPTZ'},
+      {name:'type',         type:'ENUM(phone,in_person,panel,practical)'},
+      {name:'score',        type:'SMALLINT'},
+      {name:'recommendation',type:'ENUM(hire,hold,reject)'},
+      {name:'notes',        type:'TEXT'},
+      {name:'completed_at', type:'TIMESTAMPTZ'},
+    ]},
+
+  // ── DOCUMENTS ─────────────────────────────────────────────────
+  { id:'documents', module:'documents', name:'documents', desc:'File attachments & e-signatures',
+    fields:[
+      {name:'id',           type:'UUID',   badge:'pk'},
+      {name:'employee_id',  type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'category',     type:'ENUM(contract,id,certificate,payslip,memo,other)'},
+      {name:'title',        type:'VARCHAR(200)'},
+      {name:'file_url',     type:'TEXT'},
+      {name:'file_type',    type:'VARCHAR(20)'},
+      {name:'file_size_kb', type:'INT'},
+      {name:'is_confidential',type:'BOOLEAN'},
+      {name:'expires_at',   type:'DATE'},
+      {name:'uploaded_by',  type:'UUID',   badge:'fk', ref:'users'},
+      {name:'created_at',   type:'TIMESTAMPTZ'},
+    ]},
+  { id:'announcements', module:'documents', name:'announcements', desc:'Company-wide notices',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'branch_id',   type:'UUID',   badge:'fk', ref:'branches'},
+      {name:'title',       type:'VARCHAR(200)'},
+      {name:'body',        type:'TEXT'},
+      {name:'priority',    type:'ENUM(low,normal,urgent)'},
+      {name:'posted_by',   type:'UUID',   badge:'fk', ref:'users'},
+      {name:'publish_at',  type:'TIMESTAMPTZ'},
+      {name:'expires_at',  type:'TIMESTAMPTZ'},
+    ]},
+
+  // ── COMPLIANCE ────────────────────────────────────────────────
+  { id:'compliance_checklists', module:'compliance', name:'compliance_checklists', desc:'Food safety, labor law items',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'name',        type:'VARCHAR(150)'},
+      {name:'type',        type:'ENUM(food_safety,labor,fire_safety,health_permit)'},
+      {name:'frequency',   type:'ENUM(daily,weekly,monthly,annual)'},
+      {name:'due_day',     type:'SMALLINT'},
+    ]},
+  { id:'compliance_logs', module:'compliance', name:'compliance_logs', desc:'Checklist completion records',
+    fields:[
+      {name:'id',            type:'UUID',   badge:'pk'},
+      {name:'checklist_id',  type:'UUID',   badge:'fk', ref:'compliance_checklists'},
+      {name:'branch_id',     type:'UUID',   badge:'fk', ref:'branches'},
+      {name:'completed_by',  type:'UUID',   badge:'fk', ref:'employees'},
+      {name:'completed_at',  type:'TIMESTAMPTZ'},
+      {name:'status',        type:'ENUM(compliant,non_compliant,needs_action)'},
+      {name:'notes',         type:'TEXT'},
+    ]},
+  { id:'audit_logs', module:'compliance', name:'audit_logs', desc:'All data change events',
+    fields:[
+      {name:'id',          type:'UUID',   badge:'pk'},
+      {name:'user_id',     type:'UUID',   badge:'fk', ref:'users'},
+      {name:'action',      type:'ENUM(create,update,delete,login,logout,export)'},
+      {name:'table_name',  type:'VARCHAR(80)'},
+      {name:'record_id',   type:'UUID'},
+      {name:'old_data',    type:'JSONB'},
+      {name:'new_data',    type:'JSONB'},
+      {name:'ip_address',  type:'INET'},
+      {name:'created_at',  type:'TIMESTAMPTZ'},
+    ]},
+];
+
+const modMap = {};
+MODULES.forEach(m => modMap[m.id] = m);
+
+let activeModule = 'all';
+let openTables = new Set();
+
+function render() {
+  const filtered = activeModule === 'all'
+    ? TABLES
+    : TABLES.filter(t => t.module === activeModule);
+
+  document.getElementById('tablesGrid').innerHTML = filtered.map(t => {
+    const mod = modMap[t.module];
+    const isOpen = openTables.has(t.id);
+    return `
+    <div class="table-card">
+      <div class="table-header" onclick="toggleTable('${t.id}')">
+        <div class="table-header-left">
+          <span class="mod-dot" style="background:${mod.color}"></span>
+          <div>
+            <div class="table-name">${t.name}</div>
+            <div class="table-desc">${t.desc}</div>
+          </div>
+        </div>
+        <span class="row-count">${t.fields.length} cols</span>
+        <i class="ti ti-chevron-down chevron${isOpen?' open':''}" aria-hidden="true"></i>
+      </div>
+      <div class="fields-list${isOpen?' open':''}">
+        ${t.fields.map(f => `
+          <div class="field-row">
+            <span class="field-icon" aria-hidden="true">${fieldIcon(f)}</span>
+            <span class="field-name">${f.name}</span>
+            <span class="field-type">${f.type}</span>
+            ${f.badge ? `<span class="badge badge-${f.badge}">${f.badge.toUpperCase()}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  // stats
+  const total = TABLES.length;
+  const cols = TABLES.reduce((s,t)=>s+t.fields.length,0);
+  const fks = TABLES.reduce((s,t)=>s+t.fields.filter(f=>f.badge==='fk').length,0);
+  document.getElementById('stats').innerHTML = `
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Tables</div></div>
+    <div class="stat-card"><div class="stat-num">${cols}</div><div class="stat-label">Total columns</div></div>
+    <div class="stat-card"><div class="stat-num">${fks}</div><div class="stat-label">Foreign keys</div></div>
+    <div class="stat-card"><div class="stat-num">${MODULES.length}</div><div class="stat-label">Modules</div></div>
+  `;
+
+  // nav
+  const modsUsed = activeModule;
+  document.getElementById('modsNav').innerHTML =
+    `<button class="mod-btn${activeModule==='all'?' active':''}" onclick="setModule('all')">All</button>` +
+    MODULES.map(m => `<button class="mod-btn${activeModule===m.id?' active':''}" onclick="setModule('${m.id}')" style="${activeModule===m.id?`background:${m.color}20;color:${m.color};border-color:${m.color}40`:''}">${m.label}</button>`).join('');
+}
+
+function fieldIcon(f) {
+  if(f.badge==='pk') return '<i class="ti ti-key"></i>';
+  if(f.badge==='fk') return '<i class="ti ti-link"></i>';
+  if(f.type.startsWith('TIMESTAMPTZ')||f.type.startsWith('DATE')||f.type.startsWith('TIME')) return '<i class="ti ti-calendar"></i>';
+  if(f.type.startsWith('BOOLEAN')) return '<i class="ti ti-toggle-left"></i>';
+  if(f.type.startsWith('NUMERIC')||f.type.startsWith('INT')||f.type.startsWith('SMALLINT')) return '<i class="ti ti-hash"></i>';
+  if(f.type.startsWith('ENUM')) return '<i class="ti ti-list"></i>';
+  if(f.type.startsWith('JSONB')||f.type.startsWith('TEXT')) return '<i class="ti ti-align-left"></i>';
+  return '<i class="ti ti-letter-a"></i>';
+}
+
+function toggleTable(id) {
+  if(openTables.has(id)) openTables.delete(id);
+  else openTables.add(id);
+  render();
+}
+function setModule(m) {
+  activeModule = m;
+  openTables.clear();
+  render();
+}
+render();
+</script>
