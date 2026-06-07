@@ -27,13 +27,20 @@ final class OvertimeController
                     return;
                 }
                 Auth::requirePermission($user, 'overtime.apply');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 Response::json(['success' => true, 'data' => $this->service->list($eid)]);
                 return;
             }
 
             if ($method === 'POST' && $seg1 === 'requests') {
-                Auth::requirePermission($user, 'overtime.apply');
+                if (!Auth::hasPermission($user, 'attendance.manage')) {
+                    Response::error(
+                        'Overtime is recorded automatically from your DTR when you work past your shift, 9 hours, or midnight.',
+                        422
+                    );
+                    return;
+                }
                 $body = Request::jsonBody();
                 $body['employee_id'] = $body['employee_id'] ?? $user['employee_id'];
                 if (empty($body['employee_id']) || empty($body['request_date']) || empty($body['extra_hours'])) {
@@ -45,14 +52,10 @@ final class OvertimeController
             }
 
             if ($method === 'PUT' && $seg1 !== null && $seg2 === 'review') {
-                Auth::requirePermission($user, 'attendance.manage');
-                $body = Request::jsonBody();
-                $row = $this->service->review($seg1, (string) ($body['status'] ?? ''), $user['id']);
-                if (!$row) {
-                    Response::error('Request not found or not pending', 404);
-                    return;
-                }
-                Response::json(['success' => true, 'data' => $row]);
+                Response::error(
+                    'Overtime from DTR is approved automatically. Manual review is no longer required.',
+                    410
+                );
                 return;
             }
 

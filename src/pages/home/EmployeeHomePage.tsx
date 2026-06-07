@@ -10,9 +10,10 @@ import {
 } from '../../lib/clock'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
 import { reverseGeocode } from '../../lib/geocode'
-import { getCurrentPosition } from '../../lib/geolocation'
 import { useAuth } from '../../context/AuthContext'
+import { canUseEmployeeFeatures } from '../../lib/accountStatus'
 import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
+import { ClockLocationModal } from '../../components/ClockLocationModal'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import type { AttendanceRecord } from '../../types/hrms'
@@ -60,16 +61,20 @@ export function EmployeeHomePage() {
   const [weekHours, setWeekHours] = useState<HoursSummary | null>(null)
   const [todayShift, setTodayShift] = useState<MyShift | null>(null)
   const [recent, setRecent] = useState<{ date: string; records: AttendanceRecord[] }[]>([])
+  const [weekOtHours, setWeekOtHours] = useState(0)
   const [now, setNow] = useState(new Date())
   const [clockError, setClockError] = useState<string | null>(null)
   const [currentAddress, setCurrentAddress] = useState<string | null>(null)
   const [geofenceRequired, setGeofenceRequired] = useState(false)
+  const [mobileClock, setMobileClock] = useState(false)
+  const [positionLabel, setPositionLabel] = useState<string | null>(null)
   const [shiftCtx, setShiftCtx] = useState<ShiftClockContext | null>(null)
-  const geofence = useClockGeofence(geofenceRequired)
-  const showEndShift = open && !!shiftCtx?.show_end_shift
+  const [locationMapOpen, setLocationMapOpen] = useState(false)
 
   const name = user?.employee?.first_name ?? 'there'
-  const canClock = Boolean(user?.employee_id)
+  const canClock = canUseEmployeeFeatures(user) && Boolean(user?.employee_id)
+  const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
+  const showEndShift = open && !!shiftCtx?.show_end_shift
   const today = new Date().toISOString().slice(0, 10)
 
   const refresh = async () => {
@@ -86,11 +91,19 @@ export function EmployeeHomePage() {
     setOpen(status.open)
     setOnBreak(!!status.on_break)
     setGeofenceRequired(!!status.geofence_required)
+    setMobileClock(!!status.mobile_clock)
+    setPositionLabel(status.position_label ?? null)
     setShiftCtx(status.shift ?? null)
     setWeekHours(summary)
     const shiftToday = shifts.find((s) => s.shift_date === today) ?? null
     setTodayShift(shiftToday)
-    setRecent(dayLists.filter((d) => d.records.length > 0))
+    const withRecords = dayLists.filter((d) => d.records.length > 0)
+    setRecent(withRecords)
+    setWeekOtHours(
+      withRecords
+        .flatMap((d) => d.records)
+        .reduce((sum, r) => sum + (r.overtime_hours != null ? Number(r.overtime_hours) : 0), 0)
+    )
   }
 
   useEffect(() => {
@@ -99,33 +112,34 @@ export function EmployeeHomePage() {
     return () => clearInterval(t)
   }, [])
 
-  useVicinityMonitor({
+  const vicinity = useVicinityMonitor({
     enabled: open && canClock,
     geofenceRequired,
     onAutoClockOut: () => {
       refresh()
     },
+    onLocationPing: (coords) => {
+      void geofence.updateFromCoords(coords)
+    },
   })
 
   useEffect(() => {
-    if (!canClock) return
-    getCurrentPosition().then(async (coords) => {
-      if (!coords) return
-      try {
-        const geo = await reverseGeocode(coords.latitude, coords.longitude)
-        setCurrentAddress(geo.short)
-      } catch {
-        setCurrentAddress(null)
-      }
-    })
-  }, [canClock])
+    const coords = geofence.lastCoords
+    if (!coords) {
+      setCurrentAddress(null)
+      return
+    }
+    reverseGeocode(coords.latitude, coords.longitude)
+      .then((geo) => setCurrentAddress(geo.short))
+      .catch(() => setCurrentAddress(null))
+  }, [geofence.lastCoords])
 
   const handleClockIn = async () => {
     if (!canClock) return
     setBusy(true)
     setClockError(null)
     try {
-      await doClockIn()
+      await doClockIn(geofenceRequired)
       await geofence.refresh()
       await refresh()
     } catch (err) {
@@ -206,16 +220,31 @@ export function EmployeeHomePage() {
           </p>
         )}
         <ClockGeofenceBanner
-          required={geofenceRequired && !open}
+          required={geofenceRequired}
+          mobileClock={mobileClock}
+          positionLabel={positionLabel}
+          sessionActive={open}
           loading={geofence.loading}
           inside={geofence.inside}
           siteName={geofence.siteName}
           locationDenied={geofence.locationDenied}
+          locationError={geofence.locationError}
+          checkedOnce={geofence.checkedOnce}
+          nearestSiteName={geofence.nearestSiteName}
+          nearestDistanceM={geofence.nearestDistanceM}
+          vicinity={vicinity}
+          onRequestLocation={() => {
+            setClockError(null)
+            void geofence.requestLocation()
+          }}
+          requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
         {open && geofenceRequired && (
           <p className="muted-block clock-policy-note">
-            Auto clock-out outside the zone only after 9 hours from shift start or past midnight.
+            Clock in inside the work zone. Early clock-in does not shorten your shift — you still finish at scheduled end.
+            Overtime is auto-recorded when you work past shift end, 9 hours, or midnight. After midnight, leaving the
+            zone for 5 minutes clocks you out automatically.
           </p>
         )}
         {clockError && <p className="error-msg">{clockError}</p>}
@@ -256,13 +285,34 @@ export function EmployeeHomePage() {
             </>
           )}
         </div>
+        {canClock && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm clock-location-trigger"
+            onClick={() => setLocationMapOpen(true)}
+          >
+            ⊕ View live GPS map
+          </button>
+        )}
         {weekHours && (
           <p className="clock-week-total">
             Total this week: <strong>{weekHours.total_hours.toFixed(1)} hrs</strong>
+            {weekOtHours > 0 && (
+              <span className="muted-inline">
+                {' '}
+                · OT <strong>{weekOtHours.toFixed(2)} hrs</strong>
+              </span>
+            )}
             <span className="muted-inline"> · {weekHours.shift_count} entries</span>
           </p>
         )}
       </section>
+
+      <ClockLocationModal
+        open={locationMapOpen}
+        onClose={() => setLocationMapOpen(false)}
+        geofenceRequired={geofenceRequired}
+      />
 
       <section className="card home-section">
         <div className="home-section-head">
@@ -318,6 +368,9 @@ export function EmployeeHomePage() {
                   </div>
                   <div className="dtr-row-hours">
                     {r.actual_hours != null ? `${Number(r.actual_hours).toFixed(1)}h` : open && !r.clock_out ? '…' : '—'}
+                    {r.overtime_hours != null && Number(r.overtime_hours) > 0 && (
+                      <span className="dtr-row-ot">OT {Number(r.overtime_hours).toFixed(2)}h</span>
+                    )}
                   </div>
                 </li>
               ))

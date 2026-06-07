@@ -28,3 +28,5 @@ dist-ssr
 # Uploaded documents (keep folder only)
 api/uploads/documents/*
 !api/uploads/documents/.gitkeep
+api/uploads/photos/*
+!api/uploads/photos/.gitkeep

@@ -14,7 +14,7 @@ final class Auth
     {
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
-            'SELECT u.id, u.email, u.password_hash, u.role_id, u.employee_id, u.is_active,
+            'SELECT u.id, u.email, u.password_hash, u.role_id, u.employee_id, u.is_active, u.account_status,
                     r.role_slug, r.role_name, r.role_type
              FROM users u
              INNER JOIN roles r ON r.role_id = u.role_id
@@ -22,7 +22,18 @@ final class Auth
         );
         $stmt->execute(['email' => $email]);
         $row = $stmt->fetch();
-        if (!$row || !(bool) $row['is_active'] || !self::verifyPassword($password, $row['password_hash'])) {
+        if (!$row || !self::verifyPassword($password, $row['password_hash'])) {
+            return null;
+        }
+
+        $accountStatus = (string) ($row['account_status'] ?? 'active');
+        if ($accountStatus === 'awaiting_hr') {
+            throw new \RuntimeException('Your registration is pending HR review. You will receive an email when you can sign in.');
+        }
+        if ($accountStatus === 'rejected') {
+            throw new \RuntimeException('Your registration was not approved. Contact HR if you have questions.');
+        }
+        if (!(bool) $row['is_active'] || !in_array($accountStatus, ['pending', 'active'], true)) {
             return null;
         }
 
@@ -57,12 +68,13 @@ final class Auth
         $hash = hash('sha256', $token);
         $pdo = Database::connection();
         $stmt = $pdo->prepare(
-            'SELECT u.id, u.email, u.role_id, u.employee_id, u.is_active,
+            'SELECT u.id, u.email, u.role_id, u.employee_id, u.is_active, u.account_status,
                     r.role_slug, r.role_name, r.role_type, s.expires_at
              FROM user_sessions s
              INNER JOIN users u ON u.id = s.user_id
              INNER JOIN roles r ON r.role_id = u.role_id
              WHERE s.token_hash = :hash AND s.expires_at > NOW() AND u.is_active = 1
+               AND u.account_status IN (\'pending\', \'active\')
              LIMIT 1'
         );
         $stmt->execute(['hash' => $hash]);
@@ -99,6 +111,25 @@ final class Auth
     {
         if (!self::hasPermission($user, $key)) {
             Response::error('Forbidden', 403);
+            exit;
+        }
+    }
+
+    /** Employee self-service (clock in, schedules, loans) requires HR activation. */
+    public static function requireActiveEmployeeAccount(array $user): void
+    {
+        if (($user['role_slug'] ?? '') !== 'employee') {
+            return;
+        }
+        if (($user['account_status'] ?? 'active') !== 'active') {
+            Response::error(
+                'Your account must be activated by HR before using time clock, schedules, and payroll features.',
+                403
+            );
+            exit;
+        }
+        if (empty($user['employee_id'])) {
+            Response::error('No employee record linked to your account.', 422);
             exit;
         }
     }

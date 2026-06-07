@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { ApiError } from '../../lib/api'
 
@@ -82,7 +82,10 @@ export function LoginPage() {
           </button>
         ))}
       </div>
-      <p className="login-hint">Dev password: dsadsadsa</p>
+      <p className="login-hint">
+        New employee? <Link to="/register">Register here</Link>
+        {' · '}Dev password: dsadsadsa
+      </p>
     </div>
   )
 }

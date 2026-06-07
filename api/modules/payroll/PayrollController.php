@@ -105,6 +105,7 @@ final class PayrollController
 
             if ($method === 'GET' && $id === 'my-payslips') {
                 Auth::requirePermission($user, 'payroll.view.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);

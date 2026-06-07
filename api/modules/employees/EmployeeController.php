@@ -13,12 +13,24 @@ final class EmployeeController
 {
     public function __construct(private readonly EmployeeService $service = new EmployeeService()) {}
 
-    public function handle(string $method, ?string $id): void
+    public function handle(string $method, ?string $seg1, ?string $seg2): void
     {
         try {
             $user = Auth::requireUser();
 
-            if ($method === 'GET' && $id === 'me') {
+            if ($method === 'POST' && $seg1 === 'me' && $seg2 === 'photo') {
+                Auth::requirePermission($user, 'profile.edit.self');
+                $eid = $user['employee_id'] ?? null;
+                if (!$eid) {
+                    Response::error('No employee profile linked', 404);
+                    return;
+                }
+                $row = $this->service->uploadPhoto($eid, $_FILES['photo'] ?? []);
+                Response::json(['success' => true, 'data' => $row]);
+                return;
+            }
+
+            if ($method === 'GET' && $seg1 === 'me') {
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee profile linked', 404);
@@ -33,7 +45,7 @@ final class EmployeeController
                 return;
             }
 
-            if ($method === 'PUT' && $id === 'me') {
+            if ($method === 'PUT' && $seg1 === 'me') {
                 Auth::requirePermission($user, 'profile.edit.self');
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
@@ -45,7 +57,7 @@ final class EmployeeController
                 return;
             }
 
-            if ($method === 'GET' && $id === null) {
+            if ($method === 'GET' && $seg1 === null) {
                 Auth::requirePermission($user, 'employees.view');
                 Response::json([
                     'success' => true,
@@ -57,9 +69,9 @@ final class EmployeeController
                 return;
             }
 
-            if ($method === 'GET' && $id !== null) {
+            if ($method === 'GET' && $seg1 !== null) {
                 Auth::requirePermission($user, 'employees.view');
-                $row = $this->service->get($id);
+                $row = $this->service->get($seg1);
                 if (!$row) {
                     Response::error('Employee not found', 404);
                     return;
@@ -68,31 +80,44 @@ final class EmployeeController
                 return;
             }
 
-            if ($method === 'POST' && $id === null) {
+            if ($method === 'POST' && $seg1 === null) {
                 Auth::requirePermission($user, 'employees.manage');
                 $body = Request::jsonBody();
                 if (empty($body['branch_id']) || empty($body['emp_number']) || empty($body['first_name']) || empty($body['last_name'])) {
                     Response::error('branch_id, emp_number, first_name, last_name required', 422);
                     return;
                 }
+                $this->service->validatePositionForBranch(
+                    (string) $body['branch_id'],
+                    $body['department_id'] ?? null,
+                    $body['position_id'] ?? null
+                );
                 Response::json(['success' => true, 'data' => $this->service->create($body)], 201);
                 return;
             }
 
-            if ($method === 'PUT' && $id !== null) {
+            if ($method === 'PUT' && $seg1 !== null && $seg1 !== 'me') {
                 Auth::requirePermission($user, 'employees.manage');
-                $row = $this->service->update($id, Request::jsonBody());
-                if (!$row) {
+                $body = Request::jsonBody();
+                $existing = $this->service->get($seg1);
+                if (!$existing) {
                     Response::error('Employee not found', 404);
                     return;
                 }
+                $branchId = (string) ($body['branch_id'] ?? $existing['branch_id']);
+                $this->service->validatePositionForBranch(
+                    $branchId,
+                    $body['department_id'] ?? $existing['department_id'] ?? null,
+                    $body['position_id'] ?? $existing['position_id'] ?? null
+                );
+                $row = $this->service->update($seg1, $body);
                 Response::json(['success' => true, 'data' => $row]);
                 return;
             }
 
-            if ($method === 'DELETE' && $id !== null) {
+            if ($method === 'DELETE' && $seg1 !== null) {
                 Auth::requirePermission($user, 'employees.manage');
-                $this->service->delete($id);
+                $this->service->delete($seg1);
                 Response::json(['success' => true]);
                 return;
             }

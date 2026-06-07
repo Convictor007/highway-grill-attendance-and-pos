@@ -33,14 +33,3 @@ SELECT UUID(), @branch_id, 'Highway Grill — Main', 'Restaurant branch', 14.554
 FROM DUAL
 WHERE @branch_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM field_work_sites WHERE name = 'Highway Grill — Main');
-
-INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active)
-SELECT UUID(), @branch_id, 'Supplier pickup', 'Market / supplier run', 14.599500, 120.984200, 250, 1
-FROM DUAL
-WHERE @branch_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM field_work_sites WHERE name = 'Supplier pickup');
-
-INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active)
-SELECT UUID(), NULL, 'Catering / event', 'Off-site catering', 14.676000, 121.043700, 300, 1
-FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM field_work_sites WHERE name = 'Catering / event');

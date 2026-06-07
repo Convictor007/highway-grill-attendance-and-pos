@@ -58,9 +58,11 @@ export function DtrPage() {
   const [open, setOpen] = useState(false)
   const [onBreak, setOnBreak] = useState(false)
   const [geofenceRequired, setGeofenceRequired] = useState(false)
+  const [mobileClock, setMobileClock] = useState(false)
+  const [positionLabel, setPositionLabel] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [shiftCtx, setShiftCtx] = useState<ShiftClockContext | null>(null)
-  const geofence = useClockGeofence(geofenceRequired)
+  const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
   const showEndShift = open && !!shiftCtx?.show_end_shift
 
   const load = async () => {
@@ -70,9 +72,14 @@ export function DtrPage() {
       monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
       const dates = rangeDays(new Date(), 14)
       const [status, weekSum, ...lists] = await Promise.all([
-        api<{ open: boolean; on_break?: boolean; geofence_required?: boolean; shift?: ShiftClockContext | null }>(
-          '/attendance/status'
-        ),
+        api<{
+          open: boolean
+          on_break?: boolean
+          geofence_required?: boolean
+          mobile_clock?: boolean
+          position_label?: string | null
+          shift?: ShiftClockContext | null
+        }>('/attendance/status'),
         api<HoursSummary>('/attendance/summary'),
         ...dates.map((date) =>
           api<AttendanceRecord[]>(`/attendance?date=${date}`).then((records) => ({ date, records }))
@@ -81,6 +88,8 @@ export function DtrPage() {
       setOpen(status.open)
       setOnBreak(!!status.on_break)
       setGeofenceRequired(!!status.geofence_required)
+      setMobileClock(!!status.mobile_clock)
+      setPositionLabel(status.position_label ?? null)
       setShiftCtx(status.shift ?? null)
       setSummary(weekSum)
       setRows(lists.filter((x) => x.records.length > 0))
@@ -93,11 +102,14 @@ export function DtrPage() {
     load()
   }, [])
 
-  useVicinityMonitor({
+  const vicinity = useVicinityMonitor({
     enabled: open && canClock,
     geofenceRequired,
     onAutoClockOut: () => {
       load()
+    },
+    onLocationPing: (coords) => {
+      void geofence.updateFromCoords(coords)
     },
   })
 
@@ -106,7 +118,7 @@ export function DtrPage() {
     setBusy(true)
     setClockError(null)
     try {
-      await doClockIn()
+      await doClockIn(geofenceRequired)
       await geofence.refresh()
       await load()
     } catch (err) {
@@ -212,16 +224,29 @@ export function DtrPage() {
           )}
         </div>
         <ClockGeofenceBanner
-          required={geofenceRequired && !open}
+          required={geofenceRequired}
+          mobileClock={mobileClock}
+          positionLabel={positionLabel}
+          sessionActive={open}
           loading={geofence.loading}
           inside={geofence.inside}
           siteName={geofence.siteName}
           locationDenied={geofence.locationDenied}
+          locationError={geofence.locationError}
+          checkedOnce={geofence.checkedOnce}
+          nearestSiteName={geofence.nearestSiteName}
+          nearestDistanceM={geofence.nearestDistanceM}
+          vicinity={vicinity}
+          onRequestLocation={() => {
+            setClockError(null)
+            void geofence.requestLocation()
+          }}
+          requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
         {open && geofenceRequired && (
           <p className="muted-block clock-policy-note" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-            Auto clock-out outside the zone only after 9 hours from shift start or past midnight.
+            Overtime is auto-detected on clock-out. After midnight, leaving the work zone for 5 minutes clocks you out.
           </p>
         )}
         {clockError && <p className="error-msg" style={{ marginTop: '0.5rem' }}>{clockError}</p>}

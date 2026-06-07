@@ -9,6 +9,7 @@ use Hg\Api\Modules\Attendance\AttendanceAutoService;
 use Hg\Api\Core\Auth;
 use Hg\Api\Core\Request;
 use Hg\Api\Core\Response;
+use InvalidArgumentException;
 use Throwable;
 
 final class AttendanceController
@@ -31,6 +32,7 @@ final class AttendanceController
                     return;
                 }
                 if (Auth::hasPermission($user, 'attendance.self') && !empty($user['employee_id'])) {
+                    Auth::requireActiveEmployeeAccount($user);
                     Response::json([
                         'success' => true,
                         'data' => $this->service->list($date, null, $user['employee_id']),
@@ -69,6 +71,7 @@ final class AttendanceController
 
             if ($method === 'GET' && $action === 'summary') {
                 Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);
@@ -85,6 +88,7 @@ final class AttendanceController
 
             if ($method === 'GET' && $action === 'status') {
                 Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $employeeId = $user['employee_id'] ?? null;
                 if (!$employeeId) {
                     Response::json(['success' => true, 'data' => ['open' => false]]);
@@ -101,6 +105,8 @@ final class AttendanceController
                         'on_break' => $onBreak,
                         'session' => $open,
                         'geofence_required' => $policy['geofence_required'],
+                        'mobile_clock' => $policy['mobile_clock'] ?? false,
+                        'position_label' => $policy['position_label'] ?? null,
                         'shift' => $open ? $auto->shiftContextForEmployee($employeeId) : null,
                     ],
                 ]);
@@ -109,6 +115,7 @@ final class AttendanceController
 
             if ($method === 'POST' && $action === 'break-start') {
                 Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);
@@ -120,6 +127,7 @@ final class AttendanceController
 
             if ($method === 'POST' && $action === 'break-end') {
                 Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);
@@ -142,6 +150,7 @@ final class AttendanceController
 
             if ($method === 'POST' && $action === 'clock-in') {
                 Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $body = Request::jsonBody();
                 $employeeId = $user['employee_id'] ?? $body['employee_id'] ?? null;
                 if (!$employeeId) {
@@ -149,16 +158,25 @@ final class AttendanceController
                     return;
                 }
                 $coords = self::optionalCoords($body);
+                $accuracy = self::optionalAccuracy($body);
                 $address = isset($body['address']) ? trim((string) $body['address']) : null;
                 Response::json([
                     'success' => true,
-                    'data' => $this->service->clockIn($employeeId, 'app', $coords[0], $coords[1], $address ?: null),
+                    'data' => $this->service->clockIn(
+                        $employeeId,
+                        'app',
+                        $coords[0],
+                        $coords[1],
+                        $address ?: null,
+                        $accuracy
+                    ),
                 ]);
                 return;
             }
 
             if ($method === 'POST' && $action === 'clock-out') {
                 Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $body = Request::jsonBody();
                 $employeeId = $user['employee_id'] ?? $body['employee_id'] ?? null;
                 if (!$employeeId) {
@@ -176,6 +194,7 @@ final class AttendanceController
 
             if ($method === 'POST' && $action === 'vicinity-ping') {
                 Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $employeeId = $user['employee_id'] ?? null;
                 if (!$employeeId) {
                     Response::error('No employee linked', 422);
@@ -187,10 +206,11 @@ final class AttendanceController
                     Response::error('latitude and longitude required', 422);
                     return;
                 }
+                $accuracy = self::optionalAccuracy($body);
                 $auto = new AttendanceAutoService();
                 Response::json([
                     'success' => true,
-                    'data' => $auto->vicinityPing($employeeId, $coords[0], $coords[1]),
+                    'data' => $auto->vicinityPing($employeeId, $coords[0], $coords[1], $accuracy),
                 ]);
                 return;
             }
@@ -221,6 +241,8 @@ final class AttendanceController
             }
 
             Response::error('Not found', 404);
+        } catch (InvalidArgumentException $e) {
+            Response::error($e->getMessage(), 422);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
         }
@@ -238,5 +260,22 @@ final class AttendanceController
             throw new \InvalidArgumentException('Invalid coordinates');
         }
         return [$lat, $lng];
+    }
+
+    private static function optionalAccuracy(array $body): ?float
+    {
+        if (!isset($body['accuracy_m']) && !isset($body['accuracy'])) {
+            return null;
+        }
+        $raw = $body['accuracy_m'] ?? $body['accuracy'];
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $accuracy = (float) $raw;
+        if ($accuracy <= 0 || $accuracy > 500) {
+            return null;
+        }
+
+        return $accuracy;
     }
 }

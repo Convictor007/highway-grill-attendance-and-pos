@@ -13,6 +13,10 @@ use Throwable;
 
 final class AuthController
 {
+    public function __construct(
+        private readonly RegistrationService $registration = new RegistrationService()
+    ) {}
+
     public function handle(string $method, ?string $action): void
     {
         try {
@@ -24,7 +28,12 @@ final class AuthController
                     Response::error('Email and password required', 422);
                     return;
                 }
-                $result = Auth::login($email, $password);
+                try {
+                    $result = Auth::login($email, $password);
+                } catch (\RuntimeException $e) {
+                    Response::error($e->getMessage(), 403);
+                    return;
+                }
                 if ($result === null) {
                     Response::error('Invalid credentials', 401);
                     return;
@@ -33,6 +42,20 @@ final class AuthController
                 $result['user'] = $this->enrichUser($result['user']);
                 AuditLog::write($result['user']['id'], 'login', 'users', $result['user']['id']);
                 Response::json(['success' => true, 'data' => $result]);
+                return;
+            }
+
+            if ($method === 'POST' && $action === 'register') {
+                $data = $this->registration->register(Request::jsonBody());
+                Response::json(['success' => true, 'data' => $data], 201);
+                return;
+            }
+
+            if ($method === 'GET' && $action === 'register-options') {
+                Response::json([
+                    'success' => true,
+                    'data' => $this->registration->registerOptions(Request::query('branch_id')),
+                ]);
                 return;
             }
 
@@ -65,7 +88,8 @@ final class AuthController
             return $user;
         }
         $stmt = Database::connection()->prepare(
-            'SELECT id, emp_number, first_name, last_name, branch_id, department_id, status
+            'SELECT id, emp_number, first_name, last_name, branch_id, department_id, position_id, status,
+                    photo_url, gender, date_of_birth
              FROM employees WHERE id = :id LIMIT 1'
         );
         $stmt->execute(['id' => $user['employee_id']]);

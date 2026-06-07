@@ -70,9 +70,6 @@ final class DashboardService
         $stmt->execute($hrsParams);
         $monthHours = round((float) $stmt->fetchColumn(), 1);
 
-        $pendingOtSql = "SELECT COUNT(*) FROM overtime_requests WHERE status = 'pending'";
-        $pendingOt = (int) $pdo->query($pendingOtSql)->fetchColumn();
-
         $pendingLoansSql = "SELECT COUNT(*) FROM employee_loans WHERE status = 'pending'";
         $pendingLoans = 0;
         try {
@@ -89,7 +86,6 @@ final class DashboardService
             'pending_leave' => $pendingLeave,
             'draft_payroll_runs' => $draftPayroll,
             'month_hours' => $monthHours,
-            'pending_overtime' => $pendingOt,
             'pending_loans' => $pendingLoans,
             'attendance_rate_today' => $activeEmployees > 0
                 ? round(($presentToday / $activeEmployees) * 100, 1)

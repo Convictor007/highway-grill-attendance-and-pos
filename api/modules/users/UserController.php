@@ -13,29 +13,63 @@ final class UserController
 {
     public function __construct(private readonly UserService $service = new UserService()) {}
 
-    public function handle(string $method, ?string $id): void
+    public function handle(string $method, ?string $seg1, ?string $seg2): void
     {
         try {
             $user = Auth::requireUser();
             Auth::requirePermission($user, 'users.manage');
 
-            if ($method === 'GET' && $id === null) {
+            if ($method === 'GET' && $seg1 === 'pending') {
+                Response::json(['success' => true, 'data' => $this->service->listPendingRegistrations()]);
+                return;
+            }
+
+            if ($method === 'POST' && $seg1 !== null && $seg2 === 'approve') {
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->approveRegistration($seg1, $user['id']),
+                ]);
+                return;
+            }
+
+            if ($method === 'POST' && $seg1 !== null && $seg2 === 'activate') {
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->activateEmployee($seg1, $user['id']),
+                ]);
+                return;
+            }
+
+            if ($method === 'POST' && $seg1 !== null && $seg2 === 'reject') {
+                $body = Request::jsonBody();
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->rejectRegistration(
+                        $seg1,
+                        $user['id'],
+                        isset($body['reason']) ? trim((string) $body['reason']) : null
+                    ),
+                ]);
+                return;
+            }
+
+            if ($method === 'GET' && $seg1 === null) {
                 Response::json(['success' => true, 'data' => $this->service->list()]);
                 return;
             }
 
-            if ($method === 'GET' && $id !== null) {
-                Response::json(['success' => true, 'data' => $this->service->get($id)]);
+            if ($method === 'GET' && $seg1 !== null) {
+                Response::json(['success' => true, 'data' => $this->service->get($seg1)]);
                 return;
             }
 
-            if ($method === 'POST' && $id === null) {
+            if ($method === 'POST' && $seg1 === null) {
                 Response::json(['success' => true, 'data' => $this->service->create(Request::jsonBody())], 201);
                 return;
             }
 
-            if ($method === 'PUT' && $id !== null) {
-                Response::json(['success' => true, 'data' => $this->service->update($id, Request::jsonBody())]);
+            if ($method === 'PUT' && $seg1 !== null) {
+                Response::json(['success' => true, 'data' => $this->service->update($seg1, Request::jsonBody())]);
                 return;
             }
 

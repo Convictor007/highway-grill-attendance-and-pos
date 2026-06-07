@@ -51,6 +51,7 @@ final class LeaveController
                 Auth::requirePermission($user, 'leave.view');
                 $eid = Request::query('employee_id');
                 if (!$eid && !Auth::hasPermission($user, 'leave.approve')) {
+                    Auth::requireActiveEmployeeAccount($user);
                     $eid = $user['employee_id'] ?? null;
                 }
                 $year = Request::query('year') ? (int) Request::query('year') : null;
@@ -70,6 +71,7 @@ final class LeaveController
 
             if ($method === 'POST' && $id === 'requests') {
                 Auth::requirePermission($user, 'leave.apply');
+                Auth::requireActiveEmployeeAccount($user);
                 $body = Request::jsonBody();
                 $body['employee_id'] = $body['employee_id'] ?? $user['employee_id'];
                 if (empty($body['employee_id']) || empty($body['leave_type_id']) || empty($body['start_date']) || empty($body['end_date'])) {

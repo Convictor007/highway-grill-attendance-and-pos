@@ -4,12 +4,29 @@ import { PageHeader } from '../../components/PageHeader'
 import { RolePermissionsModal } from '../../components/RolePermissionsModal'
 import type { AppUser, Employee, Role } from '../../types/hrms'
 
+function statusLabel(status?: string): string {
+  switch (status) {
+    case 'awaiting_hr':
+      return 'Awaiting HR'
+    case 'pending':
+      return 'Pending (can sign in)'
+    case 'active':
+      return 'Active'
+    case 'rejected':
+      return 'Rejected'
+    default:
+      return status ?? '—'
+  }
+}
+
 export function UsersPage() {
   const [users, setUsers] = useState<AppUser[]>([])
+  const [pending, setPending] = useState<AppUser[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const [form, setForm] = useState({
     email: '',
     password: 'dsadsadsa',
@@ -25,12 +42,14 @@ export function UsersPage() {
   const [permissionsRole, setPermissionsRole] = useState<Role | null>(null)
 
   const load = async () => {
-    const [u, e, r] = await Promise.all([
+    const [u, p, e, r] = await Promise.all([
       api<AppUser[]>('/users'),
+      api<AppUser[]>('/users/pending'),
       api<Employee[]>('/employees'),
       api<Role[]>('/roles'),
     ])
     setUsers(u)
+    setPending(p)
     setEmployees(e.filter((x) => x.status === 'active'))
     setRoles(r)
     if (r[0] && !form.role_id) setForm((f) => ({ ...f, role_id: r[0].role_id }))
@@ -47,6 +66,7 @@ export function UsersPage() {
       body: JSON.stringify({
         ...form,
         employee_id: form.employee_id || null,
+        account_status: 'active',
       }),
     })
     setShowForm(false)
@@ -77,20 +97,118 @@ export function UsersPage() {
     load()
   }
 
+  const runAction = async (id: string, action: 'approve' | 'activate' | 'reject') => {
+    setBusyId(id)
+    try {
+      if (action === 'reject') {
+        const reason = window.prompt('Rejection reason (optional):') ?? undefined
+        await api(`/users/${id}/reject`, {
+          method: 'POST',
+          body: JSON.stringify(reason ? { reason } : {}),
+        })
+      } else {
+        await api(`/users/${id}/${action}`, { method: 'POST' })
+      }
+      await load()
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div>
       <PageHeader
         title="User accounts"
-        subtitle="Logins must be linked to an employee for clock in/out to work"
+        subtitle="Employees self-register; HR approves then activates for time clock and schedules"
         actions={
           <button type="button" className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : 'Add login'}
+            {showForm ? 'Cancel' : 'Add staff login'}
           </button>
         }
       />
 
+      {pending.length > 0 && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <h3 className="section-title">Pending registrations</h3>
+          <p className="muted-block" style={{ marginBottom: '1rem' }}>
+            <strong>Approve</strong> lets the applicant sign in (pending). <strong>Activate</strong> enables time in/out,
+            schedules, loans, and payroll. You can approve and activate in one step by clicking Activate on a new applicant.
+          </p>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Emp #</th>
+                  <th>Position</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map((u) => (
+                  <tr key={u.id}>
+                    <td>{u.first_name} {u.last_name}</td>
+                    <td>{u.email}</td>
+                    <td>{u.emp_number ?? '—'}</td>
+                    <td>{u.position_title ?? '—'}</td>
+                    <td>{statusLabel(u.account_status)}</td>
+                    <td>
+                      <div className="quick-actions" style={{ margin: 0 }}>
+                        {u.account_status === 'awaiting_hr' && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              disabled={busyId === u.id}
+                              onClick={() => runAction(u.id, 'approve')}
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              disabled={busyId === u.id}
+                              onClick={() => runAction(u.id, 'activate')}
+                            >
+                              Approve & activate
+                            </button>
+                          </>
+                        )}
+                        {u.account_status === 'pending' && (
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            disabled={busyId === u.id}
+                            onClick={() => runAction(u.id, 'activate')}
+                          >
+                            Activate
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          disabled={busyId === u.id}
+                          onClick={() => runAction(u.id, 'reject')}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <form className="card" style={{ marginBottom: '1.5rem' }} onSubmit={onCreate}>
+          <p className="muted-block" style={{ marginBottom: '1rem' }}>
+            Use this only for admin/HR logins. Restaurant employees should use <strong>Register</strong> on the login page.
+          </p>
           <div className="form-row">
             <div className="form-group">
               <label>Email (login)</label>
@@ -111,7 +229,7 @@ export function UsersPage() {
               </select>
             </div>
             <div className="form-group">
-              <label>Link to employee (required for time clock)</label>
+              <label>Link to employee</label>
               <select value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
                 <option value="">— None —</option>
                 {employees.map((emp) => (
@@ -128,9 +246,6 @@ export function UsersPage() {
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3 className="section-title">Roles & permissions</h3>
-        <p className="muted-block" style={{ marginBottom: '0.75rem' }}>
-          View what each role can access before assigning it to a user.
-        </p>
         <div className="role-permissions-actions">
           {roles.map((r) => (
             <button
@@ -152,7 +267,7 @@ export function UsersPage() {
               <th>Email</th>
               <th>Role</th>
               <th>Employee</th>
-              <th>Active</th>
+              <th>Account</th>
               <th></th>
             </tr>
           </thead>
@@ -193,19 +308,7 @@ export function UsersPage() {
                     <span className="error-msg" style={{ margin: 0 }}>Not linked</span>
                   )}
                 </td>
-                <td>
-                  {editingId === u.id ? (
-                    <select
-                      value={editForm.is_active ? '1' : '0'}
-                      onChange={(e) => setEditForm((f) => ({ ...f, is_active: e.target.value === '1' }))}
-                    >
-                      <option value="1">Yes</option>
-                      <option value="0">No</option>
-                    </select>
-                  ) : (
-                    u.is_active ? 'Yes' : 'No'
-                  )}
-                </td>
+                <td>{statusLabel(u.account_status)}</td>
                 <td>
                   {editingId === u.id ? (
                     <div className="quick-actions" style={{ margin: 0 }}>

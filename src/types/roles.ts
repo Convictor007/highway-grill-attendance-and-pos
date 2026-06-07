@@ -6,6 +6,8 @@ export const RoleSlug = {
 
 export type RoleSlug = (typeof RoleSlug)[keyof typeof RoleSlug]
 
+export type AccountStatus = 'awaiting_hr' | 'pending' | 'active' | 'rejected'
+
 export interface AuthUser {
   id: string
   email: string
@@ -13,6 +15,8 @@ export interface AuthUser {
   role_slug: RoleSlug
   role_name: string
   employee_id: string | null
+  account_status?: AccountStatus
+  is_active?: number
   permissions: string[]
   employee?: {
     id: string
@@ -20,6 +24,11 @@ export interface AuthUser {
     first_name: string
     last_name: string
     branch_id: string
+    department_id?: string | null
+    position_id?: string | null
     status: string
+    photo_url?: string | null
+    gender?: string | null
+    date_of_birth?: string | null
   } | null
 }

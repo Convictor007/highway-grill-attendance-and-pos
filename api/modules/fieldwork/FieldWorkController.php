@@ -29,9 +29,18 @@ final class FieldWorkController
                     return;
                 }
                 $branchId = $this->resolveBranchId($user, Request::query('branch_id'));
+                $clockInOnly = Request::query('clock_in_only') === '1';
+                $accuracy = Request::query('accuracy_m') ?? Request::query('accuracy');
+                $accuracyM = $accuracy !== null && $accuracy !== '' ? (float) $accuracy : null;
                 Response::json([
                     'success' => true,
-                    'data' => $this->service->zoneStatus((float) $lat, (float) $lng, $branchId),
+                    'data' => $this->service->zoneStatus(
+                        (float) $lat,
+                        (float) $lng,
+                        $branchId,
+                        $clockInOnly,
+                        $accuracyM
+                    ),
                 ]);
                 return;
             }
@@ -42,7 +51,11 @@ final class FieldWorkController
                     Response::error('Forbidden', 403);
                     return;
                 }
-                Response::json(['success' => true, 'data' => $this->service->listSites($branchId)]);
+                // HR/admin GIS page needs every active zone; employees only see branch clock-in zones.
+                $sites = Auth::hasPermission($user, 'attendance.view')
+                    ? $this->service->listSites($branchId)
+                    : $this->service->listClockInSites($branchId);
+                Response::json(['success' => true, 'data' => $sites]);
                 return;
             }
 
@@ -90,32 +103,10 @@ final class FieldWorkController
             }
 
             if ($method === 'POST' && $action === 'checkin') {
-                Auth::requirePermission($user, 'attendance.self');
-                $employeeId = $user['employee_id'] ?? null;
-                if (!$employeeId) {
-                    Response::error('No employee linked', 422);
-                    return;
-                }
-                $body = Request::jsonBody();
-                $lat = isset($body['latitude']) ? (float) $body['latitude'] : null;
-                $lng = isset($body['longitude']) ? (float) $body['longitude'] : null;
-                if ($lat === null || $lng === null) {
-                    Response::error('latitude and longitude are required', 422);
-                    return;
-                }
-                if ($lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
-                    Response::error('Invalid coordinates', 422);
-                    return;
-                }
-                $row = $this->service->checkIn(
-                    $employeeId,
-                    $lat,
-                    $lng,
-                    isset($body['site_id']) ? (string) $body['site_id'] : null,
-                    isset($body['notes']) ? (string) $body['notes'] : null,
-                    isset($body['address']) ? trim((string) $body['address']) : null
+                Response::error(
+                    'Off-site check-in is not available. Restaurant staff must clock in at the branch.',
+                    422
                 );
-                Response::json(['success' => true, 'data' => $row], 201);
                 return;
             }
 

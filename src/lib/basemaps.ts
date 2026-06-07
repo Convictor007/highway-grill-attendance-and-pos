@@ -128,10 +128,10 @@ export function createBasemapLayer(id: BasemapId): L.TileLayer {
 }
 
 export function defaultBasemapFromLight(light?: boolean): BasemapId {
-  if (isMapboxEnabled()) {
-    return 'satellite'
+  if (light) {
+    return 'light'
   }
-  return light ? 'light' : 'streets'
+  return 'streets'
 }
 
 export function getDefaultBasemapId(): BasemapId {

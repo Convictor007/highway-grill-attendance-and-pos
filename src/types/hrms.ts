@@ -1,3 +1,5 @@
+export type Gender = 'male' | 'female' | 'other' | 'prefer_not'
+
 export interface Employee {
   id: string
   branch_id: string
@@ -9,6 +11,11 @@ export interface Employee {
   email: string | null
   phone: string | null
   address?: string | null
+  date_of_birth?: string | null
+  gender?: Gender | null
+  nationality?: string | null
+  national_id?: string | null
+  photo_url?: string | null
   emergency_name?: string | null
   emergency_phone?: string | null
   hire_date: string
@@ -37,6 +44,9 @@ export interface Position {
   id: string
   department_id: string
   title: string
+  department_name?: string
+  pay_grade?: number
+  is_tipped?: number
 }
 
 export interface Role {
@@ -51,6 +61,7 @@ export interface AppUser {
   id: string
   email: string
   is_active: number
+  account_status?: string
   employee_id: string | null
   role_id?: number
   role_slug: string
@@ -58,6 +69,10 @@ export interface AppUser {
   emp_number?: string
   first_name?: string
   last_name?: string
+  employee_status?: string
+  position_title?: string
+  approved_at?: string | null
+  activated_at?: string | null
 }
 
 export interface ShiftSwapSummary {
@@ -82,7 +97,6 @@ export interface DashboardSummary {
   pending_leave: number
   draft_payroll_runs: number
   month_hours?: number
-  pending_overtime?: number
   pending_loans?: number
   attendance_rate_today?: number
 }

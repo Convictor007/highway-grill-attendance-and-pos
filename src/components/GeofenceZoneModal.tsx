@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { Modal } from './Modal'
-import { MapCenterPin } from './MapCenterPin'
+import { MapCenterPin, type MapCenterPinHandle } from './MapCenterPin'
 import {
   DEFAULT_ZONE_RADIUS_M,
   GeofenceAreaControl,
@@ -95,8 +95,10 @@ export function GeofenceZoneModal({
   const [error, setError] = useState<string | null>(null)
 
   const panCenterRef = useRef<[number, number]>(DEFAULT_CENTER)
+  const mapPinRef = useRef<MapCenterPinHandle>(null)
   const mapMountKeyRef = useRef(0)
   const initSessionRef = useRef<string | null>(null)
+  const userMovedMapRef = useRef(false)
 
   const clearFlyTo = useCallback(() => setFlyTo(null), [])
 
@@ -136,6 +138,7 @@ export function GeofenceZoneModal({
     setRelocating(false)
     setCircleCenter(DEFAULT_CENTER)
     panCenterRef.current = DEFAULT_CENTER
+    userMovedMapRef.current = false
     setFlyTo(null)
     setRadiusM(DEFAULT_ZONE_RADIUS_M)
     setZoneName('')
@@ -147,6 +150,14 @@ export function GeofenceZoneModal({
     setShowResults(false)
     setError(null)
     mapMountKeyRef.current += 1
+  }, [])
+
+  const readSaveCoords = useCallback((): [number, number] => {
+    const live = mapPinRef.current?.getCenter()
+    const coords = live ?? panCenterRef.current
+    panCenterRef.current = coords
+    setCircleCenter(coords)
+    return coords
   }, [])
 
   useEffect(() => {
@@ -164,6 +175,8 @@ export function GeofenceZoneModal({
         Number(editingSite.latitude),
         Number(editingSite.longitude),
       ]
+      userMovedMapRef.current = false
+      mapMountKeyRef.current += 1
       setEditId(editingSite.id)
       setRelocating(false)
       setZoneName(editingSite.name)
@@ -177,16 +190,46 @@ export function GeofenceZoneModal({
       setFormatted(editingSite.address ?? '')
       fetchAddress(coords[0], coords[1])
     } else {
-      resetState()
+      setEditId(null)
+      setRelocating(false)
+      setRadiusM(DEFAULT_ZONE_RADIUS_M)
+      setZoneName('')
+      setParts(emptyParts())
+      setFormatted('')
+      setSearchQuery('')
+      setSearchResults([])
+      setShowResults(false)
+      setError(null)
+      userMovedMapRef.current = false
+      mapMountKeyRef.current += 1
       initSessionRef.current = 'new'
       const bid = defaultBranchId(branches)
       setZoneBranchId(bid)
-      const initial = branchMapCenter(bid, branches, sites, DEFAULT_CENTER)
+      const initial =
+        branches.length > 0 ? branchMapCenter(bid, branches, sites, DEFAULT_CENTER) : DEFAULT_CENTER
       setCircleCenter(initial)
       panCenterRef.current = initial
       flyToTarget(initial)
     }
-  }, [open, editingSite?.id, resetState, fetchAddress, flyToTarget, editingSite, branches, sites])
+  }, [open, editingSite?.id, fetchAddress, flyToTarget, editingSite, branches, sites])
+
+  useEffect(() => {
+    if (!open || editingSite || initSessionRef.current !== 'new' || userMovedMapRef.current) return
+    if (branches.length === 0) return
+    const bid = zoneBranchId || defaultBranchId(branches)
+    if (!bid) return
+    const initial = branchMapCenter(bid, branches, sites, DEFAULT_CENTER)
+    const [curLat, curLng] = panCenterRef.current
+    const stillAtMetroFallback =
+      Math.abs(curLat - DEFAULT_CENTER[0]) < 0.0001 && Math.abs(curLng - DEFAULT_CENTER[1]) < 0.0001
+    const shouldRecenter =
+      stillAtMetroFallback &&
+      (Math.abs(initial[0] - curLat) > 0.0001 || Math.abs(initial[1] - curLng) > 0.0001)
+    if (!shouldRecenter) return
+    setCircleCenter(initial)
+    panCenterRef.current = initial
+    flyToTarget(initial)
+  }, [open, editingSite, branches, sites, zoneBranchId, flyToTarget])
 
   useEffect(() => {
     if (!open || !showSearch || searchQuery.trim().length < 3) {
@@ -210,17 +253,17 @@ export function GeofenceZoneModal({
 
   const handleMapPan = useCallback(
     (lat: number, lng: number) => {
+      userMovedMapRef.current = true
       panCenterRef.current = [lat, lng]
       setCircleCenter([lat, lng])
-      if (showEditSplit || relocating) {
-        fetchAddress(lat, lng)
-      }
+      fetchAddress(lat, lng)
     },
-    [showEditSplit, relocating, fetchAddress]
+    [fetchAddress]
   )
 
   const pickSearchResult = (r: GeocodeResult) => {
     const coords: [number, number] = [r.latitude, r.longitude]
+    userMovedMapRef.current = true
     panCenterRef.current = coords
     setCircleCenter(coords)
     flyToTarget(coords)
@@ -251,10 +294,7 @@ export function GeofenceZoneModal({
   const fullAddress =
     formatted || [parts.street_line, parts.region_line, parts.postal_code].filter(Boolean).join(', ')
 
-  const resolveGeocodeForSave = async (): Promise<GeocodeResult | null> => {
-    const lat = circleCenter[0]
-    const lng = circleCenter[1]
-    panCenterRef.current = [lat, lng]
+  const resolveGeocodeForSave = async (lat: number, lng: number): Promise<GeocodeResult | null> => {
     try {
       return await reverseGeocode(lat, lng)
     } catch {
@@ -264,9 +304,7 @@ export function GeofenceZoneModal({
 
   const saveZone = async () => {
     setError(null)
-    const lat = circleCenter[0]
-    const lng = circleCenter[1]
-    panCenterRef.current = [lat, lng]
+    const [lat, lng] = readSaveCoords()
 
     if (isEditMode) {
       if (!zoneName.trim()) {
@@ -285,7 +323,7 @@ export function GeofenceZoneModal({
       let address: string | undefined
       let branchId = zoneBranchId || null
 
-      const geo = await resolveGeocodeForSave()
+      const geo = await resolveGeocodeForSave(lat, lng)
       if (!geo) {
         setError('Could not resolve address for this location')
         return
@@ -311,6 +349,7 @@ export function GeofenceZoneModal({
         latitude: lat,
         longitude: lng,
         radius_m: radiusM,
+        clock_in_eligible: true,
       }
 
       if (editId) {
@@ -364,11 +403,17 @@ export function GeofenceZoneModal({
     </>
   )
 
+  const mapCenterForPin: [number, number] =
+    open && editingSite && !relocating
+      ? [Number(editingSite.latitude), Number(editingSite.longitude)]
+      : circleCenter
+
   const mapStack = (
     <div className={`geofence-map-stack${showEditSplit ? ' geofence-map-stack--gis' : ''}`}>
       <MapCenterPin
+        ref={mapPinRef}
         key={`geofence-map-${mapMountKeyRef.current}`}
-        initialCenter={circleCenter}
+        initialCenter={mapCenterForPin}
         flyTo={flyTo}
         zoom={15}
         geofences={geofences}
@@ -376,7 +421,7 @@ export function GeofenceZoneModal({
         onCenterChange={handleMapPan}
         onFlyToComplete={clearFlyTo}
         showBasemapSwitcher
-        defaultBasemap="satellite"
+        defaultBasemap="streets"
         className="map-center-pin-wrap geofence-modal-map"
       />
       <GeofenceAreaControl radiusM={radiusM} onChange={setRadiusM} />

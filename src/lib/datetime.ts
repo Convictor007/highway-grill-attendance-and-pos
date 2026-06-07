@@ -2,6 +2,15 @@ export function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
+/** Calendar date in the user's local timezone (YYYY-MM-DD). */
+export function toLocalIsoDate(d: Date = new Date()): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+export function todayLocalIsoDate(): string {
+  return toLocalIsoDate()
+}
+
 export function formatDateDisplay(iso: string): string {
   if (!iso) return 'Select date'
   const [y, m, d] = iso.split('-').map(Number)

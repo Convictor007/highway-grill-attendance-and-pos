@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePopoverPosition } from '../hooks/usePopoverPosition'
-import { daysInMonth, formatDateDisplay, pad2 } from '../lib/datetime'
+import { daysInMonth, formatDateDisplay, pad2, todayLocalIsoDate } from '../lib/datetime'
 
 type Props = {
   label?: string
@@ -10,11 +10,24 @@ type Props = {
   min?: string
   max?: string
   id?: string
+  /** Month + year dropdowns — best for birthdays and dates far from today */
+  birthDate?: boolean
 }
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
-export function DatePicker({ label, value, onChange, required, min, max, id }: Props) {
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+function parseYear(iso?: string, fallback?: number): number {
+  if (!iso || iso.length < 4) return fallback ?? new Date().getFullYear()
+  const y = Number(iso.slice(0, 4))
+  return Number.isFinite(y) ? y : (fallback ?? new Date().getFullYear())
+}
+
+export function DatePicker({ label, value, onChange, required, min, max, id, birthDate }: Props) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -23,6 +36,15 @@ export function DatePicker({ label, value, onChange, required, min, max, id }: P
   const base = value ? new Date(value + 'T12:00:00') : new Date()
   const [viewYear, setViewYear] = useState(base.getFullYear())
   const [viewMonth, setViewMonth] = useState(base.getMonth())
+
+  const maxYear = parseYear(max, new Date().getFullYear())
+  const minYear = parseYear(min, maxYear - 100)
+
+  const yearOptions = useMemo(() => {
+    const years: number[] = []
+    for (let y = maxYear; y >= minYear; y--) years.push(y)
+    return years
+  }, [maxYear, minYear])
 
   useEffect(() => {
     if (!value) return
@@ -59,14 +81,14 @@ export function DatePicker({ label, value, onChange, required, min, max, id }: P
   const prevMonth = () => {
     if (viewMonth === 0) {
       setViewMonth(11)
-      setViewYear((y) => y - 1)
+      setViewYear((y) => Math.max(minYear, y - 1))
     } else setViewMonth((m) => m - 1)
   }
 
   const nextMonth = () => {
     if (viewMonth === 11) {
       setViewMonth(0)
-      setViewYear((y) => y + 1)
+      setViewYear((y) => Math.min(maxYear, y + 1))
     } else setViewMonth((m) => m + 1)
   }
 
@@ -91,16 +113,13 @@ export function DatePicker({ label, value, onChange, required, min, max, id }: P
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        <span className="picker-trigger-icon" aria-hidden>
-          📅
-        </span>
         <span>{formatDateDisplay(value)}</span>
       </button>
       {required && !value && <input tabIndex={-1} className="picker-required-proxy" required value="" readOnly />}
       {open && (
         <div
           ref={popoverRef}
-          className="picker-popover picker-popover--fixed calendar-popover"
+          className={`picker-popover picker-popover--fixed calendar-popover${birthDate ? ' calendar-popover--birth' : ''}`}
           role="dialog"
           style={{
             top: popoverPos?.top ?? 0,
@@ -109,15 +128,40 @@ export function DatePicker({ label, value, onChange, required, min, max, id }: P
             visibility: popoverPos ? 'visible' : 'hidden',
           }}
         >
-          <div className="calendar-head">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={prevMonth} aria-label="Previous month">
-              ‹
-            </button>
-            <strong>{monthLabel}</strong>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={nextMonth} aria-label="Next month">
-              ›
-            </button>
-          </div>
+          {birthDate ? (
+            <div className="calendar-head calendar-head--pickers">
+              <select
+                className="calendar-select"
+                value={viewMonth}
+                aria-label="Month"
+                onChange={(e) => setViewMonth(Number(e.target.value))}
+              >
+                {MONTH_NAMES.map((name, idx) => (
+                  <option key={name} value={idx}>{name}</option>
+                ))}
+              </select>
+              <select
+                className="calendar-select calendar-select--year"
+                value={viewYear}
+                aria-label="Year"
+                onChange={(e) => setViewYear(Number(e.target.value))}
+              >
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="calendar-head">
+              <button type="button" className="btn btn-ghost btn-sm" onClick={prevMonth} aria-label="Previous month">
+                ‹
+              </button>
+              <strong>{monthLabel}</strong>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={nextMonth} aria-label="Next month">
+                ›
+              </button>
+            </div>
+          )}
           <div className="calendar-weekdays">
             {WEEKDAYS.map((w) => (
               <span key={w}>{w}</span>
@@ -129,7 +173,7 @@ export function DatePicker({ label, value, onChange, required, min, max, id }: P
               const iso = `${viewYear}-${pad2(viewMonth + 1)}-${pad2(day)}`
               const disabled = (min && iso < min) || (max && iso > max)
               const selected = value === iso
-              const today = iso === new Date().toISOString().slice(0, 10)
+              const today = iso === todayLocalIsoDate()
               return (
                 <button
                   key={iso}
@@ -143,17 +187,18 @@ export function DatePicker({ label, value, onChange, required, min, max, id }: P
               )
             })}
           </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm calendar-today-btn"
-            onClick={() => {
-              const t = new Date().toISOString().slice(0, 10)
-              onChange(t)
-              setOpen(false)
-            }}
-          >
-            Today
-          </button>
+          {!birthDate && (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm calendar-today-btn"
+              onClick={() => {
+                onChange(todayLocalIsoDate())
+                setOpen(false)
+              }}
+            >
+              Today
+            </button>
+          )}
         </div>
       )}
     </div>

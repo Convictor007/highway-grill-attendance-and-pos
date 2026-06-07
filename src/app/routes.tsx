@@ -6,6 +6,8 @@ import { PayrollRoute } from '../components/PayrollRoute'
 import { AuthLayout } from '../layouts/AuthLayout'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { LoginPage } from '../pages/auth/LoginPage'
+import { RegisterPage } from '../pages/auth/RegisterPage'
+import { RequireActiveEmployee } from '../components/RequireActiveEmployee'
 import { EmployeeListPage } from '../pages/employees/EmployeeListPage'
 import { AttendancePage } from '../pages/attendance/AttendancePage'
 import { LeavePage } from '../pages/leave/LeavePage'
@@ -21,12 +23,11 @@ import { MemosNoticesPage } from '../pages/memos/MemosNoticesPage'
 import { LoansPage } from '../pages/employee/LoansPage'
 import { BenefitsPage } from '../pages/employee/BenefitsPage'
 import { ServiceRecordsPage } from '../pages/employee/ServiceRecordsPage'
-import { OvertimePage } from '../pages/overtime/OvertimePage'
 import { MyDocumentsPage } from '../pages/documents/MyDocumentsPage'
 import { HrLoansPage } from '../pages/hr/HrLoansPage'
-import { HrOvertimePage } from '../pages/hr/HrOvertimePage'
 import { HrContentPage } from '../pages/hr/HrContentPage'
 import { AttendanceStatsPage } from '../pages/attendance/AttendanceStatsPage'
+import { HrFieldWorkPage } from '../pages/hr/HrFieldWorkPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -40,6 +41,7 @@ export function AppRoutes() {
     <Routes>
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
       </Route>
       <Route
         element={
@@ -55,15 +57,20 @@ export function AppRoutes() {
           path="dtr"
           element={
             <RequirePermission permission="attendance.self">
-              <DtrPage />
+              <RequireActiveEmployee>
+                <DtrPage />
+              </RequireActiveEmployee>
             </RequirePermission>
           }
         />
+        <Route path="overtime" element={<Navigate to="/dtr" replace />} />
         <Route
           path="leaves"
           element={
             <RequirePermission permission={['leave.view', 'leave.apply']}>
-              <LeavePage />
+              <RequireActiveEmployee>
+                <LeavePage />
+              </RequireActiveEmployee>
             </RequirePermission>
           }
         />
@@ -72,15 +79,9 @@ export function AppRoutes() {
           path="scheduling"
           element={
             <RequirePermission permission="shifts.view.self">
-              <MyShiftsPage />
-            </RequirePermission>
-          }
-        />
-        <Route
-          path="overtime"
-          element={
-            <RequirePermission permission="overtime.apply">
-              <OvertimePage />
+              <RequireActiveEmployee>
+                <MyShiftsPage />
+              </RequireActiveEmployee>
             </RequirePermission>
           }
         />
@@ -88,7 +89,9 @@ export function AppRoutes() {
           path="documents"
           element={
             <RequirePermission permission="documents.view.self">
-              <MyDocumentsPage />
+              <RequireActiveEmployee>
+                <MyDocumentsPage />
+              </RequireActiveEmployee>
             </RequirePermission>
           }
         />
@@ -104,7 +107,9 @@ export function AppRoutes() {
           path="loans"
           element={
             <RequirePermission permission="loans.self">
-              <LoansPage />
+              <RequireActiveEmployee>
+                <LoansPage />
+              </RequireActiveEmployee>
             </RequirePermission>
           }
         />
@@ -112,7 +117,9 @@ export function AppRoutes() {
           path="benefits"
           element={
             <RequirePermission permission="payroll.view.self">
-              <BenefitsPage />
+              <RequireActiveEmployee>
+                <BenefitsPage />
+              </RequireActiveEmployee>
             </RequirePermission>
           }
         />
@@ -120,7 +127,9 @@ export function AppRoutes() {
           path="service-records"
           element={
             <RequirePermission permission="documents.view.self">
-              <ServiceRecordsPage />
+              <RequireActiveEmployee>
+                <ServiceRecordsPage />
+              </RequireActiveEmployee>
             </RequirePermission>
           }
         />
@@ -139,15 +148,15 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
+        <Route path="hr/overtime" element={<Navigate to="/hr/attendance-stats" replace />} />
         <Route
-          path="hr/overtime"
+          path="hr/field-work"
           element={
-            <RequirePermission permission="attendance.manage">
-              <HrOvertimePage />
+            <RequirePermission permission="attendance.view">
+              <HrFieldWorkPage />
             </RequirePermission>
           }
         />
-        <Route path="hr/field-work" element={<Navigate to="/" replace />} />
         <Route
           path="hr/loans"
           element={

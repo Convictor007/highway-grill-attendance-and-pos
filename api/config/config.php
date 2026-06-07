@@ -22,4 +22,7 @@ return [
     'cors_origin' => Env::get('CORS_ORIGIN', 'http://localhost:5173'),
     'session_ttl_hours' => Env::int('SESSION_TTL_HOURS', 24),
     'auth_hash_passwords' => Env::get('AUTH_HASH_PASSWORDS', 'false') === 'true',
+    'mail_enabled' => Env::get('MAIL_ENABLED', 'false') === 'true',
+    'mail_from' => Env::get('MAIL_FROM', 'noreply@highwaygrill.local'),
+    'hr_notify_email' => Env::get('HR_NOTIFY_EMAIL', 'hr@highwaygrill.local'),
 ];

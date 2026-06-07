@@ -30,6 +30,7 @@ final class LoanController
                     return;
                 }
                 Auth::requirePermission($user, 'loans.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);
@@ -59,6 +60,7 @@ final class LoanController
 
             if ($method === 'POST' && ($seg1 === null || $seg1 === 'apply')) {
                 Auth::requirePermission($user, 'loans.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $body = Request::jsonBody();
                 $body['employee_id'] = $body['employee_id'] ?? $user['employee_id'];
                 if (empty($body['employee_id']) || empty($body['principal'])) {

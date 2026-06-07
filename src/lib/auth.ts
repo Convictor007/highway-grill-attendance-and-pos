@@ -36,6 +36,29 @@ export async function fetchMe(): Promise<AuthUser> {
   }
 }
 
+export async function register(payload: {
+  first_name: string
+  last_name: string
+  email: string
+  password: string
+  branch_id: string
+  phone?: string
+  department_id?: string
+  position_id?: string
+  date_of_birth?: string
+  gender?: string
+  nationality?: string
+  address?: string
+  emergency_name?: string
+  emergency_phone?: string
+  employment_type?: string
+}): Promise<{ message: string; emp_number: string; account_status: string }> {
+  return api('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function logout(): Promise<void> {
   try {
     await api('/auth/logout', { method: 'POST' })

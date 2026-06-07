@@ -242,7 +242,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
               formatted && <span className="geofence-address-value">{formatted}</span>
             )}
             <p className="geofence-hint">
-              Used when HR adds a new field work zone for this branch. Pan the map or search to set it.
+              Default map center for the branch clock-in zone. Pan the map or search to set it.
             </p>
           </div>
         </div>
@@ -287,7 +287,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
             onCenterChange={handleMapPan}
             onFlyToComplete={() => setFlyTo(null)}
             showBasemapSwitcher
-            defaultBasemap="satellite"
+            defaultBasemap="streets"
             className="map-center-pin-wrap branch-edit-map-pin"
           />
         </div>

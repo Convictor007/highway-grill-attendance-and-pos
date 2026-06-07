@@ -97,7 +97,8 @@ final class NotificationService
     public function userIdForEmployee(string $employeeId): ?string
     {
         $stmt = Database::connection()->prepare(
-            'SELECT id FROM users WHERE employee_id = :eid AND is_active = 1 LIMIT 1'
+            'SELECT id FROM users WHERE employee_id = :eid AND is_active = 1
+             AND account_status IN (\'pending\', \'active\') LIMIT 1'
         );
         $stmt->execute(['eid' => $employeeId]);
         $row = $stmt->fetch();

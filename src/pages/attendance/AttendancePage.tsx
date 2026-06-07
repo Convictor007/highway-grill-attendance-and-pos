@@ -10,18 +10,9 @@ import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
 import { AttendanceEditModal } from '../../components/AttendanceEditModal'
 import { DatePicker } from '../../components/DatePicker'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
+import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
+import { todayLocalIsoDate } from '../../lib/datetime'
 import type { AttendanceRecord } from '../../types/hrms'
-
-interface FieldVisit {
-  id: string
-  first_name?: string
-  last_name?: string
-  site_name: string | null
-  address: string | null
-  checked_in_at: string
-  notes: string | null
-  attendance_id?: string | null
-}
 
 export function AttendancePage() {
   const { user } = useAuth()
@@ -29,15 +20,24 @@ export function AttendancePage() {
   const canView = hasPermission(user, 'attendance.view')
   const canManage = hasPermission(user, 'attendance.manage')
   const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [fieldVisits, setFieldVisits] = useState<FieldVisit[]>([])
   const [open, setOpen] = useState(false)
   const [onBreak, setOnBreak] = useState(false)
   const [weekHours, setWeekHours] = useState<{ total_hours: number; shift_count: number } | null>(null)
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(todayLocalIsoDate)
   const [loading, setLoading] = useState(true)
   const [clockError, setClockError] = useState<string | null>(null)
   const [geofenceRequired, setGeofenceRequired] = useState(false)
-  const geofence = useClockGeofence(geofenceRequired && canSelf)
+  const geofence = useClockGeofence(geofenceRequired && canSelf, { sessionActive: open && canSelf })
+  const vicinity = useVicinityMonitor({
+    enabled: open && canSelf && Boolean(user?.employee_id),
+    geofenceRequired,
+    onAutoClockOut: () => {
+      load()
+    },
+    onLocationPing: (coords) => {
+      void geofence.updateFromCoords(coords)
+    },
+  })
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null)
 
   const load = async () => {
@@ -46,12 +46,6 @@ export function AttendancePage() {
       if (canView || canSelf) {
         const data = await api<AttendanceRecord[]>(`/attendance?date=${date}`)
         setRecords(data)
-      }
-      if (canView) {
-        const visits = await api<FieldVisit[]>(`/field-work/checkins?date=${date}&limit=100`)
-        setFieldVisits(visits)
-      } else {
-        setFieldVisits([])
       }
       if (canSelf) {
         const st = await api<{ open: boolean; on_break?: boolean; geofence_required?: boolean }>('/attendance/status')
@@ -74,7 +68,7 @@ export function AttendancePage() {
   const clockIn = async () => {
     setClockError(null)
     try {
-      await doClockIn()
+      await doClockIn(geofenceRequired)
       await geofence.refresh()
       load()
     } catch (err) {
@@ -130,11 +124,22 @@ export function AttendancePage() {
             {onBreak ? 'You are on break.' : open ? 'You are clocked in.' : 'You are clocked out.'}
           </p>
           <ClockGeofenceBanner
-            required={geofenceRequired && !open}
+            required={geofenceRequired}
+            sessionActive={open}
             loading={geofence.loading}
             inside={geofence.inside}
             siteName={geofence.siteName}
             locationDenied={geofence.locationDenied}
+            locationError={geofence.locationError}
+            checkedOnce={geofence.checkedOnce}
+            nearestSiteName={geofence.nearestSiteName}
+            nearestDistanceM={geofence.nearestDistanceM}
+            vicinity={vicinity}
+            onRequestLocation={() => {
+              setClockError(null)
+              void geofence.requestLocation()
+            }}
+            requesting={geofence.requesting}
           />
           {clockError && <p className="error-msg">{clockError}</p>}
           {weekHours && (
@@ -226,38 +231,6 @@ export function AttendancePage() {
           </table>
         )}
       </div>
-
-      {canView && (
-        <div className="card" style={{ marginTop: '1rem' }}>
-          <h2 className="section-title">Field visits</h2>
-          {loading ? (
-            <LoadingBlock />
-          ) : fieldVisits.length === 0 ? (
-            <EmptyState
-              title="No field visits"
-              description="Off-site check-ins from the Field Work page appear here for this date."
-            />
-          ) : (
-            <ul className="field-checkin-list">
-              {fieldVisits.map((v) => (
-                <li key={v.id} className="field-checkin-row">
-                  <div>
-                    <strong>
-                      {v.first_name} {v.last_name}
-                    </strong>
-                    <span className="field-checkin-time">
-                      {v.site_name ?? 'Work zone'} · {new Date(v.checked_in_at.replace(' ', 'T')).toLocaleString()}
-                      {v.attendance_id ? ' · linked to attendance' : ''}
-                    </span>
-                    {v.address && <span className="field-checkin-notes">{v.address}</span>}
-                    {v.notes && <span className="field-checkin-notes">{v.notes}</span>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
 
       {canManage && (
         <AttendanceEditModal

@@ -113,6 +113,11 @@ WHERE @branch_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM departments WHERE branch_id = @branch_id AND name = 'Bar');
 
 INSERT INTO departments (id, branch_id, name)
+SELECT UUID(), @branch_id, 'Cafe' FROM DUAL
+WHERE @branch_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM departments WHERE branch_id = @branch_id AND name = 'Cafe');
+
+INSERT INTO departments (id, branch_id, name)
 SELECT UUID(), @branch_id, 'Delivery' FROM DUAL
 WHERE @branch_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM departments WHERE branch_id = @branch_id AND name = 'Delivery');
@@ -121,6 +126,7 @@ SET @dept_mgmt = (SELECT id FROM departments WHERE branch_id = @branch_id AND na
 SET @dept_kitchen = (SELECT id FROM departments WHERE branch_id = @branch_id AND name = 'Kitchen' LIMIT 1);
 SET @dept_foh = (SELECT id FROM departments WHERE branch_id = @branch_id AND name = 'Front of House' LIMIT 1);
 SET @dept_bar = (SELECT id FROM departments WHERE branch_id = @branch_id AND name = 'Bar' LIMIT 1);
+SET @dept_cafe = (SELECT id FROM departments WHERE branch_id = @branch_id AND name = 'Cafe' LIMIT 1);
 SET @dept_delivery = (SELECT id FROM departments WHERE branch_id = @branch_id AND name = 'Delivery' LIMIT 1);
 
 INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
@@ -163,13 +169,71 @@ SELECT UUID(), @dept_delivery, 'Delivery Rider', 2, 70.00, 95.00, 0 FROM DUAL
 WHERE @dept_delivery IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_delivery AND title = 'Delivery Rider');
 
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_kitchen, 'Dishwasher', 1, 65.00, 85.00, 0 FROM DUAL
+WHERE @dept_kitchen IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_kitchen AND title = 'Dishwasher');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_kitchen, 'Prep Cook', 2, 72.00, 100.00, 0 FROM DUAL
+WHERE @dept_kitchen IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_kitchen AND title = 'Prep Cook');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_kitchen, 'Grill Cook', 3, 80.00, 115.00, 0 FROM DUAL
+WHERE @dept_kitchen IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_kitchen AND title = 'Grill Cook');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_kitchen, 'Kitchen Helper', 1, 65.00, 88.00, 0 FROM DUAL
+WHERE @dept_kitchen IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_kitchen AND title = 'Kitchen Helper');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_kitchen, 'Sous Chef', 4, 90.00, 125.00, 0 FROM DUAL
+WHERE @dept_kitchen IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_kitchen AND title = 'Sous Chef');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_kitchen, 'Pastry Chef', 3, 82.00, 118.00, 0 FROM DUAL
+WHERE @dept_kitchen IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_kitchen AND title = 'Pastry Chef');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_foh, 'Host', 2, 68.00, 92.00, 0 FROM DUAL
+WHERE @dept_foh IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_foh AND title = 'Host');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_foh, 'Busser', 1, 62.00, 82.00, 0 FROM DUAL
+WHERE @dept_foh IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_foh AND title = 'Busser');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_foh, 'Food Runner', 1, 65.00, 85.00, 0 FROM DUAL
+WHERE @dept_foh IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_foh AND title = 'Food Runner');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_cafe, 'Barista', 2, 70.00, 98.00, 0 FROM DUAL
+WHERE @dept_cafe IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_cafe AND title = 'Barista');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_cafe, 'Cafe Server', 2, 68.00, 95.00, 1 FROM DUAL
+WHERE @dept_cafe IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_cafe AND title = 'Cafe Server');
+
+INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
+SELECT UUID(), @dept_cafe, 'Cafe Cashier', 2, 70.00, 92.00, 0 FROM DUAL
+WHERE @dept_cafe IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM positions WHERE department_id = @dept_cafe AND title = 'Cafe Cashier');
+
 SET @pos_manager = (SELECT id FROM positions WHERE department_id = @dept_mgmt AND title = 'Restaurant Manager' LIMIT 1);
 SET @pos_hr = (SELECT id FROM positions WHERE department_id = @dept_mgmt AND title = 'HR Officer' LIMIT 1);
 SET @pos_line_cook = (SELECT id FROM positions WHERE department_id = @dept_kitchen AND title = 'Line Cook' LIMIT 1);
 SET @pos_server = (SELECT id FROM positions WHERE department_id = @dept_foh AND title = 'Server' LIMIT 1);
 SET @pos_bartender = (SELECT id FROM positions WHERE department_id = @dept_bar AND title = 'Bartender' LIMIT 1);
-SET @pos_rider = (SELECT id FROM positions WHERE department_id = @dept_delivery AND title = 'Delivery Rider' LIMIT 1);
-
 -- -----------------------------------------------------------------------------
 -- 3. Leave types & shift templates
 -- -----------------------------------------------------------------------------
@@ -202,7 +266,7 @@ WHERE @branch_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM shift_templates WHERE branch_id = @branch_id AND name = 'Dinner');
 
 -- -----------------------------------------------------------------------------
--- 4. Employees (3 logins + crew without accounts)
+-- 4. Employees (staff with login accounts only — new hires self-register)
 -- -----------------------------------------------------------------------------
 
 INSERT IGNORE INTO employees (
@@ -212,11 +276,7 @@ INSERT IGNORE INTO employees (
 ) VALUES
 (UUID(), @branch_id, @dept_mgmt, @pos_manager, 'HG-ADM', 'Alex', 'Admin', 'admin@highwaygrill.local', '09170000001', CURDATE(), 'full_time', 'active'),
 (UUID(), @branch_id, @dept_mgmt, @pos_hr, 'HG-HR', 'Hannah', 'Reyes', 'hr@highwaygrill.local', '09170000002', CURDATE(), 'full_time', 'active'),
-(UUID(), @branch_id, @dept_kitchen, @pos_line_cook, 'HG-EMP', 'Elena', 'Cruz', 'employee@highwaygrill.local', '09170000003', CURDATE(), 'full_time', 'active'),
-(UUID(), @branch_id, @dept_foh, @pos_server, 'HG-101', 'Marco', 'Santos', 'marco.santos@highwaygrill.local', '09170000101', CURDATE(), 'full_time', 'active'),
-(UUID(), @branch_id, @dept_foh, @pos_server, 'HG-102', 'Jessa', 'Lim', 'jessa.lim@highwaygrill.local', '09170000102', CURDATE(), 'part_time', 'active'),
-(UUID(), @branch_id, @dept_bar, @pos_bartender, 'HG-103', 'Ryan', 'Gomez', 'ryan.gomez@highwaygrill.local', '09170000103', CURDATE(), 'full_time', 'active'),
-(UUID(), @branch_id, @dept_delivery, @pos_rider, 'HG-104', 'Dino', 'Ramos', 'dino.ramos@highwaygrill.local', '09170000104', CURDATE(), 'full_time', 'active');
+(UUID(), @branch_id, @dept_kitchen, @pos_line_cook, 'HG-EMP', 'Elena', 'Cruz', 'employee@highwaygrill.local', '09170000003', CURDATE(), 'full_time', 'active');
 
 UPDATE branches SET manager_id = (SELECT id FROM employees WHERE emp_number = 'HG-ADM' LIMIT 1)
 WHERE id = @branch_id;
@@ -225,22 +285,22 @@ WHERE id = @branch_id;
 -- 5. Users (linked to employees)
 -- -----------------------------------------------------------------------------
 
-INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active)
-SELECT UUID(), 'admin@highwaygrill.local', 'dsadsadsa', r.role_id, e.id, 1
+INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active, account_status, activated_at)
+SELECT UUID(), 'admin@highwaygrill.local', 'dsadsadsa', r.role_id, e.id, 1, 'active', NOW()
 FROM roles r
 JOIN employees e ON e.emp_number = 'HG-ADM'
 WHERE r.role_slug = 'admin'
   AND NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@highwaygrill.local');
 
-INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active)
-SELECT UUID(), 'hr@highwaygrill.local', 'dsadsadsa', r.role_id, e.id, 1
+INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active, account_status, activated_at)
+SELECT UUID(), 'hr@highwaygrill.local', 'dsadsadsa', r.role_id, e.id, 1, 'active', NOW()
 FROM roles r
 JOIN employees e ON e.emp_number = 'HG-HR'
 WHERE r.role_slug = 'hr'
   AND NOT EXISTS (SELECT 1 FROM users WHERE email = 'hr@highwaygrill.local');
 
-INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active)
-SELECT UUID(), 'employee@highwaygrill.local', 'dsadsadsa', r.role_id, e.id, 1
+INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active, account_status, activated_at)
+SELECT UUID(), 'employee@highwaygrill.local', 'dsadsadsa', r.role_id, e.id, 1, 'active', NOW()
 FROM roles r
 JOIN employees e ON e.emp_number = 'HG-EMP'
 WHERE r.role_slug = 'employee'
@@ -281,7 +341,7 @@ CROSS JOIN (
   UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 3 DAY)
   UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 4 DAY)
 ) d
-WHERE e.emp_number IN ('HG-EMP', 'HG-101', 'HG-102', 'HG-103', 'HG-104')
+WHERE e.emp_number IN ('HG-EMP')
   AND NOT EXISTS (
     SELECT 1 FROM attendance a
     WHERE a.employee_id = e.id AND DATE(a.clock_in) = d.work_date
@@ -323,51 +383,59 @@ WHERE e.emp_number = 'HG-EMP'
     SELECT 1 FROM documents d WHERE d.employee_id = e.id AND d.title = 'Employee handbook acknowledgment'
   );
 
+-- Week starts Sunday (matches roster grid)
+SET @week_start = DATE_SUB(CURDATE(), INTERVAL (DAYOFWEEK(CURDATE()) - 1) DAY);
+
 INSERT INTO schedules (id, branch_id, week_start, status, published_at)
-SELECT UUID(), @branch_id, DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), 'published', NOW()
+SELECT UUID(), @branch_id, @week_start, 'published', NOW()
 FROM DUAL
 WHERE @branch_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM schedules s
-    WHERE s.branch_id = @branch_id
-      AND s.week_start = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+    WHERE s.branch_id = @branch_id AND s.week_start = @week_start
   );
 
 SET @schedule_id = (
   SELECT id FROM schedules
-  WHERE branch_id = @branch_id
-    AND week_start = DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+  WHERE branch_id = @branch_id AND week_start = @week_start
   LIMIT 1
 );
 
-INSERT INTO shift_assignments (id, schedule_id, employee_id, shift_template_id, shift_date, start_time, end_time, break_mins)
-SELECT UUID(), @schedule_id, e.id, st.id, CURDATE(), st.start_time, st.end_time, st.break_mins
+-- Mon–Sat morning shift for demo employee; Sunday rest day
+INSERT INTO shift_assignments (id, schedule_id, employee_id, shift_template_id, shift_date, start_time, end_time, break_mins, notes)
+SELECT UUID(), @schedule_id, e.id, st.id,
+       DATE_ADD(@week_start, INTERVAL offs.n DAY),
+       st.start_time, st.end_time, st.break_mins, NULL
 FROM employees e
 JOIN shift_templates st ON st.branch_id = @branch_id AND st.name = 'Morning'
+JOIN (
+  SELECT 1 AS n UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6
+) offs
 WHERE e.emp_number = 'HG-EMP'
   AND @schedule_id IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM shift_assignments sa
-    WHERE sa.employee_id = e.id AND sa.shift_date = CURDATE()
+    WHERE sa.schedule_id = @schedule_id AND sa.employee_id = e.id
+      AND sa.shift_date = DATE_ADD(@week_start, INTERVAL offs.n DAY)
+  );
+
+INSERT INTO shift_assignments (id, schedule_id, employee_id, shift_template_id, shift_date, start_time, end_time, break_mins, notes)
+SELECT UUID(), @schedule_id, e.id, NULL, @week_start, '00:00:00', '00:00:00', 0, 'REST_DAY'
+FROM employees e
+WHERE e.emp_number = 'HG-EMP'
+  AND @schedule_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM shift_assignments sa
+    WHERE sa.schedule_id = @schedule_id AND sa.employee_id = e.id AND sa.shift_date = @week_start
   );
 
 -- -----------------------------------------------------------------------------
 -- Field work sites (GIS / Leaflet map)
 -- -----------------------------------------------------------------------------
 
-INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active)
-SELECT UUID(), @branch_id, 'Highway Grill — Main', 'Restaurant branch', 14.554700, 121.024400, 200, 1
+-- Branch clock-in zone only (kitchen, FOH, bar, cafe staff)
+INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active, clock_in_eligible)
+SELECT UUID(), @branch_id, 'Highway Grill — Main', 'Restaurant branch', 14.554700, 121.024400, 200, 1, 1
 FROM DUAL
 WHERE @branch_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM field_work_sites WHERE name = 'Highway Grill — Main');
-
-INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active)
-SELECT UUID(), @branch_id, 'Supplier pickup', 'Market / supplier run', 14.599500, 120.984200, 250, 1
-FROM DUAL
-WHERE @branch_id IS NOT NULL
-  AND NOT EXISTS (SELECT 1 FROM field_work_sites WHERE name = 'Supplier pickup');
-
-INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active)
-SELECT UUID(), NULL, 'Catering / event', 'Off-site catering', 14.676000, 121.043700, 300, 1
-FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM field_work_sites WHERE name = 'Catering / event');

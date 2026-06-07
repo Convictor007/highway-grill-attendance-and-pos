@@ -9,6 +9,8 @@ require_once __DIR__ . '/core/Request.php';
 require_once __DIR__ . '/core/Auth.php';
 require_once __DIR__ . '/core/AuditLog.php';
 require_once __DIR__ . '/core/Schema.php';
+require_once __DIR__ . '/core/EmailService.php';
+require_once __DIR__ . '/modules/auth/RegistrationService.php';
 require_once __DIR__ . '/modules/auth/AuthController.php';
 require_once __DIR__ . '/modules/roles/RoleService.php';
 require_once __DIR__ . '/modules/roles/RoleController.php';
@@ -127,7 +129,7 @@ try {
         ]),
         'auth' => (new AuthController())->handle($method, $seg1),
         'roles' => (new RoleController())->handle($method, $seg1, $seg2),
-        'employees' => (new EmployeeController())->handle($method, $seg1),
+        'employees' => (new EmployeeController())->handle($method, $seg1, $seg2),
         'branches', 'departments', 'positions' => (new ReferenceController())->handle($resource, $method),
         'settings' => (new SettingsController())->handle($seg1 ?? '', $method, $seg2),
         'attendance' => (new AttendanceController())->handle($method, $seg1),
@@ -138,7 +140,7 @@ try {
         'tips' => (new TipsController())->handle($method, $seg1, $seg2),
         'contracts' => (new ContractController())->handle($method, $seg1, $seg2),
         'benefits' => (new BenefitController())->handle($method, $seg1),
-        'users' => (new UserController())->handle($method, $seg1),
+        'users' => (new UserController())->handle($method, $seg1, $seg2),
         'notifications' => (new NotificationController())->handle($method, $seg1, $seg2),
         'shifts' => (new ShiftController())->handle($method, $seg1, $seg2),
         'compliance' => (new ComplianceController())->handle($method, $seg1, $seg2),

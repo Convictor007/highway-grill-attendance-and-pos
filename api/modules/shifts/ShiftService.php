@@ -40,7 +40,7 @@ final class ShiftService
         return $stmt->fetchAll();
     }
 
-    public function createSchedule(array $data, string $userId): array
+    public function createSchedule(array $data, ?string $userId = null): array
     {
         if (empty($data['branch_id']) || empty($data['week_start'])) {
             throw new \InvalidArgumentException('branch_id and week_start are required');
@@ -51,6 +51,7 @@ final class ShiftService
         }
 
         $id = Database::uuid();
+        $publishedBy = $userId !== null && $userId !== '' ? $userId : null;
         Database::connection()->prepare(
             'INSERT INTO schedules (id, branch_id, week_start, status, published_by, published_at)
              VALUES (:id, :bid, :ws, :st, :uid, NOW())'
@@ -59,7 +60,7 @@ final class ShiftService
             'bid' => $data['branch_id'],
             'ws' => $weekStart,
             'st' => $data['status'] ?? 'draft',
-            'uid' => $userId,
+            'uid' => $publishedBy,
         ]);
         $stmt = Database::connection()->prepare('SELECT * FROM schedules WHERE id = :id');
         $stmt->execute(['id' => $id]);
@@ -328,6 +329,46 @@ final class ShiftService
         ], $userId);
     }
 
+    /**
+     * Ensure a week has a schedule and shift assignments by copying the prior week (recurring roster).
+     * Skips weeks that already have assignments so HR edits are not overwritten.
+     */
+    public function ensureScheduleRollover(string $branchId, string $weekStart, ?string $userId = null): array
+    {
+        $weekStart = $this->normalizeWeekStartSunday($weekStart);
+        $schedule = $this->findScheduleForWeek($branchId, $weekStart);
+        if (!$schedule) {
+            $source = $this->findLatestScheduleWithAssignments($branchId, $weekStart);
+            $schedule = $this->createSchedule([
+                'branch_id' => $branchId,
+                'week_start' => $weekStart,
+                'status' => 'published',
+            ], $userId);
+            if ($source && Schema::hasColumn('schedules', 'day_footnotes') && !empty($source['day_footnotes'])) {
+                Database::connection()->prepare(
+                    'UPDATE schedules SET day_footnotes = :df WHERE id = :id'
+                )->execute([
+                    'df' => $source['day_footnotes'],
+                    'id' => $schedule['id'],
+                ]);
+                $schedule = $this->findScheduleForWeek($branchId, $weekStart) ?? $schedule;
+            }
+        }
+
+        if ($this->assignmentCountForWeek($branchId, $weekStart) > 0) {
+            return $schedule;
+        }
+
+        $source = $this->findLatestScheduleWithAssignments($branchId, $weekStart);
+        if (!$source) {
+            return $schedule;
+        }
+
+        $this->copyAssignmentsFromWeek($source, $schedule, $weekStart);
+
+        return $this->findScheduleForWeek($branchId, $weekStart) ?? $schedule;
+    }
+
     private function findScheduleForWeek(string $branchId, string $weekStart): ?array
     {
         $stmt = Database::connection()->prepare(
@@ -337,6 +378,109 @@ final class ShiftService
         $row = $stmt->fetch();
 
         return $row ?: null;
+    }
+
+    private function assignmentCountForWeek(string $branchId, string $weekStart): int
+    {
+        $weekEnd = date('Y-m-d', strtotime($weekStart . ' +6 days'));
+        $stmt = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM shift_assignments sa
+             INNER JOIN schedules sch ON sch.id = sa.schedule_id
+             WHERE sch.branch_id = :bid AND sa.shift_date BETWEEN :from AND :to'
+        );
+        $stmt->execute(['bid' => $branchId, 'from' => $weekStart, 'to' => $weekEnd]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    private function findLatestScheduleWithAssignments(string $branchId, string $beforeWeekStart): ?array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT sch.* FROM schedules sch
+             INNER JOIN shift_assignments sa ON sa.schedule_id = sch.id
+             WHERE sch.branch_id = :bid AND sch.week_start < :ws
+             GROUP BY sch.id
+             ORDER BY sch.week_start DESC
+             LIMIT 1'
+        );
+        $stmt->execute(['bid' => $branchId, 'ws' => $beforeWeekStart]);
+        $row = $stmt->fetch();
+
+        return $row ?: null;
+    }
+
+    private function copyAssignmentsFromWeek(array $sourceSchedule, array $targetSchedule, string $targetWeekStart): void
+    {
+        $sourceWeekStart = (string) $sourceSchedule['week_start'];
+        $sourceWeekEnd = date('Y-m-d', strtotime($sourceWeekStart . ' +6 days'));
+        $pdo = Database::connection();
+
+        $stmt = $pdo->prepare(
+            'SELECT sa.employee_id, sa.shift_template_id, sa.shift_date, sa.start_time, sa.end_time, sa.break_mins, sa.notes
+             FROM shift_assignments sa
+             WHERE sa.schedule_id = :sid AND sa.shift_date BETWEEN :from AND :to'
+        );
+        $stmt->execute([
+            'sid' => $sourceSchedule['id'],
+            'from' => $sourceWeekStart,
+            'to' => $sourceWeekEnd,
+        ]);
+        $rows = $stmt->fetchAll();
+        if ($rows === []) {
+            return;
+        }
+
+        $activeStmt = $pdo->prepare(
+            "SELECT id FROM employees WHERE branch_id = :bid AND status = 'active'"
+        );
+        $activeStmt->execute(['bid' => $sourceSchedule['branch_id']]);
+        $activeIds = array_flip(array_column($activeStmt->fetchAll(), 'id'));
+
+        $pdo->beginTransaction();
+        try {
+            foreach ($rows as $row) {
+                $employeeId = (string) $row['employee_id'];
+                if (!isset($activeIds[$employeeId])) {
+                    continue;
+                }
+
+                $dayOffset = (int) ((strtotime((string) $row['shift_date']) - strtotime($sourceWeekStart)) / 86400);
+                $newDate = date('Y-m-d', strtotime($targetWeekStart . " +{$dayOffset} days"));
+
+                $exists = $pdo->prepare(
+                    'SELECT id FROM shift_assignments
+                     WHERE schedule_id = :sid AND employee_id = :eid AND shift_date = :sd LIMIT 1'
+                );
+                $exists->execute([
+                    'sid' => $targetSchedule['id'],
+                    'eid' => $employeeId,
+                    'sd' => $newDate,
+                ]);
+                if ($exists->fetch()) {
+                    continue;
+                }
+
+                $pdo->prepare(
+                    'INSERT INTO shift_assignments (id, schedule_id, employee_id, shift_template_id,
+                     shift_date, start_time, end_time, break_mins, notes)
+                     VALUES (:id, :sid, :eid, :tid, :sd, :st, :et, :bm, :notes)'
+                )->execute([
+                    'id' => Database::uuid(),
+                    'sid' => $targetSchedule['id'],
+                    'eid' => $employeeId,
+                    'tid' => $row['shift_template_id'],
+                    'sd' => $newDate,
+                    'st' => $row['start_time'],
+                    'et' => $row['end_time'],
+                    'bm' => $row['break_mins'] ?? 0,
+                    'notes' => $row['notes'],
+                ]);
+            }
+            $pdo->commit();
+        } catch (\Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
     }
 
     /** @return array<int, string> */
@@ -384,13 +528,17 @@ final class ShiftService
     }
 
     /** Sunday-based week grid (Excel-style roster). */
-    public function rosterGrid(?string $branchId, ?string $weekStart = null): array
+    public function rosterGrid(?string $branchId, ?string $weekStart = null, ?string $userId = null): array
     {
         if ($branchId === null || $branchId === '') {
             throw new \InvalidArgumentException('branch_id is required');
         }
 
         $weekStart = $this->normalizeWeekStartSunday($weekStart);
+
+        $this->ensureScheduleRollover($branchId, $weekStart, $userId);
+        $nextWeek = date('Y-m-d', strtotime($weekStart . ' +7 days'));
+        $this->ensureScheduleRollover($branchId, $nextWeek, $userId);
         $weekEnd = date('Y-m-d', strtotime($weekStart . ' +6 days'));
         $today = date('Y-m-d');
         $tomorrow = date('Y-m-d', strtotime('+1 day'));

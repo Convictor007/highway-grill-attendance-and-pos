@@ -13,6 +13,11 @@ export default defineConfig(({ mode }) => {
     server: {
       port: devPort,
       proxy: {
+        '^/api/uploads': {
+          target: proxyTarget,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, '/HG_web/api'),
+        },
         '/api': {
           target: proxyTarget,
           changeOrigin: true,

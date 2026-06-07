@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { GeofenceCircle } from '../lib/geofence'
@@ -11,6 +11,10 @@ import {
   type BasemapId,
 } from '../lib/basemaps'
 import type { MapMarker } from './LeafletMap'
+
+export type MapCenterPinHandle = {
+  getCenter: () => [number, number] | null
+}
 
 type Props = {
   /** Only used on first mount; panning does not require parent updates. */
@@ -27,6 +31,12 @@ type Props = {
   light?: boolean
   showBasemapSwitcher?: boolean
   defaultBasemap?: BasemapId
+  basemapId?: BasemapId
+  onBasemapChange?: (id: BasemapId) => void
+  locateLabel?: string
+  zoomControl?: boolean
+  /** When true, does not fire onCenterChange on first map mount (avoids wrong default geocode). */
+  skipInitialCenterEmit?: boolean
   onFlyToComplete?: () => void
 }
 
@@ -50,24 +60,38 @@ const siteIcon = L.divIcon({
   iconAnchor: [7, 7],
 })
 
-export function MapCenterPin({
-  initialCenter,
-  flyTo = null,
-  zoom = 17,
-  markers = [],
-  geofences = [],
-  previewGeofence = null,
-  onCenterChange,
-  onLocate,
-  className = 'map-center-pin-wrap',
-  light = false,
-  showBasemapSwitcher = false,
-  defaultBasemap,
-  onFlyToComplete,
-}: Props) {
-  const [basemapId, setBasemapId] = useState<BasemapId>(
+export const MapCenterPin = forwardRef<MapCenterPinHandle, Props>(function MapCenterPin(
+  {
+    initialCenter,
+    flyTo = null,
+    zoom = 17,
+    markers = [],
+    geofences = [],
+    previewGeofence = null,
+    onCenterChange,
+    onLocate,
+    className = 'map-center-pin-wrap',
+    light = false,
+    showBasemapSwitcher = false,
+    defaultBasemap,
+    basemapId: controlledBasemapId,
+    onBasemapChange,
+    locateLabel,
+    zoomControl = true,
+    skipInitialCenterEmit = false,
+    onFlyToComplete,
+  },
+  ref
+) {
+  const [internalBasemapId, setInternalBasemapId] = useState<BasemapId>(
     defaultBasemap ?? defaultBasemapFromLight(light)
   )
+  const basemapControlled = controlledBasemapId !== undefined
+  const basemapId = basemapControlled ? controlledBasemapId : internalBasemapId
+  const setBasemapId = (id: BasemapId) => {
+    if (!basemapControlled) setInternalBasemapId(id)
+    onBasemapChange?.(id)
+  }
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const tileRef = useRef<L.TileLayer | null>(null)
@@ -80,12 +104,21 @@ export function MapCenterPin({
   onFlyToCompleteRef.current = onFlyToComplete
   const lastFlownRef = useRef<string | null>(null)
 
+  useImperativeHandle(ref, () => ({
+    getCenter: () => {
+      const map = mapRef.current
+      if (!map) return null
+      const c = map.getCenter()
+      return [c.lat, c.lng]
+    },
+  }))
+
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
     const limits = getBasemapZoomLimits(basemapId)
     const map = L.map(containerRef.current, {
-      zoomControl: true,
+      zoomControl,
       attributionControl: true,
       minZoom: 3,
       maxZoom: limits.maxZoom,
@@ -118,6 +151,10 @@ export function MapCenterPin({
       emitCenter()
     })
     map.on('zoom', clampZoom)
+
+    if (!skipInitialCenterEmit) {
+      requestAnimationFrame(emitCenter)
+    }
 
     const fitSize = () => {
       map.invalidateSize({ animate: false })
@@ -238,10 +275,15 @@ export function MapCenterPin({
         </svg>
       </div>
       {onLocate && (
-        <button type="button" className="map-locate-btn" onClick={onLocate} aria-label="Use my location">
-          ⊕
+        <button
+          type="button"
+          className={`map-locate-btn${locateLabel ? ' map-locate-btn--text' : ''}`}
+          onClick={onLocate}
+          aria-label={locateLabel ?? 'Use my location'}
+        >
+          {locateLabel ?? '⊕'}
         </button>
       )}
     </div>
   )
-}
+})

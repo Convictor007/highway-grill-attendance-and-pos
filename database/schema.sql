@@ -98,7 +98,7 @@ CREATE TABLE employees (
     hire_date DATE NOT NULL,
     probation_end DATE,
     employment_type ENUM('full_time', 'part_time', 'casual', 'seasonal') NOT NULL DEFAULT 'full_time',
-    status ENUM('active', 'on_leave', 'resigned', 'terminated') NOT NULL DEFAULT 'active',
+    status ENUM('pending', 'active', 'on_leave', 'resigned', 'terminated') NOT NULL DEFAULT 'active',
     photo_url TEXT,
     emergency_name VARCHAR(100),
     emergency_phone VARCHAR(20),
@@ -122,11 +122,18 @@ CREATE TABLE users (
     role_id INT NOT NULL,
     employee_id CHAR(36) NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    account_status ENUM('awaiting_hr', 'pending', 'active', 'rejected') NOT NULL DEFAULT 'active',
+    approved_at DATETIME NULL,
+    approved_by CHAR(36) NULL,
+    activated_at DATETIME NULL,
+    activated_by CHAR(36) NULL,
     last_login_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (role_id) REFERENCES roles(role_id),
-    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL,
+    FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (activated_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE user_sessions (
@@ -688,6 +695,7 @@ CREATE TABLE field_work_sites (
     longitude DECIMAL(9,6) NOT NULL,
     radius_m INT NOT NULL DEFAULT 150,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
+    clock_in_eligible TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (branch_id) REFERENCES branches(id) ON DELETE SET NULL
 ) ENGINE=InnoDB;

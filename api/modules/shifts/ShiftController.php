@@ -28,6 +28,7 @@ final class ShiftController
                     return;
                 }
                 Auth::requirePermission($user, 'shifts.view.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);
@@ -39,6 +40,7 @@ final class ShiftController
 
             if ($seg1 === 'swaps' && $method === 'POST' && $seg2 === null) {
                 Auth::requirePermission($user, 'shifts.view.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);
@@ -127,7 +129,8 @@ final class ShiftController
                     'success' => true,
                     'data' => $this->service->rosterGrid(
                         is_string($branchId) ? $branchId : null,
-                        Request::query('week_start')
+                        Request::query('week_start'),
+                        $user['id'] ?? null
                     ),
                 ]);
                 return;
@@ -135,6 +138,7 @@ final class ShiftController
 
             if ($seg1 === 'my' && $method === 'GET') {
                 Auth::requirePermission($user, 'shifts.view.self');
+                Auth::requireActiveEmployeeAccount($user);
                 $eid = $user['employee_id'] ?? null;
                 if (!$eid) {
                     Response::error('No employee linked', 422);

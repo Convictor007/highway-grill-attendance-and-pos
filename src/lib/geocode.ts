@@ -26,6 +26,17 @@ export const emptyParts = (): AddressParts => ({
   street_line: '',
 })
 
+/** Prefer full street address; avoid showing only a barangay label like "Zone 7". */
+export function formatGeocodeDisplay(r: GeocodeResult): string {
+  const full = (r.formatted || '').trim()
+  if (full.length >= 20) return full
+
+  const built = [r.parts.street_line, r.parts.region_line, r.parts.postal_code].filter(Boolean).join(', ')
+  if (built.length > 0) return built
+
+  return r.short || full || 'Unknown location'
+}
+
 export async function reverseGeocode(lat: number, lng: number): Promise<GeocodeResult> {
   const key = cacheKey(lat, lng)
   const hit = cache.get(key)
@@ -35,6 +46,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<GeocodeR
     `/geocode/reverse?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}`
   )
   data.parts = data.parts ?? emptyParts()
+  data.formatted = formatGeocodeDisplay(data)
   cache.set(key, data)
   return data
 }
@@ -42,7 +54,12 @@ export async function reverseGeocode(lat: number, lng: number): Promise<GeocodeR
 export async function searchAddress(query: string): Promise<GeocodeResult[]> {
   if (query.trim().length < 3) return []
   const rows = await api<GeocodeResult[]>(`/geocode/search?q=${encodeURIComponent(query.trim())}`)
-  return rows.map((r) => ({ ...r, parts: r.parts ?? emptyParts() }))
+  return rows.map((r) => {
+    const parts = r.parts ?? emptyParts()
+    const row = { ...r, parts }
+    row.formatted = formatGeocodeDisplay(row)
+    return row
+  })
 }
 
 export function useDebouncedGeocode(delayMs = 500) {

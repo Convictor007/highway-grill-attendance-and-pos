@@ -97,7 +97,7 @@ final class OvertimeService
                 )->execute([
                     'hrs' => $extraHours,
                     'reason' => $reason,
-                    'st' => 'pending',
+                    'st' => 'approved',
                     'id' => $existing['id'],
                 ]);
                 $stmt = $pdo->prepare('SELECT * FROM overtime_requests WHERE id = :id');
@@ -117,7 +117,7 @@ final class OvertimeService
                 'dt' => $requestDate,
                 'hrs' => $extraHours,
                 'reason' => $reason,
-                'st' => 'pending',
+                'st' => 'approved',
                 'src' => 'auto',
                 'aid' => Schema::hasColumn('overtime_requests', 'attendance_id') ? $attendanceId : null,
             ]);

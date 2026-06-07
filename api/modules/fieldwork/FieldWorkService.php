@@ -11,6 +11,9 @@ use Hg\Api\Modules\Geocode\GeocodeService;
 
 final class FieldWorkService
 {
+    /** Extra meters allowed for GPS inaccuracy when matching clock-in zones. */
+    private const GPS_MATCH_BUFFER_M = 30;
+    private const GPS_MATCH_BUFFER_MAX_M = 60;
     public function branchHasActiveZones(?string $branchId): bool
     {
         if ($branchId === null || $branchId === '') {
@@ -28,6 +31,12 @@ final class FieldWorkService
         $stmt->execute(['b' => $branchId]);
 
         return (int) $stmt->fetchColumn() > 0;
+    }
+
+    /** Active zones that count for branch time-clock (excludes field-work-only sites). */
+    public function branchHasClockInZones(?string $branchId): bool
+    {
+        return count($this->listClockInSites($branchId)) > 0;
     }
 
     public function listSites(?string $branchId = null): array
@@ -72,18 +81,35 @@ final class FieldWorkService
             : null;
         $address = $this->resolveAddressFromCoords($lat, $lng, isset($data['address']) ? trim((string) $data['address']) : null);
 
-        Database::connection()->prepare(
-            'INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active)
-             VALUES (:id, :bid, :name, :addr, :lat, :lng, :radius, 1)'
-        )->execute([
-            'id' => $id,
-            'bid' => $branchId,
-            'name' => $name,
-            'addr' => $address,
-            'lat' => $lat,
-            'lng' => $lng,
-            'radius' => $radius,
-        ]);
+        $clockInEligible = $this->resolveClockInEligible($data, $name, $branchId);
+        if (Schema::hasColumn('field_work_sites', 'clock_in_eligible')) {
+            Database::connection()->prepare(
+                'INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active, clock_in_eligible)
+                 VALUES (:id, :bid, :name, :addr, :lat, :lng, :radius, 1, :clock_in)'
+            )->execute([
+                'id' => $id,
+                'bid' => $branchId,
+                'name' => $name,
+                'addr' => $address,
+                'lat' => $lat,
+                'lng' => $lng,
+                'radius' => $radius,
+                'clock_in' => $clockInEligible ? 1 : 0,
+            ]);
+        } else {
+            Database::connection()->prepare(
+                'INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active)
+                 VALUES (:id, :bid, :name, :addr, :lat, :lng, :radius, 1)'
+            )->execute([
+                'id' => $id,
+                'bid' => $branchId,
+                'name' => $name,
+                'addr' => $address,
+                'lat' => $lat,
+                'lng' => $lng,
+                'radius' => $radius,
+            ]);
+        }
 
         $this->persistBranchMapCenter($branchId, $lat, $lng);
 
@@ -115,19 +141,38 @@ final class FieldWorkService
             : ($existing['address'] ?? null);
         $address = $this->resolveAddressFromCoords($lat, $lng, $clientAddress);
 
-        Database::connection()->prepare(
-            'UPDATE field_work_sites
-             SET branch_id = :bid, name = :name, address = :addr, latitude = :lat, longitude = :lng, radius_m = :radius
-             WHERE id = :id'
-        )->execute([
-            'id' => $id,
-            'bid' => $branchId,
-            'name' => $name,
-            'addr' => $address,
-            'lat' => $lat,
-            'lng' => $lng,
-            'radius' => $radius,
-        ]);
+        $clockInEligible = $this->resolveClockInEligible($data, $name, $branchId);
+        if (Schema::hasColumn('field_work_sites', 'clock_in_eligible')) {
+            Database::connection()->prepare(
+                'UPDATE field_work_sites
+                 SET branch_id = :bid, name = :name, address = :addr, latitude = :lat, longitude = :lng,
+                     radius_m = :radius, clock_in_eligible = :clock_in
+                 WHERE id = :id'
+            )->execute([
+                'id' => $id,
+                'bid' => $branchId,
+                'name' => $name,
+                'addr' => $address,
+                'lat' => $lat,
+                'lng' => $lng,
+                'radius' => $radius,
+                'clock_in' => $clockInEligible ? 1 : 0,
+            ]);
+        } else {
+            Database::connection()->prepare(
+                'UPDATE field_work_sites
+                 SET branch_id = :bid, name = :name, address = :addr, latitude = :lat, longitude = :lng, radius_m = :radius
+                 WHERE id = :id'
+            )->execute([
+                'id' => $id,
+                'bid' => $branchId,
+                'name' => $name,
+                'addr' => $address,
+                'lat' => $lat,
+                'lng' => $lng,
+                'radius' => $radius,
+            ]);
+        }
 
         $this->persistBranchMapCenter($branchId, $lat, $lng);
 
@@ -143,29 +188,93 @@ final class FieldWorkService
         Database::connection()->prepare('UPDATE field_work_sites SET is_active = 0 WHERE id = :id')->execute(['id' => $id]);
     }
 
-    /** @return array{inside: bool, site: ?array, distance_m: ?float} */
-    public function zoneStatus(float $lat, float $lng, ?string $branchId): array
-    {
+    /** @return array{inside: bool, site: ?array, distance_m: ?float, nearest_site: ?array, nearest_distance_m: ?float, gps_buffer_m: int} */
+    public function zoneStatus(
+        float $lat,
+        float $lng,
+        ?string $branchId,
+        bool $clockInOnly = false,
+        ?float $accuracyM = null
+    ): array {
         $this->assertCoords($lat, $lng);
-        $match = $this->matchSite($lat, $lng, $branchId);
+        $sites = $clockInOnly ? $this->listClockInSites($branchId) : $this->listSites($branchId);
+        $buffer = $this->gpsMatchBuffer($accuracyM);
+        $match = $this->matchSiteInList($lat, $lng, $sites, $buffer);
+        $nearest = $this->nearestSiteInList($lat, $lng, $sites);
         if ($match) {
+            $dist = $this->distanceMeters($lat, $lng, (float) $match['latitude'], (float) $match['longitude']);
             return [
                 'inside' => true,
-                'site' => $match,
-                'distance_m' => round(
-                    $this->distanceMeters($lat, $lng, (float) $match['latitude'], (float) $match['longitude']),
-                    1
-                ),
+                'site' => $this->siteWithEffectiveRadius($match, $buffer),
+                'distance_m' => round($dist, 1),
+                'nearest_site' => $nearest['site'] ?? null,
+                'nearest_distance_m' => $nearest['distance_m'] ?? null,
+                'gps_buffer_m' => $buffer,
             ];
         }
-        return ['inside' => false, 'site' => null, 'distance_m' => null];
+
+        return [
+            'inside' => false,
+            'site' => null,
+            'distance_m' => null,
+            'nearest_site' => $nearest['site'] ?? null,
+            'nearest_distance_m' => $nearest['distance_m'] ?? null,
+            'gps_buffer_m' => $buffer,
+        ];
     }
 
     public function matchSite(float $lat, float $lng, ?string $branchId): ?array
     {
+        return $this->matchSiteInList($lat, $lng, $this->listSites($branchId));
+    }
+
+    public function matchClockInSite(float $lat, float $lng, ?string $branchId, ?float $accuracyM = null): ?array
+    {
+        $buffer = $this->gpsMatchBuffer($accuracyM);
+
+        return $this->matchSiteInList($lat, $lng, $this->listClockInSites($branchId), $buffer);
+    }
+
+    /** @return list<array> */
+    public function listClockInSites(?string $branchId): array
+    {
+        if ($branchId === null || $branchId === '') {
+            return [];
+        }
+
+        if (Schema::hasColumn('field_work_sites', 'clock_in_eligible')) {
+            $stmt = Database::connection()->prepare(
+                'SELECT id, branch_id, name, address, latitude, longitude, radius_m, is_active
+                 FROM field_work_sites
+                 WHERE is_active = 1 AND clock_in_eligible = 1 AND branch_id = :b
+                 ORDER BY name'
+            );
+            $stmt->execute(['b' => $branchId]);
+
+            return $stmt->fetchAll();
+        }
+
+        $eligible = [];
+        foreach ($this->listSites($branchId) as $site) {
+            $name = (string) ($site['name'] ?? '');
+            if (
+                stripos($name, 'main') !== false
+                || stripos($name, 'branch') !== false
+                || stripos($name, 'restaurant') !== false
+            ) {
+                $eligible[] = $site;
+            }
+        }
+
+        return $eligible;
+    }
+
+    /** @param list<array> $sites */
+    private function matchSiteInList(float $lat, float $lng, array $sites, int $gpsBufferM = 0): ?array
+    {
         $best = null;
         $bestDist = PHP_FLOAT_MAX;
-        foreach ($this->listSites($branchId) as $site) {
+        foreach ($sites as $site) {
             $dist = $this->distanceMeters(
                 $lat,
                 $lng,
@@ -173,12 +282,59 @@ final class FieldWorkService
                 (float) $site['longitude']
             );
             $radius = (int) ($site['radius_m'] ?? 150);
-            if ($dist <= $radius && $dist < $bestDist) {
+            if ($dist <= $radius + $gpsBufferM && $dist < $bestDist) {
                 $bestDist = $dist;
                 $best = $site;
             }
         }
+
         return $best;
+    }
+
+    private function gpsMatchBuffer(?float $accuracyM): int
+    {
+        if ($accuracyM !== null && $accuracyM > 0) {
+            return (int) min(self::GPS_MATCH_BUFFER_MAX_M, max(self::GPS_MATCH_BUFFER_M, round($accuracyM * 0.5)));
+        }
+
+        return self::GPS_MATCH_BUFFER_M;
+    }
+
+    /** @param array<string, mixed> $site */
+    private function siteWithEffectiveRadius(array $site, int $gpsBufferM): array
+    {
+        $site['effective_radius_m'] = (int) ($site['radius_m'] ?? 150) + $gpsBufferM;
+        $site['gps_buffer_m'] = $gpsBufferM;
+
+        return $site;
+    }
+
+    /**
+     * @param list<array> $sites
+     * @return array{site: array, distance_m: float}|null
+     */
+    private function nearestSiteInList(float $lat, float $lng, array $sites): ?array
+    {
+        $best = null;
+        $bestDist = PHP_FLOAT_MAX;
+        foreach ($sites as $site) {
+            $dist = $this->distanceMeters(
+                $lat,
+                $lng,
+                (float) $site['latitude'],
+                (float) $site['longitude']
+            );
+            if ($dist < $bestDist) {
+                $bestDist = $dist;
+                $best = $site;
+            }
+        }
+
+        if ($best === null) {
+            return null;
+        }
+
+        return ['site' => $best, 'distance_m' => round($bestDist, 1)];
     }
 
     public function branchCheckins(?string $branchId, int $limit = 100, ?string $date = null): array
@@ -235,7 +391,7 @@ final class FieldWorkService
         $site = $this->matchSite($lat, $lng, $branchId);
         if (!$site) {
             throw new \InvalidArgumentException(
-                'You must be inside a registered work zone to check in. Ask HR to register your branch area on the field map.'
+                'You must be at the restaurant branch to check in. Ask HR to configure the branch clock-in zone.'
             );
         }
         if ($siteId !== null && $siteId !== '' && $siteId !== $site['id']) {
@@ -386,6 +542,22 @@ final class FieldWorkService
 
         $fallback = $fallback !== null ? trim($fallback) : '';
         return $fallback !== '' ? $fallback : null;
+    }
+
+    private function resolveClockInEligible(array $data, string $name, ?string $branchId): bool
+    {
+        if (array_key_exists('clock_in_eligible', $data)) {
+            return (bool) $data['clock_in_eligible'];
+        }
+        // Branch work zones registered in HR GIS are clock-in areas by default.
+        if ($branchId !== null && $branchId !== '') {
+            return true;
+        }
+        $lower = strtolower($name);
+
+        return str_contains($lower, 'main')
+            || str_contains($lower, 'branch')
+            || str_contains($lower, 'restaurant');
     }
 
     private function persistBranchMapCenter(?string $branchId, float $lat, float $lng): void

@@ -59,9 +59,6 @@ export function TimePicker({ label, value, onChange, stepMinutes = 15, id }: Pro
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <span className="picker-trigger-icon" aria-hidden>
-          🕐
-        </span>
         <span>{formatTimeDisplay(value)}</span>
       </button>
       {open && (

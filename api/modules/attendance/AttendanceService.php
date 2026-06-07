@@ -16,8 +16,12 @@ final class AttendanceService
         $sql = 'SELECT a.*, e.emp_number, e.first_name, e.last_name, e.branch_id
                 FROM attendance a
                 INNER JOIN employees e ON e.id = a.employee_id
-                WHERE DATE(a.clock_in) = :d';
-        $params = ['d' => $date];
+                WHERE (
+                    DATE(a.clock_in) = :d
+                    OR (a.clock_out IS NOT NULL AND DATE(a.clock_out) = :d2)
+                    OR (a.clock_in < DATE_ADD(:d3, INTERVAL 1 DAY) AND (a.clock_out IS NULL OR a.clock_out >= :d4))
+                )';
+        $params = ['d' => $date, 'd2' => $date, 'd3' => $date, 'd4' => $date];
         if ($employeeId) {
             $sql .= ' AND a.employee_id = :eid';
             $params['eid'] = $employeeId;
@@ -45,13 +49,33 @@ final class AttendanceService
     public function clockPolicyForEmployee(string $employeeId): array
     {
         if ($this->isManagementEmployee($employeeId)) {
-            return ['geofence_required' => false, 'clock_in_exempt' => true];
+            return [
+                'geofence_required' => false,
+                'clock_in_exempt' => true,
+                'mobile_clock' => true,
+                'position_label' => 'Management',
+            ];
+        }
+
+        if ($this->isDeliveryRider($employeeId)) {
+            return [
+                'geofence_required' => false,
+                'clock_in_exempt' => false,
+                'mobile_clock' => true,
+                'position_label' => 'Delivery',
+            ];
         }
 
         $branchId = $this->employeeBranchId($employeeId);
-        $required = (new FieldWorkService())->branchHasActiveZones($branchId);
+        $required = (new FieldWorkService())->branchHasClockInZones($branchId);
+        $position = $this->employeePositionLabel($employeeId);
 
-        return ['geofence_required' => $required, 'clock_in_exempt' => false];
+        return [
+            'geofence_required' => $required,
+            'clock_in_exempt' => false,
+            'mobile_clock' => false,
+            'position_label' => $position,
+        ];
     }
 
     public function clockIn(
@@ -59,13 +83,14 @@ final class AttendanceService
         string $method = 'app',
         ?float $latitude = null,
         ?float $longitude = null,
-        ?string $address = null
+        ?string $address = null,
+        ?float $accuracyM = null
     ): array {
         if ($this->openSession($employeeId)) {
             throw new \RuntimeException('Already clocked in');
         }
 
-        $this->assertGeofenceForClockIn($employeeId, $latitude, $longitude);
+        $this->assertGeofenceForClockIn($employeeId, $latitude, $longitude, $accuracyM);
         $id = Database::uuid();
         $pdo = Database::connection();
         $hasAddr = Schema::hasColumn('attendance', 'clock_in_address');
@@ -411,28 +436,85 @@ final class AttendanceService
         return is_string($slug) && in_array($slug, ['admin', 'hr'], true);
     }
 
-    private function assertGeofenceForClockIn(string $employeeId, ?float $latitude, ?float $longitude): void
-    {
-        if ($this->isManagementEmployee($employeeId)) {
+    private function assertGeofenceForClockIn(
+        string $employeeId,
+        ?float $latitude,
+        ?float $longitude,
+        ?float $accuracyM = null
+    ): void {
+        $policy = $this->clockPolicyForEmployee($employeeId);
+        if (!$policy['geofence_required']) {
             return;
         }
 
         $branchId = $this->employeeBranchId($employeeId);
         $fieldWork = new FieldWorkService();
-        if (!$fieldWork->branchHasActiveZones($branchId)) {
+        if (!$fieldWork->branchHasClockInZones($branchId)) {
             return;
         }
 
         if ($latitude === null || $longitude === null) {
             throw new \InvalidArgumentException(
-                'Location access is required to clock in. Enable GPS on your device and try again.'
+                'Location access is required to clock in. Tap Enable location on the time clock, allow browser GPS, then try again.'
             );
         }
 
-        if (!$fieldWork->matchSite($latitude, $longitude, $branchId)) {
+        $match = $fieldWork->matchClockInSite($latitude, $longitude, $branchId, $accuracyM);
+        if ($match === null) {
+            $status = $fieldWork->zoneStatus($latitude, $longitude, $branchId, true, $accuracyM);
+            $nearest = $status['nearest_distance_m'] ?? null;
+            $radius = isset($status['nearest_site']['radius_m']) ? (int) $status['nearest_site']['radius_m'] : null;
+            $edgeGap = $nearest !== null && $radius !== null ? max(0, (int) round($nearest - $radius)) : null;
+            $hint = $edgeGap !== null && $radius !== null
+                ? sprintf(' About %dm outside the %dm zone — move closer or ask HR to widen the area.', $edgeGap, $radius)
+                : ($nearest !== null ? sprintf(' Nearest zone center: %dm away.', (int) round($nearest)) : '');
             throw new \InvalidArgumentException(
-                'You must be inside a registered work zone to clock in. If you are off-site, use Field Work to check in.'
+                'You must be inside the registered work zone to clock in.' . $hint
             );
         }
+    }
+
+    private function isDeliveryRider(string $employeeId): bool
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT p.title, d.name AS department_name
+             FROM employees e
+             LEFT JOIN positions p ON p.id = e.position_id
+             LEFT JOIN departments d ON d.id = p.department_id
+             WHERE e.id = :id LIMIT 1'
+        );
+        $stmt->execute(['id' => $employeeId]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return false;
+        }
+        $title = strtolower((string) ($row['title'] ?? ''));
+        $dept = strtolower((string) ($row['department_name'] ?? ''));
+
+        return str_contains($dept, 'delivery')
+            || str_contains($title, 'delivery')
+            || str_contains($title, 'rider');
+    }
+
+    private function employeePositionLabel(string $employeeId): ?string
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT p.title, d.name AS department_name
+             FROM employees e
+             LEFT JOIN positions p ON p.id = e.position_id
+             LEFT JOIN departments d ON d.id = p.department_id
+             WHERE e.id = :id LIMIT 1'
+        );
+        $stmt->execute(['id' => $employeeId]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return null;
+        }
+        $title = trim((string) ($row['title'] ?? ''));
+        if ($title !== '') {
+            return $title;
+        }
+
+        return trim((string) ($row['department_name'] ?? '')) ?: null;
     }
 }

@@ -4,7 +4,15 @@ import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
-import type { Branch, Department, Employee, Position } from '../../types/hrms'
+import { EmployeeAvatar } from '../../components/EmployeeAvatar'
+import { DatePicker } from '../../components/DatePicker'
+import { AddressField } from '../../components/AddressField'
+import { NationalityField, DEFAULT_NATIONALITY } from '../../components/NationalityField'
+import type { Branch, Department, Employee, Gender, Position } from '../../types/hrms'
+
+type ViewMode = 'card' | 'list' | 'grid'
+
+const VIEW_KEY = 'hg_employee_view'
 
 const emptyForm = () => ({
   branch_id: '',
@@ -17,7 +25,36 @@ const emptyForm = () => ({
   phone: '',
   hire_date: new Date().toISOString().slice(0, 10),
   status: 'active',
+  employment_type: 'full_time',
+  date_of_birth: '',
+  gender: '' as Gender | '',
+  nationality: DEFAULT_NATIONALITY,
+  address: '',
+  emergency_name: '',
+  emergency_phone: '',
 })
+
+function EmployeeActions({
+  emp,
+  canManage,
+  onEdit,
+  onTerminate,
+}: {
+  emp: Employee
+  canManage: boolean
+  onEdit: () => void
+  onTerminate: () => void
+}) {
+  if (!canManage) return null
+  return (
+    <div className="employee-item-actions">
+      <button type="button" className="btn btn-ghost btn-sm" onClick={onEdit}>Edit</button>
+      {emp.status === 'active' && (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onTerminate}>Terminate</button>
+      )}
+    </div>
+  )
+}
 
 export function EmployeeListPage() {
   const { user } = useAuth()
@@ -29,6 +66,15 @@ export function EmployeeListPage() {
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
+  const [view, setView] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem(VIEW_KEY) as ViewMode | null
+    return saved === 'list' || saved === 'grid' ? saved : 'card'
+  })
+
+  const setViewMode = (mode: ViewMode) => {
+    setView(mode)
+    localStorage.setItem(VIEW_KEY, mode)
+  }
 
   const loadDepts = async (branchId: string) => {
     if (!branchId) return setDepartments([])
@@ -63,11 +109,6 @@ export function EmployeeListPage() {
     load()
   }, [])
 
-  const openCreate = () => {
-    setEditingId('new')
-    setForm({ ...emptyForm(), branch_id: branches[0]?.id ?? '' })
-  }
-
   const openEdit = async (emp: Employee) => {
     setEditingId(emp.id)
     await loadDepts(emp.branch_id)
@@ -83,6 +124,13 @@ export function EmployeeListPage() {
       phone: emp.phone ?? '',
       hire_date: emp.hire_date?.slice(0, 10) ?? '',
       status: emp.status,
+      employment_type: emp.employment_type ?? 'full_time',
+      date_of_birth: emp.date_of_birth?.slice(0, 10) ?? '',
+      gender: (emp.gender as Gender) ?? '',
+      nationality: emp.nationality || DEFAULT_NATIONALITY,
+      address: emp.address ?? '',
+      emergency_name: emp.emergency_name ?? '',
+      emergency_phone: emp.emergency_phone ?? '',
     })
   }
 
@@ -92,6 +140,12 @@ export function EmployeeListPage() {
       ...form,
       department_id: form.department_id || null,
       position_id: form.position_id || null,
+      gender: form.gender || null,
+      date_of_birth: form.date_of_birth || null,
+      nationality: form.nationality || DEFAULT_NATIONALITY,
+      address: form.address || null,
+      emergency_name: form.emergency_name || null,
+      emergency_phone: form.emergency_phone || null,
     }
     if (editingId === 'new') {
       await api('/employees', { method: 'POST', body: JSON.stringify(payload) })
@@ -108,23 +162,32 @@ export function EmployeeListPage() {
     load()
   }
 
+  const viewToggle = (
+    <div className="view-toggle" role="group" aria-label="Employee view">
+      {(['card', 'list', 'grid'] as ViewMode[]).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          className={`btn btn-sm ${view === mode ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setViewMode(mode)}
+        >
+          {mode === 'card' ? 'Cards' : mode === 'list' ? 'List' : 'Grid'}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
     <div>
       <PageHeader
         title="Employees"
-        subtitle="Staff directory and assignments"
-        actions={
-          canManage ? (
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
-              Add employee
-            </button>
-          ) : undefined
-        }
+        subtitle="Self-registration on login page · approve under Users"
+        actions={viewToggle}
       />
 
       {editingId && canManage && (
-        <form className="card" style={{ marginBottom: '1.5rem' }} onSubmit={onSubmit}>
-          <h3 style={{ marginBottom: '1rem' }}>{editingId === 'new' ? 'New employee' : 'Edit employee'}</h3>
+        <form className="card employee-edit-panel" onSubmit={onSubmit}>
+          <h3 className="section-title">{editingId === 'new' ? 'New employee' : 'Edit employee'}</h3>
           <div className="form-row">
             <div className="form-group">
               <label>Employee #</label>
@@ -133,6 +196,7 @@ export function EmployeeListPage() {
             <div className="form-group">
               <label>Status</label>
               <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <option value="pending">pending</option>
                 <option value="active">active</option>
                 <option value="on_leave">on_leave</option>
                 <option value="resigned">resigned</option>
@@ -197,52 +261,119 @@ export function EmployeeListPage() {
               <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
             </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="form-row">
+            <DatePicker
+              label="Birthday"
+              value={form.date_of_birth}
+              onChange={(date_of_birth) => setForm({ ...form, date_of_birth })}
+              max={new Date().toISOString().slice(0, 10)}
+              birthDate
+            />
+            <div className="form-group">
+              <label>Gender</label>
+              <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value as Gender | '' })}>
+                <option value="">—</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="prefer_not">Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+          <NationalityField value={form.nationality} onChange={(nationality) => setForm({ ...form, nationality })} />
+          <AddressField value={form.address} onChange={(address) => setForm({ ...form, address })} compact />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Emergency contact</label>
+              <input value={form.emergency_name} onChange={(e) => setForm({ ...form, emergency_name: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label>Emergency phone</label>
+              <input value={form.emergency_phone} onChange={(e) => setForm({ ...form, emergency_phone: e.target.value })} />
+            </div>
+          </div>
+          <div className="form-group">
+            <label>Employment type</label>
+            <select value={form.employment_type} onChange={(e) => setForm({ ...form, employment_type: e.target.value })}>
+              <option value="full_time">Full time</option>
+              <option value="part_time">Part time</option>
+              <option value="casual">Casual</option>
+              <option value="seasonal">Seasonal</option>
+            </select>
+          </div>
+          <div className="quick-actions">
             <button type="submit" className="btn btn-primary">Save</button>
             <button type="button" className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>
           </div>
         </form>
       )}
 
-      <div className="card table-wrap">
-        {loading ? (
-          <LoadingBlock />
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Name</th>
-                <th>Branch</th>
-                <th>Department</th>
-                <th>Position</th>
-                <th>Status</th>
-                {canManage && <th></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((e) => (
-                <tr key={e.id}>
-                  <td>{e.emp_number}</td>
-                  <td>{e.first_name} {e.last_name}</td>
-                  <td>{e.branch_name}</td>
-                  <td>{e.department_name ?? '—'}</td>
-                  <td>{e.position_title ?? '—'}</td>
-                  <td><span className={`badge badge-${e.status}`}>{e.status}</span></td>
-                  {canManage && (
-                    <td>
-                      <button type="button" className="btn btn-ghost" onClick={() => openEdit(e)}>Edit</button>
-                      {e.status === 'active' && (
-                        <button type="button" className="btn btn-ghost" style={{ marginLeft: 4 }} onClick={() => onTerminate(e.id)}>Terminate</button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {loading ? (
+        <LoadingBlock />
+      ) : view === 'card' ? (
+        <div className="employee-cards">
+          {employees.map((e) => (
+            <article key={e.id} className="employee-card card">
+              <div className="employee-card__top">
+                <EmployeeAvatar photoUrl={e.photo_url} firstName={e.first_name} lastName={e.last_name} size={52} />
+                <div>
+                  <strong>{e.first_name} {e.last_name}</strong>
+                  <p className="muted-block employee-card__sub">{e.emp_number}</p>
+                </div>
+                <span className={`badge badge-${e.status}`}>{e.status}</span>
+              </div>
+              <dl className="employee-card__meta">
+                <div><dt>Branch</dt><dd>{e.branch_name}</dd></div>
+                <div><dt>Dept</dt><dd>{e.department_name ?? '—'}</dd></div>
+                <div><dt>Role</dt><dd>{e.position_title ?? '—'}</dd></div>
+                <div><dt>Phone</dt><dd>{e.phone ?? '—'}</dd></div>
+              </dl>
+              <EmployeeActions
+                emp={e}
+                canManage={canManage}
+                onEdit={() => openEdit(e)}
+                onTerminate={() => onTerminate(e.id)}
+              />
+            </article>
+          ))}
+        </div>
+      ) : view === 'list' ? (
+        <div className="employee-list card">
+          {employees.map((e) => (
+            <div key={e.id} className="employee-list-row">
+              <EmployeeAvatar photoUrl={e.photo_url} firstName={e.first_name} lastName={e.last_name} size={40} />
+              <div className="employee-list-row__main">
+                <strong>{e.first_name} {e.last_name}</strong>
+                <span className="muted-block">{e.emp_number} · {e.position_title ?? '—'} · {e.branch_name}</span>
+              </div>
+              <span className={`badge badge-${e.status}`}>{e.status}</span>
+              <EmployeeActions
+                emp={e}
+                canManage={canManage}
+                onEdit={() => openEdit(e)}
+                onTerminate={() => onTerminate(e.id)}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="employee-grid">
+          {employees.map((e) => (
+            <button
+              key={e.id}
+              type="button"
+              className="employee-grid-tile card"
+              onClick={() => canManage && openEdit(e)}
+              disabled={!canManage}
+            >
+              <EmployeeAvatar photoUrl={e.photo_url} firstName={e.first_name} lastName={e.last_name} size={56} />
+              <strong>{e.first_name}</strong>
+              <span className="muted-block">{e.last_name}</span>
+              <span className={`badge badge-${e.status}`}>{e.status}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
