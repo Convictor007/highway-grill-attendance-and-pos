@@ -147,4 +147,5 @@ final class SettingsController
         }
         Response::error('Method not allowed', 405);
     }
+
 }

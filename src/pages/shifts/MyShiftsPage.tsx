@@ -5,6 +5,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { ScheduleGrid } from '../../components/ScheduleGrid'
 import { ShiftSwapModal } from '../../components/ShiftSwapModal'
 import { sundayOfWeek, shiftWeek, tomorrowWeekStart } from '../../lib/scheduleWeek'
+import { DatePicker } from '../../components/DatePicker'
 import type { Employee, RosterGrid, RosterGridCell } from '../../types/hrms'
 
 type ShiftSwap = {
@@ -31,6 +32,7 @@ export function MyShiftsPage() {
   const [swaps, setSwaps] = useState<ShiftSwap[]>([])
   const [loading, setLoading] = useState(true)
   const [swapCell, setSwapCell] = useState<(RosterGridCell & { date: string }) | null>(null)
+  const [swapMode, setSwapMode] = useState(false)
 
   const load = async (ws: string) => {
     setLoading(true)
@@ -123,19 +125,31 @@ export function MyShiftsPage() {
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setWeekStart((w) => shiftWeek(w, 1))}>
           Next week →
         </button>
-        <input
-          type="date"
-          className="schedule-week-picker"
-          value={weekStart}
-          onChange={(e) => e.target.value && setWeekStart(e.target.value)}
-          aria-label="Week starting Sunday"
-        />
+        <div className="schedule-week-picker-wrap">
+          <DatePicker value={weekStart} onChange={(v) => v && setWeekStart(v)} />
+        </div>
+        <button
+          type="button"
+          className={`btn btn-sm schedule-swap-toggle${swapMode ? ' btn-primary' : ' btn-ghost'}`}
+          onClick={() => setSwapMode((on) => !on)}
+          aria-pressed={swapMode}
+        >
+          {swapMode ? 'Swap mode on' : 'Swap shifts'}
+        </button>
       </div>
+
+      {swapMode && (
+        <p className="schedule-swap-hint muted-block" style={{ margin: '0 0 1rem' }}>
+          Swap links appear on your shifts. Exchanges must be on the <strong>same day</strong>.
+        </p>
+      )}
 
       <div className="card schedule-grid-card">
         <ScheduleGrid
           data={roster}
           loading={loading}
+          employeeView
+          showSwapButtons={swapMode}
           highlightEmployeeId={user?.employee_id ?? null}
           onSwapRequest={setSwapCell}
         />

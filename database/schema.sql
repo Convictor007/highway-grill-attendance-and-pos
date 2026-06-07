@@ -227,6 +227,7 @@ CREATE TABLE schedules (
     branch_id CHAR(36) NOT NULL,
     week_start DATE NOT NULL,
     status ENUM('draft', 'published', 'locked') NOT NULL DEFAULT 'draft',
+    day_footnotes JSON NULL COMMENT 'Day index 0=Sun..6=Sat -> note text',
     published_by CHAR(36) NULL,
     published_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

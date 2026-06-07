@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/PageHeader'
+import { DatePicker } from '../../components/DatePicker'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
 
@@ -61,16 +62,13 @@ export function OvertimePage() {
       <form className="card" onSubmit={onSubmit} style={{ marginBottom: '1rem' }}>
         <h2 className="section-title">New request</h2>
         <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="ot-date">Date worked</label>
-            <input
-              id="ot-date"
-              type="date"
-              required
-              value={form.request_date}
-              onChange={(e) => setForm((f) => ({ ...f, request_date: e.target.value }))}
-            />
-          </div>
+          <DatePicker
+            label="Date worked"
+            id="ot-date"
+            value={form.request_date}
+            onChange={(v) => setForm((f) => ({ ...f, request_date: v }))}
+            required
+          />
           <div className="form-group">
             <label htmlFor="ot-hours">Extra hours</label>
             <input

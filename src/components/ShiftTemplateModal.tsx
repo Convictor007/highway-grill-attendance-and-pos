@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { Modal } from './Modal'
+import { TimePicker } from './TimePicker'
 
 export type ShiftTemplateRecord = {
   id: string
@@ -135,24 +136,16 @@ export function ShiftTemplateModal({ open, editing, branches, onClose, onSaved }
           />
         </label>
         <div className="form-row">
-          <label className="geofence-field">
-            <span>Start time</span>
-            <input
-              type="time"
-              value={form.start_time}
-              onChange={(e) => setForm({ ...form, start_time: e.target.value })}
-              required
-            />
-          </label>
-          <label className="geofence-field">
-            <span>End time</span>
-            <input
-              type="time"
-              value={form.end_time}
-              onChange={(e) => setForm({ ...form, end_time: e.target.value })}
-              required
-            />
-          </label>
+          <TimePicker
+            label="Start time"
+            value={form.start_time}
+            onChange={(v) => setForm({ ...form, start_time: v })}
+          />
+          <TimePicker
+            label="End time"
+            value={form.end_time}
+            onChange={(v) => setForm({ ...form, end_time: v })}
+          />
         </div>
         <label className="geofence-field">
           <span>Break (minutes)</span>

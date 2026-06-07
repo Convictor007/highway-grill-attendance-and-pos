@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { Modal } from './Modal'
+import { DateTimePicker } from './DateTimePicker'
 import type { Branch } from '../types/hrms'
 
 export type AnnouncementRecord = {
@@ -150,22 +151,17 @@ export function AnnouncementEditModal({ open, announcement, branches, onClose, o
         />
       </div>
       <div className="form-row">
-        <div className="form-group">
-          <label>Publish at</label>
-          <input
-            type="datetime-local"
-            value={form.publish_at}
-            onChange={(e) => setForm({ ...form, publish_at: e.target.value })}
-          />
-        </div>
-        <div className="form-group">
-          <label>Expires at</label>
-          <input
-            type="datetime-local"
-            value={form.expires_at}
-            onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
-          />
-        </div>
+        <DateTimePicker
+          label="Publish at"
+          value={form.publish_at}
+          onChange={(v) => setForm({ ...form, publish_at: v })}
+        />
+        <DateTimePicker
+          label="Expires at"
+          value={form.expires_at}
+          onChange={(v) => setForm({ ...form, expires_at: v })}
+          minDate={form.publish_at ? form.publish_at.slice(0, 10) : undefined}
+        />
       </div>
     </Modal>
   )

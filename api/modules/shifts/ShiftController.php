@@ -191,13 +191,24 @@ final class ShiftController
                 return;
             }
 
-            if ($seg1 === 'schedules' && $method === 'POST') {
+            if ($seg1 === 'schedules' && $method === 'POST' && $seg2 === null) {
                 Auth::requirePermission($user, 'shifts.manage');
                 $body = Request::jsonBody();
                 Response::json([
                     'success' => true,
                     'data' => $this->service->createSchedule($body, $user['id']),
                 ], 201);
+                return;
+            }
+
+            if ($seg1 === 'schedules' && $method === 'PUT' && $seg2 !== null) {
+                Auth::requirePermission($user, 'shifts.manage');
+                $row = $this->service->updateSchedule($seg2, Request::jsonBody(), $user['id']);
+                if (!$row) {
+                    Response::error('Schedule not found', 404);
+                    return;
+                }
+                Response::json(['success' => true, 'data' => $row]);
                 return;
             }
 
@@ -216,6 +227,45 @@ final class ShiftController
                     'success' => true,
                     'data' => $this->service->addAssignment(Request::jsonBody()),
                 ], 201);
+                return;
+            }
+
+            if ($seg1 === 'assignments' && $method === 'PUT' && $seg2 !== null) {
+                Auth::requirePermission($user, 'shifts.manage');
+                $row = $this->service->updateAssignment($seg2, Request::jsonBody());
+                if (!$row) {
+                    Response::error('Assignment not found', 404);
+                    return;
+                }
+                Response::json(['success' => true, 'data' => $row]);
+                return;
+            }
+
+            if ($seg1 === 'roster' && $method === 'POST' && $seg2 === 'cell') {
+                Auth::requirePermission($user, 'shifts.manage');
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->upsertRosterCell(Request::jsonBody(), $user['id']),
+                ]);
+                return;
+            }
+
+            if ($seg1 === 'roster' && $method === 'POST' && $seg2 === 'footnotes') {
+                Auth::requirePermission($user, 'shifts.manage');
+                $body = Request::jsonBody();
+                if (empty($body['branch_id']) || empty($body['week_start']) || !array_key_exists('day_footnotes', $body)) {
+                    Response::error('branch_id, week_start, and day_footnotes required', 422);
+                    return;
+                }
+                $schedule = $this->service->ensureSchedule(
+                    (string) $body['branch_id'],
+                    (string) $body['week_start'],
+                    $user['id']
+                );
+                $row = $this->service->updateSchedule($schedule['id'], [
+                    'day_footnotes' => $body['day_footnotes'],
+                ], $user['id']);
+                Response::json(['success' => true, 'data' => $row]);
                 return;
             }
 

@@ -25,8 +25,8 @@ import { OvertimePage } from '../pages/overtime/OvertimePage'
 import { MyDocumentsPage } from '../pages/documents/MyDocumentsPage'
 import { HrLoansPage } from '../pages/hr/HrLoansPage'
 import { HrOvertimePage } from '../pages/hr/HrOvertimePage'
-import { HrFieldWorkPage } from '../pages/hr/HrFieldWorkPage'
 import { HrContentPage } from '../pages/hr/HrContentPage'
+import { AttendanceStatsPage } from '../pages/attendance/AttendanceStatsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -132,6 +132,14 @@ export function AppRoutes() {
         <Route path="my-payslips" element={<Navigate to="/payroll" replace />} />
         <Route path="attendance" element={<AttendancePage />} />
         <Route
+          path="hr/attendance-stats"
+          element={
+            <RequirePermission permission="attendance.view">
+              <AttendanceStatsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
           path="hr/overtime"
           element={
             <RequirePermission permission="attendance.manage">
@@ -139,14 +147,7 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route
-          path="hr/field-work"
-          element={
-            <RequirePermission permission="attendance.view">
-              <HrFieldWorkPage />
-            </RequirePermission>
-          }
-        />
+        <Route path="hr/field-work" element={<Navigate to="/" replace />} />
         <Route
           path="hr/loans"
           element={

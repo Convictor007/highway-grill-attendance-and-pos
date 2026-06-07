@@ -47,6 +47,15 @@ require_once __DIR__ . '/modules/loans/LoanService.php';
 require_once __DIR__ . '/modules/loans/LoanController.php';
 require_once __DIR__ . '/modules/geocode/GeocodeService.php';
 require_once __DIR__ . '/modules/geocode/GeocodeController.php';
+require_once __DIR__ . '/modules/holidays/HolidayService.php';
+require_once __DIR__ . '/modules/holidays/HolidayController.php';
+require_once __DIR__ . '/modules/payroll/PayrollAdjustmentService.php';
+require_once __DIR__ . '/modules/tips/TipsService.php';
+require_once __DIR__ . '/modules/tips/TipsController.php';
+require_once __DIR__ . '/modules/contracts/ContractService.php';
+require_once __DIR__ . '/modules/contracts/ContractController.php';
+require_once __DIR__ . '/modules/benefits/BenefitService.php';
+require_once __DIR__ . '/modules/benefits/BenefitController.php';
 
 use Hg\Api\Core\Response;
 use Hg\Api\Modules\Announcements\AnnouncementController;
@@ -68,6 +77,10 @@ use Hg\Api\Modules\Geocode\GeocodeController;
 use Hg\Api\Modules\Loans\LoanController;
 use Hg\Api\Modules\Notifications\NotificationController;
 use Hg\Api\Modules\Shifts\ShiftController;
+use Hg\Api\Modules\Holidays\HolidayController;
+use Hg\Api\Modules\Tips\TipsController;
+use Hg\Api\Modules\Contracts\ContractController;
+use Hg\Api\Modules\Benefits\BenefitController;
 
 $configPath = __DIR__ . '/config/config.php';
 if (is_file($configPath)) {
@@ -109,6 +122,7 @@ try {
                 'auth', 'roles', 'employees', 'users', 'branches', 'departments', 'positions',
                 'settings', 'attendance', 'leave', 'payroll', 'shifts', 'dashboard', 'compliance',
                 'overtime', 'announcements', 'documents', 'field-work', 'loans', 'geocode', 'notifications',
+                'holidays', 'tips', 'contracts', 'benefits',
             ],
         ]),
         'auth' => (new AuthController())->handle($method, $seg1),
@@ -119,7 +133,11 @@ try {
         'attendance' => (new AttendanceController())->handle($method, $seg1),
         'leave' => (new LeaveController())->handle($method, $seg1 ?? 'requests', $seg2),
         'payroll' => (new PayrollController())->handle($method, $seg1, $seg2),
-        'dashboard' => (new DashboardController())->handle($method),
+        'dashboard' => (new DashboardController())->handle($method, $seg1),
+        'holidays' => (new HolidayController())->handle($method, $seg1),
+        'tips' => (new TipsController())->handle($method, $seg1, $seg2),
+        'contracts' => (new ContractController())->handle($method, $seg1, $seg2),
+        'benefits' => (new BenefitController())->handle($method, $seg1),
         'users' => (new UserController())->handle($method, $seg1),
         'notifications' => (new NotificationController())->handle($method, $seg1, $seg2),
         'shifts' => (new ShiftController())->handle($method, $seg1, $seg2),

@@ -12,7 +12,10 @@ use Throwable;
 
 final class PayrollController
 {
-    public function __construct(private readonly PayrollService $service = new PayrollService()) {}
+    public function __construct(
+        private readonly PayrollService $service = new PayrollService(),
+        private readonly PayrollAdjustmentService $adjustments = new PayrollAdjustmentService(),
+    ) {}
 
     public function handle(string $method, ?string $id, ?string $seg2): void
     {
@@ -117,6 +120,44 @@ final class PayrollController
                     'success' => true,
                     'data' => $this->service->payslips(Request::query('run_id')),
                 ]);
+                return;
+            }
+
+            if ($method === 'GET' && $id === 'adjustments') {
+                Auth::requirePermission($user, 'payroll.view');
+                $recurring = Request::query('recurring');
+                Response::json([
+                    'success' => true,
+                    'data' => $this->adjustments->list(
+                        Request::query('employee_id'),
+                        Request::query('run_id'),
+                        $recurring === '1' || $recurring === 'true' ? true : null
+                    ),
+                ]);
+                return;
+            }
+
+            if ($method === 'POST' && $id === 'adjustments') {
+                Auth::requirePermission($user, 'payroll.manage');
+                $body = Request::jsonBody();
+                if (empty($body['employee_id']) || !isset($body['amount'])) {
+                    Response::error('employee_id and amount required', 422);
+                    return;
+                }
+                $row = $this->adjustments->create($body, $user['id']);
+                AuditLog::write($user['id'], 'create', 'payroll_adjustments', $row['id'] ?? null, null, $row);
+                Response::json(['success' => true, 'data' => $row], 201);
+                return;
+            }
+
+            if ($method === 'DELETE' && $id === 'adjustments' && $seg2 !== null) {
+                Auth::requirePermission($user, 'payroll.manage');
+                if (!$this->adjustments->delete($seg2)) {
+                    Response::error('Adjustment not found', 404);
+                    return;
+                }
+                AuditLog::write($user['id'], 'delete', 'payroll_adjustments', $seg2);
+                Response::json(['success' => true]);
                 return;
             }
 

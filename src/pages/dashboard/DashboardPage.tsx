@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
+import { isFieldStaff } from '../../lib/roles'
 import { PageHeader } from '../../components/PageHeader'
-import type { DashboardSummary, LeaveBalance } from '../../types/hrms'
+import type { DashboardSummary, LeaveBalance, OrgMasterlistEntry } from '../../types/hrms'
 
 interface HoursSummary {
   from: string
@@ -28,14 +29,18 @@ export function DashboardPage() {
   const [myBalances, setMyBalances] = useState<LeaveBalance[]>([])
   const [weekHours, setWeekHours] = useState<HoursSummary | null>(null)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [masterlist, setMasterlist] = useState<OrgMasterlistEntry[]>([])
   const isHrView = hasPermission(user, 'reports.view')
-  const isCrew = hasPermission(user, 'attendance.self') && !isHrView
+  const isCrew = isFieldStaff(user)
 
   useEffect(() => {
     if (isHrView) {
       api<DashboardSummary>('/dashboard').then(setStats).catch(() => setStats(null))
+      api<OrgMasterlistEntry[]>('/dashboard/org-masterlist')
+        .then(setMasterlist)
+        .catch(() => setMasterlist([]))
     }
-    if (hasPermission(user, 'attendance.self') && user?.employee_id) {
+    if (isFieldStaff(user) && user?.employee_id) {
       api<{ open: boolean; on_break?: boolean }>('/attendance/status')
         .then((s) => {
           setClockedIn(s.open)
@@ -60,7 +65,9 @@ export function DashboardPage() {
   const cards = [
     { label: 'Active staff', value: stats?.active_employees, to: '/employees', perm: 'employees.view' },
     { label: 'Present today', value: stats?.present_today, to: '/attendance', perm: 'attendance.view' },
-    { label: 'Still clocked in', value: stats?.still_clocked_in, to: '/attendance', perm: 'attendance.view' },
+    { label: 'Attendance today', value: stats?.attendance_rate_today != null ? `${stats.attendance_rate_today}%` : undefined, to: '/hr/attendance-stats', perm: 'attendance.view' },
+    { label: 'Month hours', value: stats?.month_hours, to: '/hr/attendance-stats', perm: 'attendance.view' },
+    { label: 'Pending OT', value: stats?.pending_overtime, to: '/hr/overtime', perm: 'attendance.manage' },
     { label: 'Pending leave', value: stats?.pending_leave, to: '/leave', perm: 'leave.view' },
     { label: 'Draft payroll', value: stats?.draft_payroll_runs, to: '/payroll', perm: 'payroll.view' },
   ].filter((c) => hasPermission(user, c.perm))
@@ -140,6 +147,43 @@ export function DashboardPage() {
             ))}
           </div>
         </>
+      )}
+
+      {isHrView && masterlist.length > 0 && hasPermission(user, 'employees.view') && (
+        <div className="card table-wrap" style={{ marginTop: '1.5rem' }}>
+          <h2 className="section-title">Organization masterlist</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Branch</th>
+                <th>Department</th>
+                <th>Position</th>
+                <th>Hired</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {masterlist.slice(0, 25).map((e) => (
+                <tr key={e.id}>
+                  <td>
+                    {e.first_name} {e.last_name}
+                  </td>
+                  <td>{e.branch_name ?? '—'}</td>
+                  <td>{e.department_name ?? '—'}</td>
+                  <td>{e.position_title ?? '—'}</td>
+                  <td>{e.hire_date}</td>
+                  <td>{e.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {masterlist.length > 25 && (
+            <p className="muted-block" style={{ padding: '0.75rem 1rem' }}>
+              Showing 25 of {masterlist.length}. <Link to="/employees">View all employees</Link>
+            </p>
+          )}
+        </div>
       )}
     </div>
   )

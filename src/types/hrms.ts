@@ -81,6 +81,80 @@ export interface DashboardSummary {
   still_clocked_in: number
   pending_leave: number
   draft_payroll_runs: number
+  month_hours?: number
+  pending_overtime?: number
+  pending_loans?: number
+  attendance_rate_today?: number
+}
+
+export interface Holiday {
+  id: string
+  branch_id: string | null
+  holiday_date: string
+  name: string
+  holiday_type: string
+  pay_multiplier: string | number
+  branch_name?: string | null
+}
+
+export interface PayrollAdjustment {
+  id: string
+  employee_id: string
+  payroll_run_id: string | null
+  adj_type: string
+  amount: string | number
+  description: string | null
+  first_name?: string
+  last_name?: string
+  emp_number?: string
+}
+
+export interface TipsPool {
+  id: string
+  branch_id: string
+  pool_date: string
+  total_tips: string | number
+  shift_type: string
+  status: string
+  branch_name?: string
+  distributions?: TipsDistribution[]
+}
+
+export interface TipsDistribution {
+  id: string
+  employee_id: string
+  percentage: string | number
+  amount: string | number
+  first_name?: string
+  last_name?: string
+}
+
+export interface BenefitEnrollment {
+  id: string
+  employee_id: string
+  benefit_code: string
+  benefit_name: string
+  amount: string | number
+  frequency: string
+  is_active: number | boolean
+  notes?: string | null
+  first_name?: string
+  last_name?: string
+}
+
+export interface OrgMasterlistEntry {
+  id: string
+  emp_number: string
+  first_name: string
+  last_name: string
+  email: string | null
+  phone: string | null
+  hire_date: string
+  employment_type: string
+  status: string
+  branch_name?: string
+  department_name?: string
+  position_title?: string
 }
 
 export interface LeaveRequest {
@@ -134,6 +208,7 @@ export interface PayrollRun {
   period_start: string
   period_end: string
   pay_date: string
+  run_type?: string
   status: string
   total_gross?: string | number
   total_net?: string | number
@@ -178,6 +253,7 @@ export interface Schedule {
 
 export interface RosterGridCell {
   date: string
+  status?: 'working' | 'day_off' | 'unset'
   label: string
   off: boolean
   assignment_id?: string
@@ -198,7 +274,8 @@ export interface RosterGridDay {
   date: string
   label: string
   highlight: boolean
-  footnote?: string
+  footnote?: string | null
+  day_index?: number
   is_today?: boolean
   is_tomorrow?: boolean
 }
@@ -207,12 +284,15 @@ export interface RosterGrid {
   title: string
   branch_id: string
   branch_name?: string | null
+  schedule_id?: string | null
+  schedule_status?: string | null
+  editable?: boolean
   current_date?: string
   is_current_week?: boolean
   week_start: string
   week_end: string
   days: RosterGridDay[]
-  footnotes: { day_label: string; text: string }[]
+  footnotes: { day_index?: number; day_label: string; text: string }[]
   rows: RosterGridRow[]
 }
 

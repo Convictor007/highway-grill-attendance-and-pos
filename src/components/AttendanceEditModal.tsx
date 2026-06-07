@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import { toLocalDateTimeInput, toSqlDateTime } from '../lib/datetime'
 import { Modal } from './Modal'
+import { DateTimePicker } from './DateTimePicker'
 import type { AttendanceRecord } from '../types/hrms'
 
 type Props = {
@@ -8,19 +10,6 @@ type Props = {
   record: AttendanceRecord | null
   onClose: () => void
   onSaved: () => void
-}
-
-function toLocalInput(iso: string | null): string {
-  if (!iso) return ''
-  const d = new Date(iso.replace(' ', 'T'))
-  if (Number.isNaN(d.getTime())) return ''
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function toSql(local: string): string | null {
-  if (!local) return null
-  return local.replace('T', ' ') + (local.length === 16 ? ':00' : '')
 }
 
 export function AttendanceEditModal({ open, record, onClose, onSaved }: Props) {
@@ -35,8 +24,8 @@ export function AttendanceEditModal({ open, record, onClose, onSaved }: Props) {
 
   useEffect(() => {
     if (!open || !record) return
-    setClockIn(toLocalInput(record.clock_in))
-    setClockOut(toLocalInput(record.clock_out))
+    setClockIn(toLocalDateTimeInput(record.clock_in))
+    setClockOut(toLocalDateTimeInput(record.clock_out))
     setActualHours(record.actual_hours != null ? String(record.actual_hours) : '')
     setRegularHours(record.regular_hours != null ? String(record.regular_hours) : '')
     setOvertimeHours(record.overtime_hours != null ? String(record.overtime_hours) : '')
@@ -57,8 +46,8 @@ export function AttendanceEditModal({ open, record, onClose, onSaved }: Props) {
       await api(`/attendance/${record.id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          clock_in: toSql(clockIn),
-          clock_out: clockOut ? toSql(clockOut) : null,
+          clock_in: toSqlDateTime(clockIn),
+          clock_out: clockOut ? toSqlDateTime(clockOut) : null,
           actual_hours: actualHours !== '' ? Number(actualHours) : undefined,
           regular_hours: regularHours !== '' ? Number(regularHours) : undefined,
           overtime_hours: overtimeHours !== '' ? Number(overtimeHours) : undefined,
@@ -83,6 +72,7 @@ export function AttendanceEditModal({ open, record, onClose, onSaved }: Props) {
       open={open}
       title={`Correct attendance — ${label}`}
       onClose={onClose}
+      size="wide"
       footer={
         <>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -94,58 +84,58 @@ export function AttendanceEditModal({ open, record, onClose, onSaved }: Props) {
         </>
       }
     >
-      <div className="stack" style={{ gap: '0.75rem' }}>
-        <label className="geofence-field">
-          <span>Clock in</span>
-          <input type="datetime-local" value={clockIn} onChange={(e) => setClockIn(e.target.value)} required />
-        </label>
-        <label className="geofence-field">
-          <span>Clock out</span>
-          <input type="datetime-local" value={clockOut} onChange={(e) => setClockOut(e.target.value)} />
-        </label>
-        <label className="geofence-field">
-          <span>Total hours (optional)</span>
-          <input
-            type="number"
-            step={0.25}
-            value={actualHours}
-            onChange={(e) => setActualHours(e.target.value)}
-          />
-        </label>
-        <label className="geofence-field">
-          <span>Regular hours</span>
-          <input
-            type="number"
-            step={0.25}
-            value={regularHours}
-            onChange={(e) => setRegularHours(e.target.value)}
-          />
-        </label>
-        <label className="geofence-field">
-          <span>Overtime hours</span>
-          <input
-            type="number"
-            step={0.25}
-            value={overtimeHours}
-            onChange={(e) => setOvertimeHours(e.target.value)}
-          />
-        </label>
+      <div className="stack" style={{ gap: '1rem' }}>
+        <div className="form-row">
+          <DateTimePicker label="Clock in" value={clockIn} onChange={setClockIn} required />
+          <DateTimePicker label="Clock out" value={clockOut} onChange={setClockOut} />
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Total hours</label>
+            <input
+              type="number"
+              step={0.25}
+              value={actualHours}
+              onChange={(e) => setActualHours(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Regular hours</label>
+            <input
+              type="number"
+              step={0.25}
+              value={regularHours}
+              onChange={(e) => setRegularHours(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label>Overtime hours</label>
+            <input
+              type="number"
+              step={0.25}
+              value={overtimeHours}
+              onChange={(e) => setOvertimeHours(e.target.value)}
+            />
+          </div>
+        </div>
+
         {record.clock_out_type && record.clock_out_type !== 'manual' && (
           <p className="muted-block" style={{ margin: 0 }}>
             Clock-out: {record.clock_out_type.replace(/_/g, ' ')}
           </p>
         )}
-        <label className="geofence-field">
-          <span>Method</span>
+
+        <div className="form-group">
+          <label>Method</label>
           <select value={method} onChange={(e) => setMethod(e.target.value)}>
             <option value="manual">Manual correction</option>
             <option value="app">App</option>
             <option value="pin">PIN</option>
-            <option value="biometric">Biometric</option>
           </select>
-        </label>
+        </div>
       </div>
-      {error && <p className="geofence-error">{error}</p>}
+      {error && <p className="error-msg" style={{ marginTop: '0.75rem' }}>{error}</p>}
     </Modal>
   )
 }

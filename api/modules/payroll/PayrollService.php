@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Hg\Api\Modules\Payroll;
 
 use Hg\Api\Core\Database;
+use Hg\Api\Core\Schema;
+use Hg\Api\Modules\Benefits\BenefitService;
+use Hg\Api\Modules\Holidays\HolidayService;
 use Hg\Api\Modules\Loans\LoanService;
+use Hg\Api\Modules\Tips\TipsService;
 
 final class PayrollService
 {
@@ -27,18 +31,36 @@ final class PayrollService
     public function createRun(array $data, string $userId): array
     {
         $id = Database::uuid();
-        Database::connection()->prepare(
-            'INSERT INTO payroll_runs (id, branch_id, period_start, period_end, pay_date, status, processed_by)
-             VALUES (:id, :bid, :ps, :pe, :pd, :st, :uid)'
-        )->execute([
-            'id' => $id,
-            'bid' => $data['branch_id'],
-            'ps' => $data['period_start'],
-            'pe' => $data['period_end'],
-            'pd' => $data['pay_date'],
-            'st' => 'draft',
-            'uid' => $userId,
-        ]);
+        $runType = ($data['run_type'] ?? 'regular') === '13th_month' ? '13th_month' : 'regular';
+        $pdo = Database::connection();
+        if (Schema::hasColumn('payroll_runs', 'run_type')) {
+            $pdo->prepare(
+                'INSERT INTO payroll_runs (id, branch_id, period_start, period_end, pay_date, run_type, status, processed_by)
+                 VALUES (:id, :bid, :ps, :pe, :pd, :rt, :st, :uid)'
+            )->execute([
+                'id' => $id,
+                'bid' => $data['branch_id'],
+                'ps' => $data['period_start'],
+                'pe' => $data['period_end'],
+                'pd' => $data['pay_date'],
+                'rt' => $runType,
+                'st' => 'draft',
+                'uid' => $userId,
+            ]);
+        } else {
+            $pdo->prepare(
+                'INSERT INTO payroll_runs (id, branch_id, period_start, period_end, pay_date, status, processed_by)
+                 VALUES (:id, :bid, :ps, :pe, :pd, :st, :uid)'
+            )->execute([
+                'id' => $id,
+                'bid' => $data['branch_id'],
+                'ps' => $data['period_start'],
+                'pe' => $data['period_end'],
+                'pd' => $data['pay_date'],
+                'st' => 'draft',
+                'uid' => $userId,
+            ]);
+        }
         $stmt = Database::connection()->prepare('SELECT * FROM payroll_runs WHERE id = :id');
         $stmt->execute(['id' => $id]);
         return $stmt->fetch();
@@ -83,13 +105,24 @@ final class PayrollService
             throw new \RuntimeException('Payroll run not found');
         }
 
+        if (($runRow['run_type'] ?? 'regular') === '13th_month') {
+            return $this->generate13thMonthPayslips($runId, $runRow);
+        }
+
+        $holidayService = new HolidayService();
+        $adjustmentService = new PayrollAdjustmentService();
+        $tipsService = new TipsService();
+        $benefitService = new BenefitService();
+        $loanService = new LoanService();
+        $branchId = (string) $runRow['branch_id'];
+
         $emps = $pdo->prepare(
             "SELECT e.id, COALESCE(p.min_hourly, 80) AS hourly
              FROM employees e
              LEFT JOIN positions p ON p.id = e.position_id
              WHERE e.branch_id = :b AND e.status = 'active'"
         );
-        $emps->execute(['b' => $runRow['branch_id']]);
+        $emps->execute(['b' => $branchId]);
         $created = 0;
 
         foreach ($emps->fetchAll() as $emp) {
@@ -99,37 +132,56 @@ final class PayrollService
                 continue;
             }
 
+            $employeeId = (string) $emp['id'];
+            $periodStart = (string) $runRow['period_start'];
+            $periodEnd = (string) $runRow['period_end'];
+
             $hrs = $pdo->prepare(
                 'SELECT COALESCE(SUM(actual_hours), 0) FROM attendance
                  WHERE employee_id = :e AND DATE(clock_in) BETWEEN :ps AND :pe'
             );
-            $hrs->execute(['e' => $emp['id'], 'ps' => $runRow['period_start'], 'pe' => $runRow['period_end']]);
+            $hrs->execute(['e' => $employeeId, 'ps' => $periodStart, 'pe' => $periodEnd]);
             $regularHours = (float) $hrs->fetchColumn();
             $hourly = (float) $emp['hourly'];
             $basicPay = round($regularHours * $hourly, 2);
-            $gross = $basicPay;
+
+            $holidayHours = $holidayService->holidayHoursInPeriod($employeeId, $periodStart, $periodEnd, $branchId);
+            $holidayPremium = $holidayService->holidayPremiumPay($employeeId, $periodStart, $periodEnd, $branchId, $hourly);
+
+            $overtimeHours = $this->approvedOvertimeHours($employeeId, $periodStart, $periodEnd);
+            $overtimePay = round($overtimeHours * $hourly * 1.25, 2);
+
+            $tipsAmount = $tipsService->tipsForEmployeeInPeriod($employeeId, $periodStart, $periodEnd);
+            $benefitsAmount = $benefitService->monthlyTotalForEmployee($employeeId);
+
+            $adj = $adjustmentService->totalsForEmployee($employeeId, $runId);
+            $adjNet = (float) $adj['net'];
+
+            $gross = round($basicPay + $holidayPremium + $overtimePay + $tipsAmount + $benefitsAmount + max(0, $adjNet), 2);
             $sss = round($gross * 0.045, 2);
             $phil = round($gross * 0.025, 2);
             $pagibig = round($gross * 0.02, 2);
             $tax = round($gross * 0.05, 2);
-            $loanService = new LoanService();
-            $loanDeduction = $loanService->applyPayrollDeduction(
-                (string) $emp['id'],
-                $runId,
-                (string) $runRow['pay_date']
-            );
-            $otherDeductions = $loanDeduction;
-            $net = $gross - $sss - $phil - $pagibig - $tax - $otherDeductions;
+            $loanDeduction = $loanService->applyPayrollDeduction($employeeId, $runId, (string) $runRow['pay_date']);
+            $adjDebits = max(0, -(float) $adj['net']);
+            $otherDeductions = round($loanDeduction + $adjDebits, 2);
+            $net = round($gross - $sss - $phil - $pagibig - $tax - $otherDeductions, 2);
 
             $pdo->prepare(
-                'INSERT INTO payslips (id, payroll_run_id, employee_id, regular_hours, basic_pay, gross_pay,
+                'INSERT INTO payslips (id, payroll_run_id, employee_id, regular_hours, overtime_hours, holiday_hours,
+                 basic_pay, overtime_pay, tips_amount, service_charge, gross_pay,
                  sss_amount, philhealth_amount, pagibig_amount, tax_amount, other_deductions, net_pay, generated_at)
-                 VALUES (UUID(), :rid, :eid, :rh, :bp, :gp, :sss, :ph, :pg, :tax, :other, :net, NOW())'
+                 VALUES (UUID(), :rid, :eid, :rh, :oth, :hh, :bp, :otp, :tips, :svc, :gp, :sss, :ph, :pg, :tax, :other, :net, NOW())'
             )->execute([
                 'rid' => $runId,
-                'eid' => $emp['id'],
+                'eid' => $employeeId,
                 'rh' => $regularHours,
+                'oth' => $overtimeHours,
+                'hh' => $holidayHours,
                 'bp' => $basicPay,
+                'otp' => $overtimePay,
+                'tips' => $tipsAmount,
+                'svc' => $benefitsAmount,
                 'gp' => $gross,
                 'sss' => $sss,
                 'ph' => $phil,
@@ -141,6 +193,82 @@ final class PayrollService
             $created++;
         }
 
+        return $this->finalizeRun($runId, $created);
+    }
+
+    public function generate13thMonthPayslips(string $runId, ?array $runRow = null): array
+    {
+        $pdo = Database::connection();
+        if ($runRow === null) {
+            $stmt = $pdo->prepare('SELECT * FROM payroll_runs WHERE id = :id LIMIT 1');
+            $stmt->execute(['id' => $runId]);
+            $runRow = $stmt->fetch();
+            if (!$runRow) {
+                throw new \RuntimeException('Payroll run not found');
+            }
+        }
+
+        $year = (int) date('Y', strtotime((string) $runRow['pay_date']));
+        $emps = $pdo->prepare(
+            "SELECT e.id FROM employees e WHERE e.branch_id = :b AND e.status = 'active'"
+        );
+        $emps->execute(['b' => $runRow['branch_id']]);
+        $created = 0;
+
+        foreach ($emps->fetchAll() as $emp) {
+            $employeeId = (string) $emp['id'];
+            $exists = $pdo->prepare('SELECT id FROM payslips WHERE payroll_run_id = :r AND employee_id = :e LIMIT 1');
+            $exists->execute(['r' => $runId, 'e' => $employeeId]);
+            if ($exists->fetch()) {
+                continue;
+            }
+
+            $runTypeFilter = Schema::hasColumn('payroll_runs', 'run_type')
+                ? " AND (pr.run_type IS NULL OR pr.run_type = 'regular')"
+                : '';
+            $basicStmt = $pdo->prepare(
+                "SELECT COALESCE(SUM(ps.basic_pay), 0)
+                 FROM payslips ps
+                 INNER JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
+                 WHERE ps.employee_id = :eid AND pr.branch_id = :bid
+                   AND YEAR(pr.period_end) = :yr
+                   AND pr.status IN ('processing', 'approved', 'paid'){$runTypeFilter}"
+            );
+            $basicStmt->execute([
+                'eid' => $employeeId,
+                'bid' => $runRow['branch_id'],
+                'yr' => $year,
+            ]);
+            $totalBasic = (float) $basicStmt->fetchColumn();
+            $thirteenth = round($totalBasic / 12, 2);
+            if ($thirteenth <= 0) {
+                continue;
+            }
+
+            $tax = $thirteenth > 90000 ? round(($thirteenth - 90000) * 0.05, 2) : 0.0;
+            $net = round($thirteenth - $tax, 2);
+
+            $pdo->prepare(
+                'INSERT INTO payslips (id, payroll_run_id, employee_id, regular_hours, basic_pay, gross_pay,
+                 tax_amount, other_deductions, net_pay, generated_at)
+                 VALUES (UUID(), :rid, :eid, 0, :bp, :gp, :tax, 0, :net, NOW())'
+            )->execute([
+                'rid' => $runId,
+                'eid' => $employeeId,
+                'bp' => $thirteenth,
+                'gp' => $thirteenth,
+                'tax' => $tax,
+                'net' => $net,
+            ]);
+            $created++;
+        }
+
+        return $this->finalizeRun($runId, $created);
+    }
+
+    private function finalizeRun(string $runId, int $created): array
+    {
+        $pdo = Database::connection();
         $totals = $pdo->prepare(
             'SELECT COALESCE(SUM(gross_pay), 0) AS g, COALESCE(SUM(net_pay), 0) AS n FROM payslips WHERE payroll_run_id = :id'
         );
@@ -151,6 +279,17 @@ final class PayrollService
         )->execute(['id' => $runId, 'g' => $sum['g'], 'n' => $sum['n']]);
 
         return ['created' => $created, 'payslips' => $this->payslips($runId)];
+    }
+
+    private function approvedOvertimeHours(string $employeeId, string $from, string $to): float
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT COALESCE(SUM(extra_hours), 0) FROM overtime_requests
+             WHERE employee_id = :eid AND status = 'approved' AND request_date BETWEEN :f AND :t"
+        );
+        $stmt->execute(['eid' => $employeeId, 'f' => $from, 't' => $to]);
+
+        return round((float) $stmt->fetchColumn(), 2);
     }
 
     public function getRun(string $id): ?array

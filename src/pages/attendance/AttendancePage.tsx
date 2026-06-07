@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import { clockIn as doClockIn, clockOut as doClockOut, clockErrorMessage } from '../../lib/clock'
 import { useAuth } from '../../context/AuthContext'
@@ -8,8 +8,9 @@ import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
 import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
 import { AttendanceEditModal } from '../../components/AttendanceEditModal'
+import { DatePicker } from '../../components/DatePicker'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
-import type { AttendanceRecord, Employee } from '../../types/hrms'
+import type { AttendanceRecord } from '../../types/hrms'
 
 interface FieldVisit {
   id: string
@@ -29,22 +30,14 @@ export function AttendancePage() {
   const canManage = hasPermission(user, 'attendance.manage')
   const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [fieldVisits, setFieldVisits] = useState<FieldVisit[]>([])
-  const [employees, setEmployees] = useState<Employee[]>([])
   const [open, setOpen] = useState(false)
   const [onBreak, setOnBreak] = useState(false)
   const [weekHours, setWeekHours] = useState<{ total_hours: number; shift_count: number } | null>(null)
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
   const [loading, setLoading] = useState(true)
-  const [showManual, setShowManual] = useState(false)
   const [clockError, setClockError] = useState<string | null>(null)
   const [geofenceRequired, setGeofenceRequired] = useState(false)
   const geofence = useClockGeofence(geofenceRequired && canSelf)
-  const [manual, setManual] = useState({
-    employee_id: '',
-    clock_in: '',
-    clock_out: '',
-    actual_hours: '',
-  })
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null)
 
   const load = async () => {
@@ -68,13 +61,6 @@ export function AttendancePage() {
         api<{ total_hours: number; shift_count: number }>('/attendance/summary')
           .then(setWeekHours)
           .catch(() => setWeekHours(null))
-      }
-      if (canManage) {
-        const emps = await api<Employee[]>('/employees?status=active')
-        setEmployees(emps)
-        if (emps[0] && !manual.employee_id) {
-          setManual((m) => ({ ...m, employee_id: emps[0].id }))
-        }
       }
     } finally {
       setLoading(false)
@@ -116,36 +102,16 @@ export function AttendancePage() {
     load()
   }
 
-  const onManual = async (e: FormEvent) => {
-    e.preventDefault()
-    const toSql = (v: string) => (v ? v.replace('T', ' ') + (v.length === 16 ? ':00' : '') : null)
-    await api('/attendance/manual', {
-      method: 'POST',
-      body: JSON.stringify({
-        employee_id: manual.employee_id,
-        clock_in: toSql(manual.clock_in),
-        clock_out: manual.clock_out ? toSql(manual.clock_out) : null,
-        actual_hours: manual.actual_hours ? Number(manual.actual_hours) : undefined,
-        method: 'manual',
-      }),
-    })
-    setShowManual(false)
-    load()
-  }
-
   const title = canView ? 'Attendance register' : 'My attendance'
 
   return (
     <div>
       <PageHeader
         title={title}
-        subtitle={canView ? 'Daily clock records for all staff' : 'Clock in and view your hours'}
-        actions={
-          canManage ? (
-            <button type="button" className="btn btn-primary" onClick={() => setShowManual(!showManual)}>
-              {showManual ? 'Cancel' : 'Manual entry'}
-            </button>
-          ) : undefined
+        subtitle={
+          canView
+            ? 'Daily clock records. Assign planned hours under Shifts → Roster.'
+            : 'Clock in and view your hours'
         }
       />
 
@@ -206,58 +172,8 @@ export function AttendancePage() {
         </div>
       )}
 
-      {showManual && canManage && (
-        <form className="card" style={{ marginBottom: '1.5rem' }} onSubmit={onManual}>
-          <h3 className="section-title">Manual attendance entry</h3>
-          <div className="form-group">
-            <label>Employee</label>
-            <select
-              value={manual.employee_id}
-              onChange={(e) => setManual({ ...manual, employee_id: e.target.value })}
-              required
-            >
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.emp_number} — {e.first_name} {e.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Clock in</label>
-              <input
-                type="datetime-local"
-                value={manual.clock_in}
-                onChange={(e) => setManual({ ...manual, clock_in: e.target.value })}
-                required
-              />
-            </div>
-            <div className="form-group">
-              <label>Clock out</label>
-              <input
-                type="datetime-local"
-                value={manual.clock_out}
-                onChange={(e) => setManual({ ...manual, clock_out: e.target.value })}
-              />
-            </div>
-            <div className="form-group">
-              <label>Hours (optional)</label>
-              <input
-                type="number"
-                step="0.25"
-                value={manual.actual_hours}
-                onChange={(e) => setManual({ ...manual, actual_hours: e.target.value })}
-              />
-            </div>
-          </div>
-          <button type="submit" className="btn btn-primary">Save entry</button>
-        </form>
-      )}
-
-      <div className="form-group" style={{ maxWidth: 200, marginBottom: '1rem' }}>
-        <label>Date</label>
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <div style={{ maxWidth: 240, marginBottom: '1rem' }}>
+        <DatePicker label="Date" value={date} onChange={setDate} />
       </div>
 
       <div className="card table-wrap">

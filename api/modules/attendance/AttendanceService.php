@@ -44,10 +44,14 @@ final class AttendanceService
 
     public function clockPolicyForEmployee(string $employeeId): array
     {
+        if ($this->isManagementEmployee($employeeId)) {
+            return ['geofence_required' => false, 'clock_in_exempt' => true];
+        }
+
         $branchId = $this->employeeBranchId($employeeId);
         $required = (new FieldWorkService())->branchHasActiveZones($branchId);
 
-        return ['geofence_required' => $required];
+        return ['geofence_required' => $required, 'clock_in_exempt' => false];
     }
 
     public function clockIn(
@@ -124,6 +128,50 @@ final class AttendanceService
         return $row ?: null;
     }
 
+    public function scheduledShiftForEmployee(string $employeeId, string $date): ?array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT sa.*, st.name AS shift_name, COALESCE(sa.break_mins, st.break_mins, 0) AS break_mins
+             FROM shift_assignments sa
+             INNER JOIN schedules sch ON sch.id = sa.schedule_id
+               AND sch.status IN (\'published\', \'locked\', \'draft\')
+             LEFT JOIN shift_templates st ON st.id = sa.shift_template_id
+             WHERE sa.employee_id = :eid AND sa.shift_date = :d
+               AND (sa.notes IS NULL OR sa.notes != \'REST_DAY\')
+             ORDER BY sa.start_time LIMIT 1'
+        );
+        $stmt->execute(['eid' => $employeeId, 'd' => $date]);
+        $row = $stmt->fetch();
+        if (!$row) {
+            return null;
+        }
+
+        $start = substr((string) $row['start_time'], 0, 8);
+        $end = substr((string) $row['end_time'], 0, 8);
+        $endDate = $date;
+        if (strcmp($end, $start) <= 0) {
+            $endDate = date('Y-m-d', strtotime($date . ' +1 day'));
+        }
+        $clockIn = $date . ' ' . $start;
+        $clockOut = $endDate . ' ' . $end;
+        $breakMins = (int) $row['break_mins'];
+        $rawHours = (strtotime($clockOut) - strtotime($clockIn)) / 3600;
+        $hours = round(max(0, $rawHours - $breakMins / 60), 2);
+
+        return [
+            'assignment_id' => $row['id'],
+            'shift_name' => $row['shift_name'] ?? null,
+            'shift_date' => $date,
+            'start_time' => $row['start_time'],
+            'end_time' => $row['end_time'],
+            'break_mins' => $breakMins,
+            'clock_in' => $clockIn,
+            'clock_out' => $clockOut,
+            'suggested_hours' => $hours,
+            'off_day' => false,
+        ];
+    }
+
     public function manualEntry(array $data, string $reviewerUserId): array
     {
         $id = Database::uuid();
@@ -133,18 +181,36 @@ final class AttendanceService
         if ($clockOut && $hours === null) {
             $hours = round((strtotime($clockOut) - strtotime($clockIn)) / 3600, 2);
         }
-        Database::connection()->prepare(
-            'INSERT INTO attendance (id, employee_id, clock_in, clock_out, actual_hours, method, approved_by, approved_at)
-             VALUES (:id, :eid, :cin, :cout, :hrs, :method, :by, NOW())'
-        )->execute([
-            'id' => $id,
-            'eid' => $data['employee_id'],
-            'cin' => $clockIn,
-            'cout' => $clockOut,
-            'hrs' => $hours,
-            'method' => $data['method'] ?? 'manual',
-            'by' => $reviewerUserId,
-        ]);
+        $hasShiftCol = Schema::hasColumn('attendance', 'shift_assignment_id');
+        if ($hasShiftCol) {
+            Database::connection()->prepare(
+                'INSERT INTO attendance (id, employee_id, clock_in, clock_out, actual_hours, method, shift_assignment_id, approved_by, approved_at)
+                 VALUES (:id, :eid, :cin, :cout, :hrs, :method, :said, :by, NOW())'
+            )->execute([
+                'id' => $id,
+                'eid' => $data['employee_id'],
+                'cin' => $clockIn,
+                'cout' => $clockOut,
+                'hrs' => $hours,
+                'method' => $data['method'] ?? 'manual',
+                'said' => $data['shift_assignment_id'] ?? null,
+                'by' => $reviewerUserId,
+            ]);
+        } else {
+            Database::connection()->prepare(
+                'INSERT INTO attendance (id, employee_id, clock_in, clock_out, actual_hours, method, approved_by, approved_at)
+                 VALUES (:id, :eid, :cin, :cout, :hrs, :method, :by, NOW())'
+            )->execute([
+                'id' => $id,
+                'eid' => $data['employee_id'],
+                'cin' => $clockIn,
+                'cout' => $clockOut,
+                'hrs' => $hours,
+                'method' => $data['method'] ?? 'manual',
+                'by' => $reviewerUserId,
+            ]);
+        }
+
         return $this->get($id) ?? [];
     }
 
@@ -156,7 +222,7 @@ final class AttendanceService
         }
         $sets = [];
         $params = ['id' => $id];
-        foreach (['clock_in', 'clock_out', 'actual_hours', 'regular_hours', 'overtime_hours', 'method', 'clock_in_address', 'clock_out_address'] as $f) {
+        foreach (['clock_in', 'clock_out', 'actual_hours', 'regular_hours', 'overtime_hours', 'method', 'clock_in_address', 'clock_out_address', 'shift_assignment_id'] as $f) {
             if (array_key_exists($f, $data)) {
                 $sets[] = "$f = :$f";
                 $params[$f] = $data[$f];
@@ -195,6 +261,88 @@ final class AttendanceService
         }
 
         return (new AttendanceAutoService())->recalculateForRecord($id) ?? $row;
+    }
+
+    public function statistics(?string $branchId, string $from, string $to): array
+    {
+        $pdo = Database::connection();
+        $empSql = "SELECT COUNT(*) FROM employees WHERE status = 'active'";
+        $empParams = [];
+        if ($branchId) {
+            $empSql .= ' AND branch_id = :b';
+            $empParams['b'] = $branchId;
+        }
+        $empStmt = $pdo->prepare($empSql);
+        $empStmt->execute($empParams);
+        $activeEmployees = (int) $empStmt->fetchColumn();
+
+        $attSql = 'SELECT e.id, e.emp_number, e.first_name, e.last_name,
+                          COALESCE(SUM(a.actual_hours), 0) AS total_hours,
+                          COUNT(DISTINCT DATE(a.clock_in)) AS days_present
+                   FROM employees e
+                   LEFT JOIN attendance a ON a.employee_id = e.id
+                     AND DATE(a.clock_in) BETWEEN :f AND :t AND a.clock_out IS NOT NULL
+                   WHERE e.status = \'active\'';
+        $attParams = ['f' => $from, 't' => $to];
+        if ($branchId) {
+            $attSql .= ' AND e.branch_id = :b';
+            $attParams['b'] = $branchId;
+        }
+        $attSql .= ' GROUP BY e.id ORDER BY e.last_name';
+        $attStmt = $pdo->prepare($attSql);
+        $attStmt->execute($attParams);
+        $byEmployee = $attStmt->fetchAll();
+
+        $totalHours = 0.0;
+        $totalDays = 0;
+        foreach ($byEmployee as $row) {
+            $totalHours += (float) $row['total_hours'];
+            $totalDays += (int) $row['days_present'];
+        }
+
+        $holidaySql = 'SELECT COALESCE(SUM(a.actual_hours), 0)
+                       FROM attendance a
+                       INNER JOIN employees e ON e.id = a.employee_id
+                       INNER JOIN holidays h ON h.holiday_date = DATE(a.clock_in)
+                         AND (h.branch_id IS NULL OR h.branch_id = e.branch_id)
+                       WHERE DATE(a.clock_in) BETWEEN :f AND :t';
+        $holidayParams = ['f' => $from, 't' => $to];
+        if ($branchId) {
+            $holidaySql .= ' AND e.branch_id = :b';
+            $holidayParams['b'] = $branchId;
+        }
+        $holidayStmt = $pdo->prepare($holidaySql);
+        $holidayStmt->execute($holidayParams);
+        $holidayHours = round((float) $holidayStmt->fetchColumn(), 2);
+
+        $otSql = "SELECT COALESCE(SUM(o.extra_hours), 0)
+                  FROM overtime_requests o
+                  INNER JOIN employees e ON e.id = o.employee_id
+                  WHERE o.status = 'approved' AND o.request_date BETWEEN :f AND :t";
+        $otParams = ['f' => $from, 't' => $to];
+        if ($branchId) {
+            $otSql .= ' AND e.branch_id = :b';
+            $otParams['b'] = $branchId;
+        }
+        $otStmt = $pdo->prepare($otSql);
+        $otStmt->execute($otParams);
+        $overtimeHours = round((float) $otStmt->fetchColumn(), 2);
+
+        $periodDays = max(1, (int) ((strtotime($to) - strtotime($from)) / 86400) + 1);
+        $expectedSlots = $activeEmployees * $periodDays;
+
+        return [
+            'from' => $from,
+            'to' => $to,
+            'active_employees' => $activeEmployees,
+            'total_hours' => round($totalHours, 2),
+            'avg_hours_per_employee' => $activeEmployees > 0 ? round($totalHours / $activeEmployees, 2) : 0,
+            'total_days_present' => $totalDays,
+            'attendance_rate' => $expectedSlots > 0 ? round(($totalDays / $expectedSlots) * 100, 1) : 0,
+            'holiday_hours_worked' => $holidayHours,
+            'approved_overtime_hours' => $overtimeHours,
+            'by_employee' => $byEmployee,
+        ];
     }
 
     public function hoursSummary(string $employeeId, string $from, string $to): array
@@ -250,8 +398,25 @@ final class AttendanceService
         return $emp['branch_id'] ?? null;
     }
 
+    private function isManagementEmployee(string $employeeId): bool
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT r.role_slug FROM users u
+             INNER JOIN roles r ON r.role_id = u.role_id
+             WHERE u.employee_id = :eid AND u.is_active = 1 LIMIT 1'
+        );
+        $stmt->execute(['eid' => $employeeId]);
+        $slug = $stmt->fetchColumn();
+
+        return is_string($slug) && in_array($slug, ['admin', 'hr'], true);
+    }
+
     private function assertGeofenceForClockIn(string $employeeId, ?float $latitude, ?float $longitude): void
     {
+        if ($this->isManagementEmployee($employeeId)) {
+            return;
+        }
+
         $branchId = $this->employeeBranchId($employeeId);
         $fieldWork = new FieldWorkService();
         if (!$fieldWork->branchHasActiveZones($branchId)) {

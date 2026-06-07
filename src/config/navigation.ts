@@ -21,7 +21,7 @@ export const employeeMenuItems: NavItem[] = [
   { to: '/benefits', label: 'Benefits', description: 'SSS, PhilHealth, Pag-IBIG', icon: 'benefit', perm: 'payroll.view.self' },
   { to: '/service-records', label: 'Service Records', description: 'Contracts & certificates', icon: 'folder', perm: 'documents.view.self' },
   { to: '/memos', label: 'Memos & Notices', description: 'Announcements from HR', icon: 'memo', perm: 'announcements.view' },
-  { to: '/profile', label: 'Profile', description: 'Your info & settings', icon: 'user', perm: 'attendance.self' },
+  { to: '/profile', label: 'Profile', description: 'Your info & settings', icon: 'user' },
 ]
 
 export const adminMenuItems: NavItem[] = [
@@ -30,8 +30,8 @@ export const adminMenuItems: NavItem[] = [
   { to: '/users', label: 'Users', icon: 'key', perm: 'users.manage' },
   { to: '/shifts', label: 'Shifts', icon: 'schedule', perm: 'shifts.manage' },
   { to: '/attendance', label: 'Attendance', icon: 'clock', perm: 'attendance.view' },
+  { to: '/hr/attendance-stats', label: 'Attendance stats', icon: 'overtime', perm: 'attendance.view' },
   { to: '/hr/overtime', label: 'Overtime', icon: 'overtime', perm: 'attendance.manage' },
-  { to: '/hr/field-work', label: 'Field work', icon: 'map', perm: 'attendance.view' },
   { to: '/hr/loans', label: 'Loans', icon: 'loan', perm: 'loans.manage' },
   { to: '/hr/content', label: 'HR content', icon: 'memo', perm: 'employees.manage' },
   { to: '/leave', label: 'Leave', icon: 'calendar', perm: 'leave.view' },

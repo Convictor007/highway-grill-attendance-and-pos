@@ -8,7 +8,8 @@ import { BranchEditModal, type BranchEditInput } from '../../components/BranchEd
 import { DepartmentEditModal, type DepartmentEditInput } from '../../components/DepartmentEditModal'
 import { PositionEditModal, type PositionEditInput } from '../../components/PositionEditModal'
 import { EmptyState } from '../../components/EmptyState'
-import type { Branch, Department } from '../../types/hrms'
+import type { Branch, Department, Holiday } from '../../types/hrms'
+import { DatePicker } from '../../components/DatePicker'
 
 type SettingsBranch = Branch & {
   timezone?: string
@@ -26,9 +27,12 @@ type SettingsPosition = PositionEditInput & {
   branch_id?: string
 }
 
-function defaultTab(canBranches: boolean, canDepts: boolean): 'branches' | 'departments' | 'positions' {
+type SettingsTab = 'branches' | 'departments' | 'positions' | 'holidays'
+
+function defaultTab(canBranches: boolean, canDepts: boolean, canHolidays: boolean): SettingsTab {
   if (canBranches) return 'branches'
   if (canDepts) return 'departments'
+  if (canHolidays) return 'holidays'
   return 'positions'
 }
 
@@ -36,7 +40,9 @@ export function SettingsPage() {
   const { user } = useAuth()
   const canBranches = hasPermission(user, 'settings.branches.manage')
   const canDepts = hasPermission(user, 'settings.departments.manage')
-  const [tab, setTab] = useState<'branches' | 'departments' | 'positions'>(defaultTab(canBranches, canDepts))
+  const canHolidays = hasPermission(user, 'payroll.view')
+  const canManageHolidays = hasPermission(user, 'payroll.manage')
+  const [tab, setTab] = useState<SettingsTab>(defaultTab(canBranches, canDepts, canHolidays))
   const [branches, setBranches] = useState<SettingsBranch[]>([])
   const [departments, setDepartments] = useState<SettingsDepartment[]>([])
   const [positions, setPositions] = useState<SettingsPosition[]>([])
@@ -50,10 +56,25 @@ export function SettingsPage() {
   const [editingDepartment, setEditingDepartment] = useState<DepartmentEditInput | null>(null)
   const [positionModalOpen, setPositionModalOpen] = useState(false)
   const [editingPosition, setEditingPosition] = useState<PositionEditInput | null>(null)
+  const [holidays, setHolidays] = useState<Holiday[]>([])
+  const [holidayYear, setHolidayYear] = useState(new Date().getFullYear())
+  const [showHolidayForm, setShowHolidayForm] = useState(false)
+  const [holidayForm, setHolidayForm] = useState({
+    holiday_date: '',
+    name: '',
+    holiday_type: 'national',
+    pay_multiplier: '2.00',
+    branch_id: '',
+  })
 
   const loadPositions = async (branchId?: string) => {
     const q = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ''
     setPositions(await api<SettingsPosition[]>(`/settings/positions${q}`))
+  }
+
+  const loadHolidays = async (year: number) => {
+    if (!canHolidays) return
+    setHolidays(await api<Holiday[]>(`/holidays?year=${year}`))
   }
 
   const load = async () => {
@@ -66,7 +87,7 @@ export function SettingsPage() {
       setBranches(b)
       setDepartments(d)
       if (b[0] && !deptForm.branch_id) setDeptForm((f) => ({ ...f, branch_id: b[0].id }))
-      await loadPositions(positionBranchFilter || undefined)
+      await Promise.all([loadPositions(positionBranchFilter || undefined), loadHolidays(holidayYear)])
     } finally {
       setLoading(false)
     }
@@ -103,9 +124,13 @@ export function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        subtitle="Branches, departments, and job positions"
+        subtitle="Branches, departments, positions, and holidays"
         actions={
-          tab === 'branches' && canBranches ? (
+          tab === 'holidays' && canManageHolidays ? (
+            <button type="button" className="btn btn-primary" onClick={() => setShowHolidayForm(!showHolidayForm)}>
+              {showHolidayForm ? 'Cancel' : 'Add holiday'}
+            </button>
+          ) : tab === 'branches' && canBranches ? (
             <button type="button" className="btn btn-primary" onClick={() => setShowBranchForm(!showBranchForm)}>
               {showBranchForm ? 'Cancel' : 'Add branch'}
             </button>
@@ -138,6 +163,11 @@ export function SettingsPage() {
         <button type="button" className={`tab ${tab === 'positions' ? 'active' : ''}`} onClick={() => setTab('positions')}>
           Positions
         </button>
+        {canHolidays && (
+          <button type="button" className={`tab ${tab === 'holidays' ? 'active' : ''}`} onClick={() => setTab('holidays')}>
+            Holidays
+          </button>
+        )}
       </div>
 
       {loading && <LoadingBlock />}
@@ -364,6 +394,150 @@ export function SettingsPage() {
           }}
           onSaved={() => loadPositions(positionBranchFilter || undefined)}
         />
+      )}
+
+      {!loading && tab === 'holidays' && canHolidays && (
+        <div className="stack">
+          <div className="form-group" style={{ maxWidth: 160 }}>
+            <label>Year</label>
+            <input
+              type="number"
+              value={holidayYear}
+              onChange={(e) => {
+                const y = Number(e.target.value)
+                setHolidayYear(y)
+                loadHolidays(y)
+              }}
+            />
+          </div>
+
+          {showHolidayForm && canManageHolidays && (
+            <form
+              className="card"
+              onSubmit={async (e) => {
+                e.preventDefault()
+                await api('/holidays', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    ...holidayForm,
+                    branch_id: holidayForm.branch_id || null,
+                    pay_multiplier: Number(holidayForm.pay_multiplier),
+                  }),
+                })
+                setShowHolidayForm(false)
+                setHolidayForm({
+                  holiday_date: '',
+                  name: '',
+                  holiday_type: 'national',
+                  pay_multiplier: '2.00',
+                  branch_id: '',
+                })
+                loadHolidays(holidayYear)
+              }}
+            >
+              <h3 className="section-title">New holiday</h3>
+              <div className="form-row">
+                <DatePicker
+                  label="Date"
+                  value={holidayForm.holiday_date}
+                  onChange={(v) => setHolidayForm({ ...holidayForm, holiday_date: v })}
+                  required
+                />
+                <div className="form-group">
+                  <label>Name</label>
+                  <input
+                    value={holidayForm.name}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Type</label>
+                  <select
+                    value={holidayForm.holiday_type}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, holiday_type: e.target.value })}
+                  >
+                    <option value="national">National</option>
+                    <option value="special_non_working">Special non-working</option>
+                    <option value="local">Local</option>
+                    <option value="company">Company</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Pay multiplier</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    value={holidayForm.pay_multiplier}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, pay_multiplier: e.target.value })}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Branch (optional)</label>
+                  <select
+                    value={holidayForm.branch_id}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, branch_id: e.target.value })}
+                  >
+                    <option value="">All branches</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button type="submit" className="btn btn-primary">
+                Save holiday
+              </button>
+            </form>
+          )}
+
+          <div className="card table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Multiplier</th>
+                  <th>Branch</th>
+                  {canManageHolidays && <th />}
+                </tr>
+              </thead>
+              <tbody>
+                {holidays.map((h) => (
+                  <tr key={h.id}>
+                    <td>{h.holiday_date}</td>
+                    <td>{h.name}</td>
+                    <td>{h.holiday_type}</td>
+                    <td>{h.pay_multiplier}x</td>
+                    <td>{h.branch_name ?? 'All'}</td>
+                    {canManageHolidays && (
+                      <td>
+                        <button
+                          type="button"
+                          className="text-link text-link--danger"
+                          onClick={async () => {
+                            if (!confirm('Delete this holiday?')) return
+                            await api(`/holidays/${h.id}`, { method: 'DELETE' })
+                            loadHolidays(holidayYear)
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {holidays.length === 0 && (
+              <p style={{ padding: '1rem', color: 'var(--muted)' }}>No holidays for this year.</p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

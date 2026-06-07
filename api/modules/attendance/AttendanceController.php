@@ -41,6 +41,32 @@ final class AttendanceController
                 return;
             }
 
+            if ($method === 'GET' && $action === 'statistics') {
+                Auth::requirePermission($user, 'attendance.view');
+                $from = Request::query('from') ?? date('Y-m-01');
+                $to = Request::query('to') ?? date('Y-m-d');
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->statistics(Request::query('branch_id'), $from, $to),
+                ]);
+                return;
+            }
+
+            if ($method === 'GET' && $action === 'scheduled-shift') {
+                Auth::requirePermission($user, 'attendance.manage');
+                $employeeId = Request::query('employee_id');
+                $date = Request::query('date');
+                if (!$employeeId || !$date) {
+                    Response::error('employee_id and date required', 422);
+                    return;
+                }
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->scheduledShiftForEmployee($employeeId, $date),
+                ]);
+                return;
+            }
+
             if ($method === 'GET' && $action === 'summary') {
                 Auth::requirePermission($user, 'attendance.self');
                 $eid = $user['employee_id'] ?? null;
@@ -103,7 +129,7 @@ final class AttendanceController
                 return;
             }
 
-            if ($method === 'GET' && $action !== null && !in_array($action, ['list', 'status', 'summary'], true)) {
+            if ($method === 'GET' && $action !== null && !in_array($action, ['list', 'status', 'summary', 'statistics', 'scheduled-shift'], true)) {
                 Auth::requirePermission($user, 'attendance.view');
                 $row = $this->service->get($action);
                 if (!$row) {

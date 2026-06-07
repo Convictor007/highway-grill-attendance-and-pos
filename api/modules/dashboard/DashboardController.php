@@ -11,7 +11,7 @@ use Throwable;
 
 final class DashboardController
 {
-    public function handle(string $method): void
+    public function handle(string $method, ?string $action = null): void
     {
         try {
             $user = Auth::requireUser();
@@ -24,6 +24,13 @@ final class DashboardController
                 return;
             }
             $service = new DashboardService();
+            if ($action === 'org-masterlist') {
+                Response::json([
+                    'success' => true,
+                    'data' => $service->orgMasterlist(Request::query('branch_id')),
+                ]);
+                return;
+            }
             Response::json(['success' => true, 'data' => $service->summary(Request::query('branch_id'))]);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 500);

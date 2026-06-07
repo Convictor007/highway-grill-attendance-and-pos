@@ -97,7 +97,6 @@ export function ProfilePage() {
           <button type="submit" className="btn btn-primary">{saved ? 'Saved' : 'Save changes'}</button>
         </form>
       )}
-
     </div>
   )
 }

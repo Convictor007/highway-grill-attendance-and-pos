@@ -42,7 +42,7 @@ export function ShiftSwapModal({ open, cell, coworkers, onClose, onSubmitted }: 
       }
       setTargetShifts(
         row.cells
-          .filter((c) => !c.off && c.assignment_id)
+          .filter((c) => !c.off && c.assignment_id && c.date === cell.date)
           .map((c) => ({
             id: c.assignment_id!,
             shift_date: c.date,
@@ -64,6 +64,10 @@ export function ShiftSwapModal({ open, cell, coworkers, onClose, onSubmitted }: 
   const submit = async () => {
     if (!cell?.assignment_id || !targetEmployeeId) {
       setError('Select a coworker')
+      return
+    }
+    if (mutual && !targetAssignmentId) {
+      setError('Select their shift on the same day for an exchange')
       return
     }
     setBusy(true)
@@ -121,7 +125,7 @@ export function ShiftSwapModal({ open, cell, coworkers, onClose, onSubmitted }: 
       </div>
       <label className="schedule-swap-check">
         <input type="checkbox" checked={mutual} onChange={(e) => setMutual(e.target.checked)} />
-        Exchange shifts (they give me one of their shifts too)
+        Exchange shifts on the same day (they give me their shift on {cell.date})
       </label>
       {mutual && targetShifts.length > 0 && (
         <div className="form-group">
@@ -137,7 +141,7 @@ export function ShiftSwapModal({ open, cell, coworkers, onClose, onSubmitted }: 
         </div>
       )}
       {mutual && targetEmployeeId && targetShifts.length === 0 && (
-        <p className="muted-block">No upcoming shifts found for this coworker this week.</p>
+        <p className="muted-block">This coworker has no shift on {cell.date} to exchange.</p>
       )}
       <div className="form-group">
         <label>Message (optional)</label>

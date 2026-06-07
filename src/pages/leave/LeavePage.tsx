@@ -5,6 +5,7 @@ import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { EmptyState } from '../../components/EmptyState'
 import { LeaveTypeModal, type LeaveTypeRecord } from '../../components/LeaveTypeModal'
+import { DatePicker } from '../../components/DatePicker'
 import type { LeaveBalance, LeaveRequest } from '../../types/hrms'
 
 export function LeavePage() {
@@ -192,14 +193,19 @@ export function LeavePage() {
                 ))}
               </select>
             </div>
-            <div className="form-group">
-              <label>Start</label>
-              <input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required />
-            </div>
-            <div className="form-group">
-              <label>End</label>
-              <input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} required />
-            </div>
+            <DatePicker
+              label="Start"
+              value={form.start_date}
+              onChange={(v) => setForm({ ...form, start_date: v })}
+              required
+            />
+            <DatePicker
+              label="End"
+              value={form.end_date}
+              onChange={(v) => setForm({ ...form, end_date: v })}
+              min={form.start_date || undefined}
+              required
+            />
           </div>
           <div className="form-group">
             <label>Reason</label>

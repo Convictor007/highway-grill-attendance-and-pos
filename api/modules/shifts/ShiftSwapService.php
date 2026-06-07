@@ -74,6 +74,9 @@ final class ShiftSwapService
             if ($ta['shift_date'] < date('Y-m-d')) {
                 throw new \InvalidArgumentException('Cannot swap past shifts');
             }
+            if ($ta['shift_date'] !== $assignment['shift_date']) {
+                throw new \InvalidArgumentException('Swaps must exchange shifts on the same day');
+            }
         }
 
         $pending = Database::connection()->prepare(

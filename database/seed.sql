@@ -56,14 +56,15 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 CROSS JOIN permissions p
-WHERE r.role_slug = 'admin';
+WHERE r.role_slug = 'admin'
+  AND p.permission_key != 'attendance.self';
 
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 JOIN permissions p ON p.permission_key IN (
   'users.manage', 'employees.view', 'employees.manage',
-  'attendance.view', 'attendance.manage', 'attendance.self',
+  'attendance.view', 'attendance.manage',
   'leave.view', 'leave.manage', 'leave.apply', 'leave.approve',
   'payroll.view', 'payroll.manage', 'shifts.manage', 'reports.view',
   'compliance.view', 'loans.manage'
