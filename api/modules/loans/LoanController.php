@@ -63,15 +63,17 @@ final class LoanController
                 Auth::requireActiveEmployeeAccount($user);
                 $body = Request::jsonBody();
                 $body['employee_id'] = $body['employee_id'] ?? $user['employee_id'];
-                if (empty($body['employee_id']) || empty($body['principal'])) {
+                if (empty($body['employee_id']) || !isset($body['principal'])) {
                     Response::error('principal required', 422);
                     return;
                 }
-                if ((float) $body['principal'] <= 0) {
-                    Response::error('principal must be positive', 422);
+                try {
+                    $row = $this->service->apply($body);
+                } catch (\InvalidArgumentException $e) {
+                    Response::error($e->getMessage(), 422);
                     return;
                 }
-                Response::json(['success' => true, 'data' => $this->service->apply($body)], 201);
+                Response::json(['success' => true, 'data' => $row], 201);
                 return;
             }
 

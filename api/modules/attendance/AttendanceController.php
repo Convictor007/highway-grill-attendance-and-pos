@@ -86,6 +86,38 @@ final class AttendanceController
                 return;
             }
 
+            if ($method === 'GET' && $action === 'history') {
+                $from = Request::query('from') ?? date('Y-m-d', strtotime('-13 days'));
+                $to = Request::query('to') ?? date('Y-m-d');
+                if (Auth::hasPermission($user, 'attendance.view')) {
+                    $eid = Request::query('employee_id');
+                    if (!$eid) {
+                        Response::error('employee_id required', 422);
+                        return;
+                    }
+                    Response::json([
+                        'success' => true,
+                        'data' => $this->service->employeeHistory((string) $eid, $from, $to),
+                    ]);
+                    return;
+                }
+                if (Auth::hasPermission($user, 'attendance.self')) {
+                    Auth::requireActiveEmployeeAccount($user);
+                    $eid = $user['employee_id'] ?? null;
+                    if (!$eid) {
+                        Response::error('No employee linked', 422);
+                        return;
+                    }
+                    Response::json([
+                        'success' => true,
+                        'data' => $this->service->employeeHistory($eid, $from, $to),
+                    ]);
+                    return;
+                }
+                Response::error('Forbidden', 403);
+                return;
+            }
+
             if ($method === 'GET' && $action === 'status') {
                 Auth::requirePermission($user, 'attendance.self');
                 Auth::requireActiveEmployeeAccount($user);
@@ -137,7 +169,7 @@ final class AttendanceController
                 return;
             }
 
-            if ($method === 'GET' && $action !== null && !in_array($action, ['list', 'status', 'summary', 'statistics', 'scheduled-shift'], true)) {
+            if ($method === 'GET' && $action !== null && !in_array($action, ['list', 'status', 'summary', 'history', 'statistics', 'scheduled-shift'], true)) {
                 Auth::requirePermission($user, 'attendance.view');
                 $row = $this->service->get($action);
                 if (!$row) {

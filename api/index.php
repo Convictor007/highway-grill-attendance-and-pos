@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+if (is_file(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+
 require_once __DIR__ . '/core/Env.php';
 require_once __DIR__ . '/core/Database.php';
 require_once __DIR__ . '/core/Response.php';
@@ -9,6 +13,7 @@ require_once __DIR__ . '/core/Request.php';
 require_once __DIR__ . '/core/Auth.php';
 require_once __DIR__ . '/core/AuditLog.php';
 require_once __DIR__ . '/core/Schema.php';
+require_once __DIR__ . '/core/mail/Mailer.php';
 require_once __DIR__ . '/core/EmailService.php';
 require_once __DIR__ . '/modules/auth/RegistrationService.php';
 require_once __DIR__ . '/modules/auth/AuthController.php';
@@ -24,6 +29,11 @@ require_once __DIR__ . '/modules/attendance/AttendanceAutoService.php';
 require_once __DIR__ . '/modules/attendance/AttendanceController.php';
 require_once __DIR__ . '/modules/leave/LeaveService.php';
 require_once __DIR__ . '/modules/leave/LeaveController.php';
+require_once __DIR__ . '/modules/payroll/PhDeductionCalculator.php';
+require_once __DIR__ . '/modules/payroll/PayrollPeriodHelper.php';
+require_once __DIR__ . '/modules/payroll/PayslipRenderer.php';
+require_once __DIR__ . '/modules/payroll/PayslipPdfService.php';
+require_once __DIR__ . '/modules/payroll/PayslipMailService.php';
 require_once __DIR__ . '/modules/payroll/PayrollService.php';
 require_once __DIR__ . '/modules/payroll/PayrollController.php';
 require_once __DIR__ . '/modules/dashboard/DashboardService.php';

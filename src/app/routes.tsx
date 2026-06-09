@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { LoadingBlock } from '../components/LoadingBlock'
 import { useAuth } from '../context/AuthContext'
 import { RequirePermission } from '../components/RequirePermission'
 import { HomeRoute } from '../components/HomeRoute'
@@ -12,6 +13,9 @@ import { EmployeeListPage } from '../pages/employees/EmployeeListPage'
 import { AttendancePage } from '../pages/attendance/AttendancePage'
 import { LeavePage } from '../pages/leave/LeavePage'
 import { UsersPage } from '../pages/users/UsersPage'
+import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
+import { RequireAdmin } from '../components/RequireAdmin'
+import { RequireHr } from '../components/RequireHr'
 import { ShiftsPage } from '../pages/shifts/ShiftsPage'
 import { SettingsPage } from '../pages/settings/SettingsPage'
 import { CompliancePage } from '../pages/compliance/CompliancePage'
@@ -31,7 +35,7 @@ import { HrFieldWorkPage } from '../pages/hr/HrFieldWorkPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
-  if (loading) return <p className="loading-block" style={{ padding: '2rem' }}>Loading…</p>
+  if (loading) return <LoadingBlock className="loading-block--page" />
   if (!user) return <Navigate to="/login" replace />
   return <>{children}</>
 }
@@ -139,81 +143,125 @@ export function AppRoutes() {
         <Route path="leave" element={<Navigate to="/leaves" replace />} />
         <Route path="my-shifts" element={<Navigate to="/scheduling" replace />} />
         <Route path="my-payslips" element={<Navigate to="/payroll" replace />} />
-        <Route path="attendance" element={<AttendancePage />} />
+        <Route
+          path="attendance"
+          element={
+            <RequireHr>
+              <RequirePermission permission="attendance.view">
+                <AttendancePage />
+              </RequirePermission>
+            </RequireHr>
+          }
+        />
         <Route
           path="hr/attendance-stats"
           element={
-            <RequirePermission permission="attendance.view">
-              <AttendanceStatsPage />
-            </RequirePermission>
+            <RequireHr>
+              <RequirePermission permission="attendance.view">
+                <AttendanceStatsPage />
+              </RequirePermission>
+            </RequireHr>
           }
         />
         <Route path="hr/overtime" element={<Navigate to="/hr/attendance-stats" replace />} />
         <Route
           path="hr/field-work"
           element={
-            <RequirePermission permission="attendance.view">
-              <HrFieldWorkPage />
-            </RequirePermission>
+            <RequireHr>
+              <RequirePermission permission="attendance.view">
+                <HrFieldWorkPage />
+              </RequirePermission>
+            </RequireHr>
           }
         />
         <Route
           path="hr/loans"
           element={
-            <RequirePermission permission="loans.manage">
-              <HrLoansPage />
-            </RequirePermission>
+            <RequireHr>
+              <RequirePermission permission="loans.manage">
+                <HrLoansPage />
+              </RequirePermission>
+            </RequireHr>
           }
         />
         <Route
           path="hr/content"
           element={
-            <RequirePermission permission="employees.manage">
-              <HrContentPage />
-            </RequirePermission>
+            <RequireHr>
+              <RequirePermission permission="employees.manage">
+                <HrContentPage />
+              </RequirePermission>
+            </RequireHr>
           }
         />
 
         <Route
           path="employees"
           element={
-            <RequirePermission permission="employees.view">
-              <EmployeeListPage />
-            </RequirePermission>
+            <RequireHr>
+              <RequirePermission permission="employees.view">
+                <EmployeeListPage />
+              </RequirePermission>
+            </RequireHr>
           }
         />
         <Route
           path="users"
           element={
-            <RequirePermission permission="users.manage">
-              <UsersPage />
-            </RequirePermission>
+            <RequireHr>
+              <RequirePermission permission="users.approve">
+                <UsersPage />
+              </RequirePermission>
+            </RequireHr>
           }
         />
         <Route
           path="shifts"
           element={
-            <RequirePermission permission="shifts.manage">
-              <ShiftsPage />
-            </RequirePermission>
+            <RequireHr>
+              <RequirePermission permission="shifts.manage">
+                <ShiftsPage />
+              </RequirePermission>
+            </RequireHr>
           }
         />
         <Route
-          path="settings"
+          path="admin"
           element={
-            <RequirePermission permission={['settings.branches.manage', 'settings.departments.manage']}>
+            <RequireAdmin>
+              <AdminDashboardPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="admin/settings"
+          element={
+            <RequireAdmin>
               <SettingsPage />
-            </RequirePermission>
+            </RequireAdmin>
           }
         />
         <Route
-          path="compliance"
+          path="admin/compliance"
           element={
-            <RequirePermission permission="compliance.view">
+            <RequireAdmin>
               <CompliancePage />
-            </RequirePermission>
+            </RequireAdmin>
           }
         />
+        <Route
+          path="admin/users"
+          element={
+            <RequireAdmin>
+              <RequirePermission permission="users.manage">
+                <UsersPage fullAdmin />
+              </RequirePermission>
+            </RequireAdmin>
+          }
+        />
+        <Route path="admin/field-work" element={<Navigate to="/admin" replace />} />
+        <Route path="settings" element={<Navigate to="/admin/settings" replace />} />
+        <Route path="compliance" element={<Navigate to="/admin/compliance" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

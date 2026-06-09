@@ -12,6 +12,7 @@
 -- | Admin    | admin@highwaygrill.local      | HG-ADM   |
 -- | HR       | hr@highwaygrill.local         | HG-HR    |
 -- | Employee | employee@highwaygrill.local   | HG-EMP   |
+-- | Crew     | (self-register)               | HG-200   | Darryl john reyes — Dishwasher
 -- =============================================================================
 
 USE highway_grill_hrms;
@@ -29,6 +30,7 @@ INSERT IGNORE INTO permissions (permission_key, permission_name, module) VALUES
 ('settings.branches.manage', 'Manage branches', 'settings'),
 ('settings.departments.manage', 'Manage departments', 'settings'),
 ('users.manage', 'Manage users', 'users'),
+('users.approve', 'Approve crew registrations', 'users'),
 ('employees.view', 'View employees', 'employees'),
 ('employees.manage', 'Manage employees', 'employees'),
 ('attendance.view', 'View attendance', 'attendance'),
@@ -63,11 +65,11 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 JOIN permissions p ON p.permission_key IN (
-  'users.manage', 'employees.view', 'employees.manage',
+  'users.approve', 'employees.view', 'employees.manage',
   'attendance.view', 'attendance.manage',
   'leave.view', 'leave.manage', 'leave.apply', 'leave.approve',
   'payroll.view', 'payroll.manage', 'shifts.manage', 'reports.view',
-  'compliance.view', 'loans.manage'
+  'loans.manage'
 )
 WHERE r.role_slug = 'hr';
 
@@ -232,6 +234,7 @@ WHERE @dept_cafe IS NOT NULL
 SET @pos_manager = (SELECT id FROM positions WHERE department_id = @dept_mgmt AND title = 'Restaurant Manager' LIMIT 1);
 SET @pos_hr = (SELECT id FROM positions WHERE department_id = @dept_mgmt AND title = 'HR Officer' LIMIT 1);
 SET @pos_line_cook = (SELECT id FROM positions WHERE department_id = @dept_kitchen AND title = 'Line Cook' LIMIT 1);
+SET @pos_dishwasher = (SELECT id FROM positions WHERE department_id = @dept_kitchen AND title = 'Dishwasher' LIMIT 1);
 SET @pos_server = (SELECT id FROM positions WHERE department_id = @dept_foh AND title = 'Server' LIMIT 1);
 SET @pos_bartender = (SELECT id FROM positions WHERE department_id = @dept_bar AND title = 'Bartender' LIMIT 1);
 -- -----------------------------------------------------------------------------
@@ -277,6 +280,17 @@ INSERT IGNORE INTO employees (
 (UUID(), @branch_id, @dept_mgmt, @pos_manager, 'HG-ADM', 'Alex', 'Admin', 'admin@highwaygrill.local', '09170000001', CURDATE(), 'full_time', 'active'),
 (UUID(), @branch_id, @dept_mgmt, @pos_hr, 'HG-HR', 'Hannah', 'Reyes', 'hr@highwaygrill.local', '09170000002', CURDATE(), 'full_time', 'active'),
 (UUID(), @branch_id, @dept_kitchen, @pos_line_cook, 'HG-EMP', 'Elena', 'Cruz', 'employee@highwaygrill.local', '09170000003', CURDATE(), 'full_time', 'active');
+
+INSERT IGNORE INTO employees (
+  id, branch_id, department_id, position_id,
+  emp_number, first_name, last_name, email, phone,
+  hire_date, employment_type, status
+)
+SELECT UUID(), @branch_id, @dept_kitchen, @pos_dishwasher, 'HG-200', 'Darryl john', 'reyes', NULL, NULL,
+  CURDATE(), 'full_time', 'active'
+FROM DUAL
+WHERE @pos_dishwasher IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM employees WHERE emp_number = 'HG-200');
 
 UPDATE branches SET manager_id = (SELECT id FROM employees WHERE emp_number = 'HG-ADM' LIMIT 1)
 WHERE id = @branch_id;
@@ -324,27 +338,101 @@ CROSS JOIN leave_types lt
 WHERE e.branch_id = @branch_id AND e.status = 'active';
 
 -- -----------------------------------------------------------------------------
--- 7. Sample attendance (last 5 days — for payroll / dashboard demos)
+-- 7. Employee compensation + semi-monthly attendance (for payroll demos)
 -- -----------------------------------------------------------------------------
 
-INSERT INTO attendance (id, employee_id, clock_in, clock_out, actual_hours, method)
-SELECT UUID(), e.id,
-  TIMESTAMP(d.work_date, '08:00:00'),
-  TIMESTAMP(d.work_date, '16:00:00'),
-  8.00,
+UPDATE employees e
+LEFT JOIN positions p ON p.id = e.position_id
+SET
+  e.pay_rate = COALESCE(e.pay_rate, p.min_hourly, 80.00),
+  e.pay_basis = COALESCE(e.pay_basis, 'hourly')
+WHERE e.branch_id = @branch_id AND e.status = 'active';
+
+-- Demo crew: daily rates (semi-monthly payroll demos)
+UPDATE employees SET pay_basis = 'daily', pay_rate = 395.00
+WHERE emp_number = 'HG-EMP' AND branch_id = @branch_id;
+
+UPDATE employees SET pay_basis = 'daily', pay_rate = 455.00
+WHERE emp_number = 'HG-200' AND branch_id = @branch_id;
+
+SET @period_start = CASE
+  WHEN DAY(CURDATE()) <= 15 THEN DATE_FORMAT(CURDATE(), '%Y-%m-01')
+  ELSE DATE_FORMAT(CURDATE(), '%Y-%m-16')
+END;
+SET @period_end = CASE
+  WHEN DAY(CURDATE()) <= 15 THEN DATE_FORMAT(CURDATE(), '%Y-%m-15')
+  ELSE LAST_DAY(CURDATE())
+END;
+
+-- Current semi-monthly cut-off: evening shift 3 PM – 12 AM (9h) with random variations
+INSERT INTO attendance (id, employee_id, clock_in, clock_out, actual_hours, regular_hours, overtime_hours, method)
+SELECT
+  UUID(),
+  s.employee_id,
+  s.clock_in,
+  s.clock_out,
+  ROUND(TIMESTAMPDIFF(MINUTE, s.clock_in, s.clock_out) / 60, 2),
+  ROUND(LEAST(TIMESTAMPDIFF(MINUTE, s.clock_in, s.clock_out) / 60, 9), 2),
+  ROUND(GREATEST(TIMESTAMPDIFF(MINUTE, s.clock_in, s.clock_out) / 60 - 9, 0), 2),
   'app'
-FROM employees e
-CROSS JOIN (
-  SELECT CURDATE() AS work_date
-  UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 1 DAY)
-  UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 2 DAY)
-  UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 3 DAY)
-  UNION ALL SELECT DATE_SUB(CURDATE(), INTERVAL 4 DAY)
-) d
-WHERE e.emp_number IN ('HG-EMP')
+FROM (
+  SELECT
+    e.id AS employee_id,
+    d.work_date,
+    CASE MOD(CRC32(CONCAT(e.id, d.work_date)), 15)
+      WHEN 0 THEN NULL
+      WHEN 1 THEN NULL
+      WHEN 2 THEN TIMESTAMP(d.work_date, '15:00:00')
+      WHEN 3 THEN TIMESTAMP(d.work_date, '14:30:00')
+      WHEN 4 THEN TIMESTAMP(d.work_date, '14:45:00')
+      WHEN 5 THEN TIMESTAMP(d.work_date, '15:20:00')
+      WHEN 6 THEN TIMESTAMP(d.work_date, '15:00:00')
+      WHEN 7 THEN TIMESTAMP(d.work_date, '15:00:00')
+      WHEN 8 THEN TIMESTAMP(d.work_date, '15:00:00')
+      WHEN 9 THEN TIMESTAMP(d.work_date, '15:00:00')
+      WHEN 10 THEN TIMESTAMP(d.work_date, '15:00:00')
+      WHEN 11 THEN TIMESTAMP(d.work_date, '14:30:00')
+      WHEN 12 THEN TIMESTAMP(d.work_date, '15:30:00')
+      WHEN 13 THEN TIMESTAMP(d.work_date, '15:05:00')
+      WHEN 14 THEN TIMESTAMP(d.work_date, '15:00:00')
+    END AS clock_in,
+    CASE MOD(CRC32(CONCAT(e.id, d.work_date)), 15)
+      WHEN 0 THEN NULL
+      WHEN 1 THEN NULL
+      WHEN 2 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '00:00:00')
+      WHEN 3 THEN TIMESTAMP(d.work_date, '23:30:00')
+      WHEN 4 THEN TIMESTAMP(d.work_date, '23:45:00')
+      WHEN 5 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '00:20:00')
+      WHEN 6 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '00:00:00')
+      WHEN 7 THEN TIMESTAMP(d.work_date, '22:00:00')
+      WHEN 8 THEN TIMESTAMP(d.work_date, '21:30:00')
+      WHEN 9 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '00:00:00')
+      WHEN 10 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '01:00:00')
+      WHEN 11 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '00:30:00')
+      WHEN 12 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '00:30:00')
+      WHEN 13 THEN TIMESTAMP(DATE_ADD(d.work_date, INTERVAL 1 DAY), '00:05:00')
+      WHEN 14 THEN TIMESTAMP(d.work_date, '23:00:00')
+    END AS clock_out
+  FROM employees e
+  CROSS JOIN (
+    WITH RECURSIVE period_days AS (
+      SELECT @period_start AS work_date
+      UNION ALL
+      SELECT DATE_ADD(work_date, INTERVAL 1 DAY)
+      FROM period_days
+      WHERE work_date < @period_end
+    )
+    SELECT work_date FROM period_days
+  ) d
+  WHERE e.branch_id = @branch_id
+    AND e.status = 'active'
+    AND e.emp_number NOT IN ('HG-ADM')
+) s
+WHERE s.clock_in IS NOT NULL
+  AND s.clock_out IS NOT NULL
   AND NOT EXISTS (
     SELECT 1 FROM attendance a
-    WHERE a.employee_id = e.id AND DATE(a.clock_in) = d.work_date
+    WHERE a.employee_id = s.employee_id AND DATE(a.clock_in) = s.work_date
   );
 
 -- -----------------------------------------------------------------------------
@@ -428,6 +516,201 @@ WHERE e.emp_number = 'HG-EMP'
     SELECT 1 FROM shift_assignments sa
     WHERE sa.schedule_id = @schedule_id AND sa.employee_id = e.id AND sa.shift_date = @week_start
   );
+
+-- -----------------------------------------------------------------------------
+-- 10. Payroll (holidays, benefits, mock paid runs + payslips for HG-EMP)
+-- -----------------------------------------------------------------------------
+
+INSERT IGNORE INTO holidays (id, branch_id, holiday_date, name, holiday_type, pay_multiplier) VALUES
+(UUID(), NULL, '2026-01-01', 'New Year\'s Day', 'national', 2.00),
+(UUID(), NULL, '2026-04-09', 'Araw ng Kagitingan', 'national', 2.00),
+(UUID(), NULL, '2026-05-01', 'Labor Day', 'national', 2.00),
+(UUID(), NULL, '2026-06-12', 'Independence Day', 'national', 2.00),
+(UUID(), NULL, '2026-12-25', 'Christmas Day', 'national', 2.00),
+(UUID(), NULL, '2026-12-30', 'Rizal Day', 'national', 2.00);
+
+INSERT INTO employee_benefit_enrollments (id, employee_id, benefit_code, benefit_name, amount, frequency, is_active)
+SELECT UUID(), e.id, 'rice', 'Rice allowance', 1500.00, 'monthly', 1
+FROM employees e
+INNER JOIN users u ON u.employee_id = e.id
+INNER JOIN roles r ON r.role_id = u.role_id AND r.role_slug = 'employee'
+WHERE e.status = 'active'
+  AND NOT EXISTS (
+    SELECT 1 FROM employee_benefit_enrollments be
+    WHERE be.employee_id = e.id AND be.benefit_code = 'rice'
+  );
+
+SET @hr_user_id = (
+  SELECT u.id FROM users u
+  JOIN roles r ON r.role_id = u.role_id
+  WHERE r.role_slug IN ('hr', 'admin')
+  ORDER BY r.role_slug = 'hr' DESC
+  LIMIT 1
+);
+SET @prev_month_start = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-01');
+SET @prev_month_mid = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-15');
+SET @prev_month_16 = DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m-16');
+SET @prev_month_end = LAST_DAY(DATE_SUB(CURDATE(), INTERVAL 1 MONTH));
+
+-- 1st cutoff last month (paid) — Elena Cruz, Line Cook @ ₱80/hr
+INSERT INTO payroll_runs (
+  id, branch_id, period_start, period_end, pay_date, run_type, pay_frequency,
+  status, total_gross, total_net, processed_by, processed_at
+)
+SELECT UUID(), @branch_id, @prev_month_start, @prev_month_mid, @prev_month_mid,
+  'regular', 'semi_monthly', 'paid', 8540.00, 7844.00, @hr_user_id, NOW()
+FROM DUAL
+WHERE @branch_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM payroll_runs pr
+    WHERE pr.branch_id = @branch_id
+      AND pr.period_start = @prev_month_start
+      AND pr.period_end = @prev_month_mid
+      AND pr.run_type = 'regular'
+  );
+
+SET @pay_run_1 = (
+  SELECT id FROM payroll_runs
+  WHERE branch_id = @branch_id
+    AND period_start = @prev_month_start
+    AND period_end = @prev_month_mid
+    AND run_type = 'regular'
+  LIMIT 1
+);
+
+INSERT INTO payslips (
+  id, payroll_run_id, employee_id,
+  regular_hours, overtime_hours, holiday_hours,
+  basic_pay, overtime_pay, holiday_pay, tips_amount, service_charge,
+  gross_pay, sss_amount, philhealth_amount, pagibig_amount, tax_amount, other_deductions, net_pay,
+  generated_at
+)
+SELECT UUID(), @pay_run_1, e.id,
+  88.00, 4.00, 0.00,
+  7040.00, 400.00, 0.00, 350.00, 750.00,
+  8540.00, 382.50, 213.50, 100.00, 0.00, 0.00, 7844.00,
+  NOW()
+FROM employees e
+INNER JOIN users u ON u.employee_id = e.id
+INNER JOIN roles r ON r.role_id = u.role_id AND r.role_slug = 'employee'
+WHERE @pay_run_1 IS NOT NULL
+  AND e.branch_id = @branch_id
+  AND e.status = 'active'
+  AND NOT EXISTS (
+    SELECT 1 FROM payslips ps
+    WHERE ps.payroll_run_id = @pay_run_1 AND ps.employee_id = e.id
+  );
+
+-- 2nd cutoff last month (paid)
+INSERT INTO payroll_runs (
+  id, branch_id, period_start, period_end, pay_date, run_type, pay_frequency,
+  status, total_gross, total_net, processed_by, processed_at
+)
+SELECT UUID(), @branch_id, @prev_month_16, @prev_month_end, @prev_month_end,
+  'regular', 'semi_monthly', 'paid', 8910.00, 8176.50, @hr_user_id, NOW()
+FROM DUAL
+WHERE @branch_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM payroll_runs pr
+    WHERE pr.branch_id = @branch_id
+      AND pr.period_start = @prev_month_16
+      AND pr.period_end = @prev_month_end
+      AND pr.run_type = 'regular'
+  );
+
+SET @pay_run_2 = (
+  SELECT id FROM payroll_runs
+  WHERE branch_id = @branch_id
+    AND period_start = @prev_month_16
+    AND period_end = @prev_month_end
+    AND run_type = 'regular'
+  LIMIT 1
+);
+
+INSERT INTO payslips (
+  id, payroll_run_id, employee_id,
+  regular_hours, overtime_hours, holiday_hours,
+  basic_pay, overtime_pay, holiday_pay, tips_amount, service_charge,
+  gross_pay, sss_amount, philhealth_amount, pagibig_amount, tax_amount, other_deductions, net_pay,
+  generated_at
+)
+SELECT UUID(), @pay_run_2, e.id,
+  96.00, 2.00, 0.00,
+  7680.00, 200.00, 0.00, 280.00, 750.00,
+  8910.00, 382.50, 222.75, 100.00, 0.00, 28.25, 8176.50,
+  NOW()
+FROM employees e
+INNER JOIN users u ON u.employee_id = e.id
+INNER JOIN roles r ON r.role_id = u.role_id AND r.role_slug = 'employee'
+WHERE @pay_run_2 IS NOT NULL
+  AND e.branch_id = @branch_id
+  AND e.status = 'active'
+  AND NOT EXISTS (
+    SELECT 1 FROM payslips ps
+    WHERE ps.payroll_run_id = @pay_run_2 AND ps.employee_id = e.id
+  );
+
+-- Current month 1st cutoff (paid) when today is past the 15th
+INSERT INTO payroll_runs (
+  id, branch_id, period_start, period_end, pay_date, run_type, pay_frequency,
+  status, total_gross, total_net, processed_by, processed_at
+)
+SELECT UUID(), @branch_id,
+  DATE_FORMAT(CURDATE(), '%Y-%m-01'),
+  DATE_FORMAT(CURDATE(), '%Y-%m-15'),
+  DATE_FORMAT(CURDATE(), '%Y-%m-15'),
+  'regular', 'semi_monthly', 'paid', 8220.00, 7532.00, @hr_user_id, NOW()
+FROM DUAL
+WHERE @branch_id IS NOT NULL
+  AND DAY(CURDATE()) > 15
+  AND NOT EXISTS (
+    SELECT 1 FROM payroll_runs pr
+    WHERE pr.branch_id = @branch_id
+      AND pr.period_start = DATE_FORMAT(CURDATE(), '%Y-%m-01')
+      AND pr.period_end = DATE_FORMAT(CURDATE(), '%Y-%m-15')
+      AND pr.run_type = 'regular'
+  );
+
+SET @pay_run_cur = (
+  SELECT id FROM payroll_runs
+  WHERE branch_id = @branch_id
+    AND period_start = DATE_FORMAT(CURDATE(), '%Y-%m-01')
+    AND period_end = DATE_FORMAT(CURDATE(), '%Y-%m-15')
+    AND run_type = 'regular'
+  LIMIT 1
+);
+
+INSERT INTO payslips (
+  id, payroll_run_id, employee_id,
+  regular_hours, overtime_hours, holiday_hours,
+  basic_pay, overtime_pay, holiday_pay, tips_amount, service_charge,
+  gross_pay, sss_amount, philhealth_amount, pagibig_amount, tax_amount, other_deductions, net_pay,
+  generated_at
+)
+SELECT UUID(), @pay_run_cur, e.id,
+  80.00, 3.00, 0.00,
+  6400.00, 300.00, 0.00, 320.00, 750.00,
+  8220.00, 382.50, 205.50, 100.00, 0.00, 0.00, 7532.00,
+  NOW()
+FROM employees e
+INNER JOIN users u ON u.employee_id = e.id
+INNER JOIN roles r ON r.role_id = u.role_id AND r.role_slug = 'employee'
+WHERE @pay_run_cur IS NOT NULL
+  AND e.branch_id = @branch_id
+  AND e.status = 'active'
+  AND DAY(CURDATE()) > 15
+  AND NOT EXISTS (
+    SELECT 1 FROM payslips ps
+    WHERE ps.payroll_run_id = @pay_run_cur AND ps.employee_id = e.id
+  );
+
+-- Sync run totals if payslip was added without matching totals
+UPDATE payroll_runs pr
+SET
+  total_gross = (SELECT COALESCE(SUM(gross_pay), 0) FROM payslips ps WHERE ps.payroll_run_id = pr.id),
+  total_net = (SELECT COALESCE(SUM(net_pay), 0) FROM payslips ps WHERE ps.payroll_run_id = pr.id)
+WHERE pr.branch_id = @branch_id
+  AND pr.id IN (@pay_run_1, @pay_run_2, @pay_run_cur);
 
 -- -----------------------------------------------------------------------------
 -- Field work sites (GIS / Leaflet map)

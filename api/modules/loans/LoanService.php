@@ -9,6 +9,8 @@ use Hg\Api\Modules\Notifications\NotificationService;
 
 final class LoanService
 {
+    private const MIN_PRINCIPAL = 100.0;
+
     public function __construct(
         private readonly NotificationService $notifications = new NotificationService(),
     ) {}
@@ -58,25 +60,77 @@ final class LoanService
 
     public function apply(array $data): array
     {
-        $principal = (float) $data['principal'];
-        $term = max(1, (int) ($data['term_months'] ?? 6));
-        $monthly = round($principal / $term, 2);
+        $principal = round((float) ($data['principal'] ?? 0), 2);
+        if ($principal < self::MIN_PRINCIPAL) {
+            throw new \InvalidArgumentException('Minimum amount is ₱' . number_format(self::MIN_PRINCIPAL, 0));
+        }
+
+        $loanType = (string) ($data['loan_type'] ?? 'salary');
+        if (!in_array($loanType, ['salary', 'cash_advance'], true)) {
+            throw new \InvalidArgumentException('loan_type must be salary or cash_advance');
+        }
+
+        $repayment = $this->resolveRepayment($data);
+        $payPeriods = $repayment['pay_periods'];
+        $monthly = round($principal / $payPeriods, 2);
+
+        $purpose = trim((string) ($data['purpose'] ?? ''));
         $id = Database::uuid();
         Database::connection()->prepare(
-            'INSERT INTO employee_loans (id, employee_id, loan_type, principal, balance, term_months, monthly_deduction, purpose, status)
-             VALUES (:id, :eid, :type, :principal, :balance, :term, :monthly, :purpose, :st)'
+            'INSERT INTO employee_loans (
+                id, employee_id, loan_type, principal, balance, term_months,
+                repayment_schedule, term_duration, monthly_deduction, purpose, status
+             )
+             VALUES (
+                :id, :eid, :type, :principal, :balance, :term,
+                :schedule, :duration, :monthly, :purpose, :st
+             )'
         )->execute([
             'id' => $id,
             'eid' => $data['employee_id'],
-            'type' => $data['loan_type'] ?? 'salary',
+            'type' => $loanType,
             'principal' => $principal,
             'balance' => $principal,
-            'term' => $term,
+            'term' => $payPeriods,
+            'schedule' => $repayment['repayment_schedule'],
+            'duration' => $repayment['term_duration'],
             'monthly' => $monthly,
-            'purpose' => $data['purpose'] ?? null,
+            'purpose' => $purpose !== '' ? $purpose : null,
             'st' => 'pending',
         ]);
+
         return $this->get($id) ?? [];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array{repayment_schedule: string, term_duration: int, pay_periods: int}
+     */
+    private function resolveRepayment(array $data): array
+    {
+        $schedule = (string) ($data['repayment_schedule'] ?? 'semi_monthly');
+        if (!in_array($schedule, ['semi_monthly', 'one_month'], true)) {
+            throw new \InvalidArgumentException('repayment_schedule must be semi_monthly or one_month');
+        }
+
+        if ($schedule === 'one_month') {
+            return [
+                'repayment_schedule' => 'one_month',
+                'term_duration' => 1,
+                'pay_periods' => 2,
+            ];
+        }
+
+        $duration = (int) ($data['term_duration'] ?? 2);
+        if ($duration < 1 || $duration > 24) {
+            throw new \InvalidArgumentException('term_duration must be between 1 and 24 semi-monthly cutoffs');
+        }
+
+        return [
+            'repayment_schedule' => 'semi_monthly',
+            'term_duration' => $duration,
+            'pay_periods' => $duration,
+        ];
     }
 
     public function review(string $id, string $status, string $reviewerUserId): ?array
@@ -139,6 +193,46 @@ final class LoanService
         return $stmt->fetch() ?: null;
     }
 
+    public function reversePayrollDeductions(string $payrollRunId): void
+    {
+        $note = "Payroll deduction (run {$payrollRunId})";
+        $pdo = Database::connection();
+        $stmt = $pdo->prepare('SELECT id, loan_id, amount FROM loan_payments WHERE notes = :notes');
+        $stmt->execute(['notes' => $note]);
+        foreach ($stmt->fetchAll() as $payment) {
+            $loanStmt = $pdo->prepare('SELECT balance, status FROM employee_loans WHERE id = :id LIMIT 1');
+            $loanStmt->execute(['id' => $payment['loan_id']]);
+            $loan = $loanStmt->fetch();
+            if (!$loan) {
+                continue;
+            }
+            $newBalance = round((float) $loan['balance'] + (float) $payment['amount'], 2);
+            $pdo->prepare(
+                'UPDATE employee_loans SET balance = :bal, status = :st WHERE id = :id'
+            )->execute([
+                'bal' => $newBalance,
+                'st' => $newBalance > 0 ? 'active' : $loan['status'],
+                'id' => $payment['loan_id'],
+            ]);
+            $pdo->prepare('DELETE FROM loan_payments WHERE id = :id')->execute(['id' => $payment['id']]);
+        }
+    }
+
+    public function estimatedPayrollDeduction(string $employeeId): float
+    {
+        $stmt = Database::connection()->prepare(
+            "SELECT balance, monthly_deduction FROM employee_loans
+             WHERE employee_id = :eid AND status = 'active' AND balance > 0"
+        );
+        $stmt->execute(['eid' => $employeeId]);
+        $total = 0.0;
+        foreach ($stmt->fetchAll() as $loan) {
+            $total += min((float) $loan['monthly_deduction'], (float) $loan['balance']);
+        }
+
+        return round($total, 2);
+    }
+
     public function applyPayrollDeduction(string $employeeId, string $payrollRunId, string $payDate): float
     {
         $pdo = Database::connection();
@@ -185,6 +279,17 @@ final class LoanService
         return round($total, 2);
     }
 
+    private function repaymentSummary(array $loan): string
+    {
+        $schedule = (string) ($loan['repayment_schedule'] ?? 'semi_monthly');
+        if ($schedule === 'one_month') {
+            return 'Term: 1 month (2 cutoffs).';
+        }
+        $duration = (int) ($loan['term_duration'] ?? $loan['term_months'] ?? 1);
+
+        return "Term: {$duration} semi-monthly cutoff" . ($duration === 1 ? '' : 's') . '.';
+    }
+
     private function notifyLoanDecision(array $loan, string $status): void
     {
         $userId = $this->notifications->userIdForEmployee((string) $loan['employee_id']);
@@ -192,12 +297,13 @@ final class LoanService
             return;
         }
         $amount = number_format((float) $loan['principal'], 2);
+        $term = $this->repaymentSummary($loan);
         if ($status === 'approved') {
             $this->notifications->create(
                 $userId,
                 'loan_approved',
                 'Loan approved',
-                "Your loan application for ₱{$amount} was approved. Monthly deduction: ₱{$loan['monthly_deduction']}.",
+                "Your loan application for ₱{$amount} was approved. {$term} Deduction per cutoff: ₱{$loan['monthly_deduction']}.",
                 $loan['id'],
                 '/loans'
             );

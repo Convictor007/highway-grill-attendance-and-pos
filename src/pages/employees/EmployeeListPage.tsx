@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -32,6 +33,10 @@ const emptyForm = () => ({
   address: '',
   emergency_name: '',
   emergency_phone: '',
+  pay_basis: 'hourly' as 'hourly' | 'daily',
+  pay_rate: '',
+  is_stay_in: false,
+  housing_deduction: '',
 })
 
 function EmployeeActions({
@@ -58,6 +63,7 @@ function EmployeeActions({
 
 export function EmployeeListPage() {
   const { user } = useAuth()
+  const { success, error: notifyError, confirm } = useNotification()
   const canManage = hasPermission(user, 'employees.manage')
   const [employees, setEmployees] = useState<Employee[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
@@ -131,6 +137,11 @@ export function EmployeeListPage() {
       address: emp.address ?? '',
       emergency_name: emp.emergency_name ?? '',
       emergency_phone: emp.emergency_phone ?? '',
+      pay_basis: emp.pay_basis === 'daily' ? 'daily' : 'hourly',
+      pay_rate: emp.pay_rate != null && emp.pay_rate !== '' ? String(emp.pay_rate) : '',
+      is_stay_in: Boolean(emp.is_stay_in),
+      housing_deduction:
+        emp.housing_deduction != null && emp.housing_deduction !== '' ? String(emp.housing_deduction) : '',
     })
   }
 
@@ -146,20 +157,35 @@ export function EmployeeListPage() {
       address: form.address || null,
       emergency_name: form.emergency_name || null,
       emergency_phone: form.emergency_phone || null,
+      pay_basis: form.pay_basis,
+      pay_rate: form.pay_rate !== '' ? Number(form.pay_rate) : null,
+      is_stay_in: form.is_stay_in,
+      housing_deduction: form.is_stay_in && form.housing_deduction !== '' ? Number(form.housing_deduction) : 0,
     }
-    if (editingId === 'new') {
-      await api('/employees', { method: 'POST', body: JSON.stringify(payload) })
-    } else if (editingId) {
-      await api(`/employees/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) })
+    try {
+      if (editingId === 'new') {
+        await api('/employees', { method: 'POST', body: JSON.stringify(payload) })
+        success('Employee created')
+      } else if (editingId) {
+        await api(`/employees/${editingId}`, { method: 'PUT', body: JSON.stringify(payload) })
+        success('Employee updated')
+      }
+      setEditingId(null)
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not save employee')
     }
-    setEditingId(null)
-    load()
   }
 
   const onTerminate = async (id: string) => {
-    if (!confirm('Mark this employee as terminated?')) return
-    await api(`/employees/${id}`, { method: 'DELETE' })
-    load()
+    if (!(await confirm('Mark this employee as terminated?', { variant: 'danger', confirmLabel: 'Terminate' }))) return
+    try {
+      await api(`/employees/${id}`, { method: 'DELETE' })
+      success('Employee marked as terminated')
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not terminate employee')
+    }
   }
 
   const viewToggle = (
@@ -301,6 +327,67 @@ export function EmployeeListPage() {
               <option value="seasonal">Seasonal</option>
             </select>
           </div>
+          <fieldset className="form-fieldset">
+            <legend>Payroll compensation</legend>
+            <p className="form-hint" style={{ marginTop: 0 }}>
+              Used when generating payslips. SSS, PhilHealth, Pag-IBIG, and tax are computed automatically from gross pay
+              (Philippine rules) — you do not enter those per employee.
+            </p>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Pay basis</label>
+                <select
+                  value={form.pay_basis}
+                  onChange={(e) => setForm({ ...form, pay_basis: e.target.value as 'hourly' | 'daily' })}
+                >
+                  <option value="hourly">Hourly (hours × rate)</option>
+                  <option value="daily">Daily (days worked × rate)</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>{form.pay_basis === 'daily' ? 'Daily rate (₱)' : 'Hourly rate (₱)'}</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={
+                    form.position_id
+                      ? `Position default: ₱${positions.find((p) => p.id === form.position_id)?.min_hourly ?? '—'}`
+                      : 'Leave blank to use position default'
+                  }
+                  value={form.pay_rate}
+                  onChange={(e) => setForm({ ...form, pay_rate: e.target.value })}
+                />
+              </div>
+            </div>
+          </fieldset>
+          <fieldset className="form-fieldset">
+            <legend>Stay-in housing</legend>
+            <p className="form-hint" style={{ marginTop: 0 }}>
+              Deducted each payroll run and shown on the payslip as <strong>HSNG</strong>.
+            </p>
+            <label className="checkbox-row" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <input
+                type="checkbox"
+                checked={form.is_stay_in}
+                onChange={(e) => setForm({ ...form, is_stay_in: e.target.checked, housing_deduction: e.target.checked ? form.housing_deduction : '' })}
+              />
+              <span>Employee uses company stay-in housing</span>
+            </label>
+            {form.is_stay_in && (
+              <div className="form-group">
+                <label>Housing deduction per payroll (₱)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 500 per semi-monthly run"
+                  value={form.housing_deduction}
+                  onChange={(e) => setForm({ ...form, housing_deduction: e.target.value })}
+                />
+              </div>
+            )}
+          </fieldset>
           <div className="quick-actions">
             <button type="submit" className="btn btn-primary">Save</button>
             <button type="button" className="btn btn-ghost" onClick={() => setEditingId(null)}>Cancel</button>

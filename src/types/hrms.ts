@@ -20,6 +20,11 @@ export interface Employee {
   emergency_phone?: string | null
   hire_date: string
   employment_type: string
+  pay_basis?: 'hourly' | 'daily'
+  pay_rate?: string | number | null
+  is_stay_in?: number | boolean
+  housing_deduction?: string | number | null
+  position_min_hourly?: string | number | null
   status: string
   branch_name?: string
   department_name?: string
@@ -71,6 +76,8 @@ export interface AppUser {
   last_name?: string
   employee_status?: string
   position_title?: string
+  is_stay_in?: number | boolean
+  housing_deduction?: string | number | null
   approved_at?: string | null
   activated_at?: string | null
 }
@@ -216,6 +223,14 @@ export interface AttendanceRecord {
   last_name?: string
 }
 
+export interface PaginatedResult<T> {
+  items: T[]
+  total: number
+  page: number
+  limit: number
+  pages: number
+}
+
 export interface PayrollRun {
   id: string
   branch_id: string
@@ -223,6 +238,7 @@ export interface PayrollRun {
   period_end: string
   pay_date: string
   run_type?: string
+  pay_frequency?: 'semi_monthly' | 'monthly'
   status: string
   total_gross?: string | number
   total_net?: string | number
@@ -239,6 +255,7 @@ export interface Payslip {
   holiday_hours?: string
   basic_pay: string
   overtime_pay?: string
+  holiday_pay?: string
   tips_amount?: string
   service_charge?: string
   gross_pay: string
@@ -248,13 +265,103 @@ export interface Payslip {
   pagibig_amount: string
   tax_amount: string
   other_deductions?: string
+  loan_deduction?: string
+  other_adjustments?: string
   period_start?: string
   period_end?: string
   pay_date?: string
   run_status?: string
+  pay_frequency?: string
+  run_type?: string
+  employment_status?: string
+  position_title?: string | null
+  department_name?: string | null
   first_name?: string
   last_name?: string
   emp_number?: string
+  pay_basis?: string
+  pay_rate?: string | number
+  payment_status?: PayrollDisbursementStatus
+  cash_advance?: string | number
+  housing_deduction?: string | number
+  tardiness?: string | number
+}
+
+export interface PayrollAttendanceDay {
+  date: string
+  present: boolean
+  clock_in: string | null
+  clock_out: string | null
+  actual_hours: number
+  overtime_hours: number
+}
+
+export type PayrollDisbursementStatus = 'pending' | 'ready' | 'paid' | 'deferred'
+
+export interface PayrollRosterEntry {
+  employee_id: string
+  emp_number: string
+  first_name: string
+  last_name: string
+  position_title?: string | null
+  department_name?: string | null
+  pay_basis: string
+  pay_rate: number
+  days_or_hours: number
+  payslip_id: string | null
+  payslip_net: number | null
+  payslip_gross: number | null
+  payment_status: PayrollDisbursementStatus
+  defer_note?: string | null
+}
+
+export interface PayrollDisbursementSummary {
+  total_employees: number
+  pending: number
+  ready: number
+  paid: number
+  deferred: number
+  net_ready: number
+  net_paid: number
+}
+
+export interface PayrollPreparePreview {
+  regular_hours: number
+  overtime_hours?: number
+  basic_pay: number
+  gross_pay: number
+  sss_amount: number
+  philhealth_amount: number
+  pagibig_amount: number
+  tax_amount: number
+  other_deductions: number
+  net_pay: number
+  loan_deduction?: number
+  cash_advance?: number
+  housing_deduction?: number
+  overtime_pay?: number
+  benefits_amount?: number
+}
+
+export interface PayrollPrepareData {
+  run: PayrollRun
+  employee: {
+    id: string
+    emp_number: string
+    first_name: string
+    last_name: string
+    position_title?: string | null
+    department_name?: string | null
+  }
+  pay_basis: string
+  pay_rate: number
+  attendance: PayrollAttendanceDay[]
+  included_dates: string[]
+  preview: PayrollPreparePreview
+  loans: { id: string; loan_type?: string; balance: string | number; monthly_deduction: string | number }[]
+  adjustments: PayrollAdjustment[]
+  payslip: Payslip | null
+  can_edit: boolean
 }
 
 export interface Schedule {

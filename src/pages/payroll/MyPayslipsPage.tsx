@@ -16,6 +16,11 @@ interface MyPayslip {
   run_status: string
 }
 
+function money(value: string | number | undefined | null) {
+  if (value == null || value === '') return '—'
+  return `₱${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 export function MyPayslipsPage() {
   const [rows, setRows] = useState<MyPayslip[]>([])
   const [loading, setLoading] = useState(true)
@@ -57,8 +62,8 @@ export function MyPayslipsPage() {
                   <td>{p.pay_date}</td>
                   <td>{p.period_start} – {p.period_end}</td>
                   <td>{p.regular_hours}</td>
-                  <td>{p.gross_pay}</td>
-                  <td><strong>{p.net_pay}</strong></td>
+                  <td>{money(p.gross_pay)}</td>
+                  <td className="payroll-my-net">{money(p.net_pay)}</td>
                   <td>
                     <button
                       type="button"

@@ -1,8 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../hooks/useNotification'
+import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
+import { EmptyState } from '../../components/EmptyState'
 import { RolePermissionsModal } from '../../components/RolePermissionsModal'
 import type { AppUser, Employee, Role } from '../../types/hrms'
+
+type Props = {
+  /** System admin — full accounts, roles, and permissions */
+  fullAdmin?: boolean
+}
 
 function statusLabel(status?: string): string {
   switch (status) {
@@ -19,7 +28,10 @@ function statusLabel(status?: string): string {
   }
 }
 
-export function UsersPage() {
+export function UsersPage({ fullAdmin = false }: Props) {
+  const { user } = useAuth()
+  const { success, error: notifyError, prompt } = useNotification()
+  const isFullAdmin = fullAdmin || hasPermission(user, 'users.manage')
   const [users, setUsers] = useState<AppUser[]>([])
   const [pending, setPending] = useState<AppUser[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -42,14 +54,16 @@ export function UsersPage() {
   const [permissionsRole, setPermissionsRole] = useState<Role | null>(null)
 
   const load = async () => {
-    const [u, p, e, r] = await Promise.all([
+    const p = await api<AppUser[]>('/users/pending')
+    setPending(p)
+    if (!isFullAdmin) return
+
+    const [u, e, r] = await Promise.all([
       api<AppUser[]>('/users'),
-      api<AppUser[]>('/users/pending'),
       api<Employee[]>('/employees'),
       api<Role[]>('/roles'),
     ])
     setUsers(u)
-    setPending(p)
     setEmployees(e.filter((x) => x.status === 'active'))
     setRoles(r)
     if (r[0] && !form.role_id) setForm((f) => ({ ...f, role_id: r[0].role_id }))
@@ -57,20 +71,25 @@ export function UsersPage() {
 
   useEffect(() => {
     load()
-  }, [])
+  }, [isFullAdmin])
 
   const onCreate = async (e: FormEvent) => {
     e.preventDefault()
-    await api('/users', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...form,
-        employee_id: form.employee_id || null,
-        account_status: 'active',
-      }),
-    })
-    setShowForm(false)
-    load()
+    try {
+      await api('/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form,
+          employee_id: form.employee_id || null,
+          account_status: 'active',
+        }),
+      })
+      success('User account created')
+      setShowForm(false)
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not create user')
+    }
   }
 
   const startEdit = (u: AppUser) => {
@@ -84,32 +103,46 @@ export function UsersPage() {
   }
 
   const onSaveEdit = async (id: string) => {
-    await api(`/users/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({
-        role_id: editForm.role_id,
-        employee_id: editForm.employee_id || null,
-        is_active: editForm.is_active,
-        ...(editForm.password ? { password: editForm.password } : {}),
-      }),
-    })
-    setEditingId(null)
-    load()
+    try {
+      await api(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          role_id: editForm.role_id,
+          employee_id: editForm.employee_id || null,
+          is_active: editForm.is_active,
+          ...(editForm.password ? { password: editForm.password } : {}),
+        }),
+      })
+      success('User updated')
+      setEditingId(null)
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not update user')
+    }
   }
 
   const runAction = async (id: string, action: 'approve' | 'activate' | 'reject') => {
     setBusyId(id)
     try {
       if (action === 'reject') {
-        const reason = window.prompt('Rejection reason (optional):') ?? undefined
+        const reason = await prompt('Rejection reason (optional):', {
+          title: 'Reject registration',
+          label: 'Reason',
+          placeholder: 'Optional note for the applicant',
+        })
+        if (reason === null) return
         await api(`/users/${id}/reject`, {
           method: 'POST',
           body: JSON.stringify(reason ? { reason } : {}),
         })
+        success('Registration rejected')
       } else {
         await api(`/users/${id}/${action}`, { method: 'POST' })
+        success(action === 'approve' ? 'Applicant approved' : 'Employee activated')
       }
       await load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Action failed')
     } finally {
       setBusyId(null)
     }
@@ -118,14 +151,24 @@ export function UsersPage() {
   return (
     <div>
       <PageHeader
-        title="User accounts"
-        subtitle="Employees self-register; HR approves then activates for time clock and schedules"
+        title={isFullAdmin ? 'User accounts' : 'Crew approvals'}
+        subtitle={
+          isFullAdmin
+            ? 'Manage logins, roles, and permissions. Restaurant crew should self-register.'
+            : 'Review self-registrations — approve sign-in, then activate for time clock and schedules'
+        }
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-            {showForm ? 'Cancel' : 'Add staff login'}
-          </button>
+          isFullAdmin ? (
+            <button type="button" className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+              {showForm ? 'Cancel' : 'Add staff login'}
+            </button>
+          ) : undefined
         }
       />
+
+      {!isFullAdmin && pending.length === 0 && (
+        <EmptyState title="No pending registrations" message="New crew sign-ups will appear here for approval." />
+      )}
 
       {pending.length > 0 && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
@@ -142,6 +185,7 @@ export function UsersPage() {
                   <th>Email</th>
                   <th>Emp #</th>
                   <th>Position</th>
+                  <th>Stay-in</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -153,6 +197,7 @@ export function UsersPage() {
                     <td>{u.email}</td>
                     <td>{u.emp_number ?? '—'}</td>
                     <td>{u.position_title ?? '—'}</td>
+                    <td>{u.is_stay_in ? 'Yes' : '—'}</td>
                     <td>{statusLabel(u.account_status)}</td>
                     <td>
                       <div className="quick-actions" style={{ margin: 0 }}>
@@ -204,7 +249,7 @@ export function UsersPage() {
         </div>
       )}
 
-      {showForm && (
+      {isFullAdmin && showForm && (
         <form className="card" style={{ marginBottom: '1.5rem' }} onSubmit={onCreate}>
           <p className="muted-block" style={{ marginBottom: '1rem' }}>
             Use this only for admin/HR logins. Restaurant employees should use <strong>Register</strong> on the login page.
@@ -244,6 +289,7 @@ export function UsersPage() {
         </form>
       )}
 
+      {isFullAdmin && (
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h3 className="section-title">Roles & permissions</h3>
         <div className="role-permissions-actions">
@@ -259,7 +305,9 @@ export function UsersPage() {
           ))}
         </div>
       </div>
+      )}
 
+      {isFullAdmin && (
       <div className="card table-wrap">
         <table>
           <thead>
@@ -330,12 +378,15 @@ export function UsersPage() {
           </tbody>
         </table>
       </div>
+      )}
 
+      {isFullAdmin && (
       <RolePermissionsModal
         open={permissionsRole != null}
         role={permissionsRole}
         onClose={() => setPermissionsRole(null)}
       />
+      )}
     </div>
   )
 }

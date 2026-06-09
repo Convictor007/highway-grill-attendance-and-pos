@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Hg\Api\Modules\Employees;
 
 use Hg\Api\Core\Database;
+use Hg\Api\Core\Schema;
 use Hg\Api\Modules\Leave\LeaveService;
 
 final class EmployeeService
 {
     public function list(?string $branchId = null, ?string $status = null): array
     {
-        $sql = 'SELECT e.*, b.name AS branch_name, d.name AS department_name, p.title AS position_title
+        $sql = 'SELECT e.*, b.name AS branch_name, d.name AS department_name, p.title AS position_title,
+                       p.min_hourly AS position_min_hourly
                 FROM employees e
                 LEFT JOIN branches b ON b.id = e.branch_id
                 LEFT JOIN departments d ON d.id = e.department_id
@@ -35,7 +37,8 @@ final class EmployeeService
     public function get(string $id): ?array
     {
         $stmt = Database::connection()->prepare(
-            'SELECT e.*, b.name AS branch_name, d.name AS department_name, p.title AS position_title
+            'SELECT e.*, b.name AS branch_name, d.name AS department_name, p.title AS position_title,
+                    p.min_hourly AS position_min_hourly
              FROM employees e
              LEFT JOIN branches b ON b.id = e.branch_id
              LEFT JOIN departments d ON d.id = e.department_id
@@ -51,14 +54,18 @@ final class EmployeeService
     {
         $id = Database::uuid();
         $pdo = Database::connection();
+        $payCols = Schema::hasColumn('employees', 'pay_basis') ? ', pay_basis, pay_rate' : '';
+        $payVals = Schema::hasColumn('employees', 'pay_basis') ? ', :pay_basis, :pay_rate' : '';
+        $housingCols = Schema::hasColumn('employees', 'is_stay_in') ? ', is_stay_in, housing_deduction' : '';
+        $housingVals = Schema::hasColumn('employees', 'is_stay_in') ? ', :is_stay_in, :housing_deduction' : '';
         $pdo->prepare(
             'INSERT INTO employees (id, branch_id, department_id, position_id, emp_number, first_name, last_name,
-             email, phone, hire_date, employment_type, status, date_of_birth, gender, nationality, national_id,
+             email, phone, hire_date, employment_type' . $payCols . $housingCols . ', status, date_of_birth, gender, nationality, national_id,
              address, emergency_name, emergency_phone, photo_url)
              VALUES (:id, :branch_id, :department_id, :position_id, :emp_number, :first_name, :last_name,
-             :email, :phone, :hire_date, :employment_type, :status, :dob, :gender, :nationality, :national_id,
+             :email, :phone, :hire_date, :employment_type' . $payVals . $housingVals . ', :status, :dob, :gender, :nationality, :national_id,
              :address, :emergency_name, :emergency_phone, :photo_url)'
-        )->execute([
+        )->execute(array_merge([
             'id' => $id,
             'branch_id' => $data['branch_id'],
             'department_id' => $data['department_id'] ?? null,
@@ -79,7 +86,13 @@ final class EmployeeService
             'emergency_name' => $this->nullableString($data['emergency_name'] ?? null),
             'emergency_phone' => $this->nullableString($data['emergency_phone'] ?? null),
             'photo_url' => $this->nullableString($data['photo_url'] ?? null),
-        ]);
+        ], Schema::hasColumn('employees', 'pay_basis') ? [
+            'pay_basis' => $this->normalizePayBasis($data['pay_basis'] ?? 'hourly'),
+            'pay_rate' => $this->nullablePayRate($data['pay_rate'] ?? null),
+        ] : [], Schema::hasColumn('employees', 'is_stay_in') ? [
+            'is_stay_in' => $this->normalizeStayIn($data['is_stay_in'] ?? false),
+            'housing_deduction' => $this->housingDeductionAmount($data['is_stay_in'] ?? false, $data['housing_deduction'] ?? 0),
+        ] : []));
         if (($data['status'] ?? 'active') === 'active') {
             (new LeaveService())->ensureBalancesForEmployee($id, (int) date('Y'));
         }
@@ -93,6 +106,14 @@ final class EmployeeService
             'employment_type', 'status', 'address', 'date_of_birth', 'gender', 'nationality', 'national_id',
             'emergency_name', 'emergency_phone', 'photo_url', 'hire_date',
         ];
+        if (Schema::hasColumn('employees', 'pay_basis')) {
+            $fields[] = 'pay_basis';
+            $fields[] = 'pay_rate';
+        }
+        if (Schema::hasColumn('employees', 'is_stay_in')) {
+            $fields[] = 'is_stay_in';
+            $fields[] = 'housing_deduction';
+        }
         $sets = [];
         $params = ['id' => $id];
         foreach ($fields as $f) {
@@ -106,6 +127,17 @@ final class EmployeeService
                 $val = $this->normalizeGender($val);
             } elseif ($f === 'employment_type') {
                 $val = $this->normalizeEmploymentType((string) $val);
+            } elseif ($f === 'pay_basis') {
+                $val = $this->normalizePayBasis((string) $val);
+            } elseif ($f === 'pay_rate') {
+                $val = $this->nullablePayRate($val);
+            } elseif ($f === 'is_stay_in') {
+                $val = $this->normalizeStayIn($val);
+            } elseif ($f === 'housing_deduction') {
+                $stayIn = array_key_exists('is_stay_in', $data)
+                    ? $this->normalizeStayIn($data['is_stay_in'])
+                    : (int) (($this->get($id) ?? [])['is_stay_in'] ?? 0);
+                $val = $this->housingDeductionAmount($stayIn, $val);
             } elseif (in_array($f, ['department_id', 'position_id'], true)) {
                 $val = ($val === '' || $val === null) ? null : $val;
             } elseif (in_array($f, ['address', 'nationality', 'national_id', 'emergency_name', 'emergency_phone', 'photo_url'], true)) {
@@ -262,5 +294,40 @@ final class EmployeeService
             throw new \InvalidArgumentException('date_of_birth must be YYYY-MM-DD');
         }
         return $s;
+    }
+
+    private function normalizePayBasis(string $value): string
+    {
+        return $value === 'daily' ? 'daily' : 'hourly';
+    }
+
+    private function nullablePayRate(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $rate = round((float) $value, 2);
+        if ($rate <= 0) {
+            return null;
+        }
+
+        return $rate;
+    }
+
+    private function normalizeStayIn(mixed $value): int
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+    }
+
+    private function housingDeductionAmount(mixed $stayIn, mixed $amount): float
+    {
+        if (!$this->normalizeStayIn($stayIn)) {
+            return 0.0;
+        }
+        if ($amount === null || $amount === '') {
+            return 0.0;
+        }
+
+        return max(0, round((float) $amount, 2));
     }
 }

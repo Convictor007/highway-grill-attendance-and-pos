@@ -24,5 +24,12 @@ return [
     'auth_hash_passwords' => Env::get('AUTH_HASH_PASSWORDS', 'false') === 'true',
     'mail_enabled' => Env::get('MAIL_ENABLED', 'false') === 'true',
     'mail_from' => Env::get('MAIL_FROM', 'noreply@highwaygrill.local'),
+    'mail_from_name' => Env::get('MAIL_FROM_NAME', 'Highway Grill HR'),
     'hr_notify_email' => Env::get('HR_NOTIFY_EMAIL', 'hr@highwaygrill.local'),
+    'app_url' => Env::get('APP_URL', 'http://localhost:5173'),
+    'smtp_host' => Env::get('SMTP_HOST', ''),
+    'smtp_port' => Env::int('SMTP_PORT', 587),
+    'smtp_user' => Env::get('SMTP_USER', ''),
+    'smtp_pass' => Env::get('SMTP_PASS', ''),
+    'smtp_encryption' => Env::get('SMTP_ENCRYPTION', 'tls'),
 ];

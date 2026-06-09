@@ -58,6 +58,25 @@ textarea {
   background: var(--accent-hover);
 }
 
+.btn-secondary {
+  background: var(--surface-hover);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.08);
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--muted);
@@ -138,6 +157,17 @@ th {
   color: #f5a0b8;
 }
 
+.badge-partially_paid,
+.badge-ready {
+  background: #3d3520;
+  color: #f0c674;
+}
+
+.badge-deferred {
+  background: #2a2f3d;
+  color: #a8b4cc;
+}
+
 .form-group {
   margin-bottom: 1rem;
 }
@@ -212,20 +242,27 @@ th {
 }
 
 .dash {
-  display: flex;
   min-height: 100vh;
 }
 
 .sidebar {
-  width: 240px;
+  --sidebar-width: 240px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  width: var(--sidebar-width);
+  height: 100vh;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   padding: 1.25rem;
+  overflow: hidden;
 }
 
 .brand {
+  flex-shrink: 0;
   display: flex;
   gap: 0.75rem;
   align-items: center;
@@ -252,9 +289,11 @@ th {
 
 .sidebar nav {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+  overflow-y: auto;
 }
 
 .nav {
@@ -275,28 +314,113 @@ th {
 }
 
 .sidebar-foot {
+  flex-shrink: 0;
   border-top: 1px solid var(--border);
-  padding-top: 1rem;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 
-.user-meta {
-  margin-bottom: 0.75rem;
-  font-size: 0.8rem;
+.sidebar-panel-foot {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 
-.user-email {
-  display: block;
+.sidebar-user-menu {
+  position: relative;
+}
+
+.sidebar-user-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
   color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.user-role {
+.sidebar-user-trigger:hover,
+.sidebar-user-menu--open .sidebar-user-trigger {
+  background: var(--surface-hover);
+}
+
+.sidebar-user-trigger-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sidebar-user-primary {
+  font-size: 0.8rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-secondary {
+  font-size: 0.72rem;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.sidebar-user-menu--open .sidebar-user-chevron {
+  transform: rotate(180deg);
+}
+
+.sidebar-user-dropdown {
+  position: absolute;
+  bottom: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 60;
+  overflow: hidden;
+}
+
+.sidebar-user-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar-user-dropdown-item:hover {
+  background: var(--surface-hover);
+  color: var(--accent);
 }
 
 .main {
-  flex: 1;
+  min-height: 100vh;
+  margin-left: var(--sidebar-width, 240px);
   padding: 1.5rem 2rem;
-  overflow: auto;
 }
 
 .page-header {
@@ -394,10 +518,255 @@ th {
   border-bottom-color: var(--accent);
 }
 
-.loading-block,
+.tabs--sub {
+  margin-bottom: 0.75rem;
+}
+
+.tabs--sub .tab {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.9rem;
+}
+
+.list-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.list-toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.list-toolbar__search {
+  min-width: 200px;
+  max-width: 280px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 6px);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.list-toolbar__search:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-color: var(--accent);
+}
+
+.pagination-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0 0;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.pagination-bar__meta {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.pagination-bar__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.pagination-bar__page--active {
+  color: var(--accent) !important;
+  font-weight: 600;
+}
+
+.spinner {
+  display: inline-block;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--muted) 35%, transparent);
+  border-top-color: var(--accent);
+  animation: spinner-rotate 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.spinner--sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+.spinner--md {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.spinner--lg {
+  width: 2rem;
+  height: 2rem;
+  border-width: 3px;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  color: var(--muted);
+  padding: 1rem 0;
+}
+
+.loading-block--inline {
+  justify-content: flex-start;
+  padding: 0.5rem 0;
+}
+
+.loading-block--page {
+  padding: 2rem;
+}
+
 .empty-state-desc {
   color: var(--muted);
   padding: 1rem 0;
+}
+
+.notification-stack {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 12000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: min(22rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.notification-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  animation: notification-in 0.2s ease-out;
+}
+
+@keyframes notification-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.notification-toast__icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+  fill: currentColor;
+}
+
+.notification-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-toast__title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  margin-bottom: 0.15rem;
+}
+
+.notification-toast__message {
+  font-size: 0.84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.notification-toast__close {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.15rem;
+}
+
+.notification-toast__close:hover {
+  color: var(--text);
+}
+
+.notification-toast--success {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+  color: var(--text);
+}
+
+.notification-toast--success .notification-toast__icon {
+  color: var(--success);
+}
+
+.notification-toast--error {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  color: var(--text);
+}
+
+.notification-toast--error .notification-toast__icon {
+  color: var(--danger);
+}
+
+.notification-toast--warning {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  color: var(--text);
+}
+
+.notification-toast--warning .notification-toast__icon {
+  color: var(--accent);
+}
+
+.notification-toast--info {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  color: var(--text);
+}
+
+.notification-toast--info .notification-toast__icon {
+  color: var(--muted);
+}
+
+.notification-prompt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+  font-size: 0.88rem;
+}
+
+.notification-prompt-field input {
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
 }
 
 .empty-state-title {
@@ -1069,12 +1438,11 @@ th {
 }
 
 @media (max-width: 768px) {
-  .dash {
-    flex-direction: column;
-  }
-
   .sidebar {
+    position: static;
     width: 100%;
+    height: auto;
+    max-height: none;
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
@@ -1082,9 +1450,11 @@ th {
   .sidebar nav {
     flex-direction: row;
     flex-wrap: wrap;
+    overflow: visible;
   }
 
   .main {
+    margin-left: 0;
     padding: 1rem;
   }
 }
@@ -1166,10 +1536,11 @@ th {
 }
 
 .employee-sidebar {
+  --employee-sidebar-width: 280px;
   position: fixed;
   top: 0;
   left: 0;
-  width: 280px;
+  width: var(--employee-sidebar-width);
   max-width: 85vw;
   height: 100vh;
   background: var(--surface);
@@ -1178,6 +1549,7 @@ th {
   display: flex;
   flex-direction: column;
   padding: 1rem;
+  overflow: hidden;
   transform: translateX(-100%);
   transition: transform 0.2s ease;
 }
@@ -1187,25 +1559,16 @@ th {
 }
 
 @media (min-width: 901px) {
-  .employee-shell {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
   .app-header {
-    width: 100%;
     display: none;
   }
 
   .employee-sidebar {
-    position: sticky;
     transform: none;
-    height: 100vh;
-    top: 0;
   }
 
   .employee-main {
-    flex: 1;
+    margin-left: var(--employee-sidebar-width, 280px);
     min-width: 0;
   }
 }
@@ -1250,12 +1613,6 @@ th {
   margin-top: 0.5rem;
   border-top: 1px solid var(--border);
   padding-top: 0.75rem;
-}
-
-.sidebar-panel-foot {
-  border-top: 1px solid var(--border);
-  padding-top: 1rem;
-  margin-top: 0.5rem;
 }
 
 .user-chip {
@@ -1705,6 +2062,22 @@ th {
 .menu-tile-label {
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+.sidebar-section + .sidebar-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-section-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding: 0 0.75rem;
+  margin-bottom: 0.35rem;
 }
 
 .menu-tile-desc {
@@ -3148,48 +3521,777 @@ tr.row-clickable:hover td {
   background: rgba(238, 77, 45, 0.06);
 }
 
-.payslip-detail-meta {
+.payroll-guide {
+  padding: 0;
+  overflow: hidden;
+}
+
+.payroll-guide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.payroll-guide-toggle:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.04));
+}
+
+.payroll-guide-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+  transform: rotate(0deg);
+}
+
+.payroll-guide--open .payroll-guide-chevron {
+  transform: rotate(90deg);
+}
+
+.payroll-guide-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.payroll-guide-steps {
+  margin: 0;
+  padding: 0 1rem 1rem 2.35rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  list-style: decimal;
+}
+
+.payroll-guide-steps li {
+  margin-bottom: 0.35rem;
+}
+
+.payroll-guide-steps strong {
+  color: var(--text);
+}
+
+.payroll-prepare-modal.modal-panel--large {
+  max-width: min(920px, 96vw);
+}
+
+.payroll-prepare-modal .modal-body {
+  max-height: calc(100vh - 11rem);
+  overflow-y: auto;
+}
+
+.payroll-prepare-meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.payroll-prepare-hint {
+  margin: 0 0 1rem;
+}
+
+.payroll-prepare-attendance {
+  max-height: 280px;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+}
+
+.payroll-day-absent td {
+  color: var(--muted);
+}
+
+.payroll-prepare-count {
+  margin: 0 0 1rem;
+}
+
+.payroll-prepare-loans {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.payroll-prepare-loans ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.subsection-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.payroll-prepare-deductions {
+  margin-bottom: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.payroll-prepare-net {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+}
+
+.payroll-prepare-net strong {
+  color: #f5d78e;
+}
+
+.payroll-prepare-success {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(72, 140, 90, 0.15);
+  border: 1px solid rgba(72, 140, 90, 0.35);
+  color: #9ed4a8;
+  font-size: 0.9rem;
+}
+
+.modal-overlay:has(.payslip-modal-panel) {
+  z-index: 1100;
+}
+
+.payroll-prepare-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
-  align-items: center;
-  margin-bottom: 1.25rem;
-  color: var(--muted);
-  font-size: 0.9rem;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  width: 100%;
 }
 
-.payslip-detail-grid {
+.payroll-roster-row-selected {
+  background: var(--surface-hover);
+}
+
+.payroll-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.payroll-steps li {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.payroll-steps li strong {
+  color: var(--accent);
+}
+
+.form-fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  padding: 0.75rem 1rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.form-fieldset legend {
+  font-weight: 600;
+  padding: 0 0.35rem;
+}
+
+/* Salary slip / pay slip template — always light “paper” (readable in dark app theme) */
+.payslip-modal-panel {
+  max-width: min(780px, 96vw);
+}
+
+.payslip-modal-panel .modal-body {
+  padding: 1rem 1.25rem 1.25rem;
+  overflow-y: auto;
+}
+
+.payslip-tpl {
+  --ps-bg: #ffffff;
+  --ps-text: #1c1410;
+  --ps-muted: #5a4a42;
+  --ps-maroon: #7a1528;
+  --ps-gold: #e8a317;
+  --ps-gold-pale: #f5d78e;
+  --ps-line: #b8a898;
+  --ps-totals-bg: #e8a317;
+  --ps-totals-text: #3d120f;
+  --ps-net-bg: #edf6e4;
+  --ps-net-border: #9bc47a;
+
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.82rem;
+  color: var(--ps-text);
+  background: var(--ps-bg);
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border-radius: 6px;
+  border: 2px solid var(--ps-gold);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.payslip-tpl-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.payslip-tpl-watermark img {
+  width: 17rem;
+  height: 17rem;
+  object-fit: contain;
+  opacity: 0.02;
+}
+
+.payslip-tpl--hg > :not(.payslip-tpl-watermark) {
+  position: relative;
+  z-index: 1;
+}
+
+.payslip-tpl-brand {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.payslip-tpl-company-name {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ps-maroon);
+  letter-spacing: 0.02em;
+}
+
+.payslip-tpl-title-block {
+  width: 100%;
+  text-align: center;
+}
+
+.payslip-tpl-banner-wrap {
+  text-align: center;
+  margin-bottom: 0.45rem;
+}
+
+.payslip-tpl-banner {
+  display: inline-block;
+  text-align: center;
+  background: var(--ps-maroon);
+  color: var(--ps-gold-pale);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.5rem 1.35rem;
+  border-radius: 999px;
+  border: 2px solid var(--ps-gold);
+  line-height: 1.3;
+}
+
+.payslip-tpl-meta {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1rem;
 }
 
-.payslip-detail-section .section-title {
-  margin-bottom: 0.75rem;
-  font-size: 0.95rem;
+.payslip-tpl-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: baseline;
 }
 
-.payslip-line {
+.payslip-tpl-meta-label {
+  font-weight: 600;
+  min-width: 8.5rem;
+  color: var(--ps-maroon);
+}
+
+.payslip-tpl-meta-value {
+  flex: 1;
+  border-bottom: 1px dotted var(--ps-line);
+  min-width: 6rem;
+  padding-bottom: 0.15rem;
+  color: var(--ps-text);
+}
+
+.payslip-tpl-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 2px solid var(--ps-gold);
+}
+
+.payslip-tpl-col {
+  border-right: 1px solid var(--ps-gold);
+  background: var(--ps-bg);
+}
+
+.payslip-tpl-col:last-child {
+  border-right: none;
+}
+
+.payslip-tpl-col-head {
+  background: var(--ps-maroon);
+  color: var(--ps-gold-pale);
+  font-weight: 700;
+  text-align: center;
+  padding: 0.5rem 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+
+.payslip-tpl-col-body {
+  padding: 0.65rem 0.75rem 0.85rem;
+  min-height: 11rem;
+  background: var(--ps-bg);
+  color: var(--ps-text);
+}
+
+.payslip-tpl-line {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.9rem;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+  align-items: flex-end;
+  color: var(--ps-text);
 }
 
-.payslip-line-label {
-  color: var(--muted);
+.payslip-tpl-line--sub {
+  padding-left: 0.75rem;
 }
 
-.payslip-detail-net {
+.payslip-tpl-line--blank {
+  min-height: 0.85rem;
+  border-bottom: 1px solid transparent;
+}
+
+.payslip-tpl-line-value {
+  min-width: 4.5rem;
+  text-align: right;
+  border-bottom: 1px solid var(--ps-line);
+  font-variant-numeric: tabular-nums;
+  color: var(--ps-text);
+}
+
+.payslip-tpl-line-value--dotted {
+  border-bottom-style: dotted;
+}
+
+.payslip-tpl-subhead {
+  font-weight: 700;
+  margin: 0.65rem 0 0.45rem;
+  font-size: 0.75rem;
+  color: var(--ps-maroon);
+}
+
+.payslip-tpl-totals {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--ps-totals-bg);
+  color: var(--ps-totals-text);
+  font-weight: 700;
+}
+
+.payslip-tpl-totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.payslip-tpl-totals > div:last-child {
+  border-right: none;
+}
+
+.payslip-tpl-net {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 2px solid var(--border);
-  font-size: 1.1rem;
+  gap: 1rem;
+  background: var(--ps-net-bg);
+  border: 2px solid var(--ps-net-border);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--ps-text);
+}
+
+.payslip-tpl-net-left {
+  font-weight: 700;
+  color: var(--ps-maroon);
+}
+
+.payslip-tpl-net-amount {
+  margin-left: 0.75rem;
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ps-maroon);
+}
+
+.payslip-tpl-net-note {
+  font-size: 0.68rem;
+  font-style: italic;
+  color: var(--ps-muted);
+  text-align: right;
+}
+
+.payslip-tpl-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+
+.payslip-tpl-footer p {
+  margin: 0;
+  font-size: 0.72rem;
+  max-width: 55%;
+  color: var(--ps-muted);
+}
+
+.payslip-tpl-sign {
+  flex: 1;
+  text-align: center;
+  max-width: 14rem;
+}
+
+.payslip-tpl-sign-line {
+  border-bottom: 1px solid var(--ps-text);
+  height: 1.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.payslip-tpl-sign span {
+  font-size: 0.68rem;
+  color: var(--ps-muted);
+}
+
+/* Highway Grill payslip field layout */
+.payslip-tpl-period {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ps-text);
+}
+
+.payslip-tpl-period strong {
+  font-weight: 700;
+}
+
+.payslip-tpl-top-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--ps-line);
+  font-size: 0.78rem;
+}
+
+.payslip-tpl-top-table td {
+  padding: 0.5rem 0.35rem;
+  vertical-align: baseline;
+}
+
+.payslip-tpl-top-table tr td:last-child {
+  text-align: right;
+}
+
+.payslip-tpl-top-label {
+  font-weight: 700;
+  color: var(--ps-maroon);
+  white-space: nowrap;
+}
+
+.payslip-tpl-top-value {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.payslip-tpl-top-gap {
+  width: 1rem;
+}
+
+.payslip-tpl-top-total .payslip-tpl-amt {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.payslip-tpl-amt {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.payslip-tpl-dotted {
+  display: block;
+  width: 100%;
+  min-width: 3.5rem;
+  border-bottom: 1px dotted var(--ps-line);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.payslip-tpl-emp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.payslip-tpl-emp-table td {
+  padding: 0.15rem 0.5rem 0.15rem 0;
+  vertical-align: top;
+  width: 33%;
+}
+
+.payslip-tpl-main-grid {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--ps-gold);
+  margin-bottom: 0.75rem;
+}
+
+.payslip-tpl-main-col {
+  vertical-align: top;
+  padding: 0.5rem;
+  border-right: 1px solid var(--ps-gold);
+}
+
+.payslip-tpl-main-col--earn {
+  width: 42%;
+}
+
+.payslip-tpl-main-col--ded {
+  width: 33%;
+}
+
+.payslip-tpl-main-col--summary {
+  width: 25%;
+  border-right: none;
+}
+
+.payslip-tpl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+}
+
+.payslip-tpl-table th {
+  background: var(--ps-maroon);
+  color: var(--ps-gold-pale);
+  padding: 0.35rem 0.25rem;
+  text-align: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.payslip-tpl-table td {
+  padding: 0.35rem 0.25rem;
+  border-bottom: 1px dotted var(--ps-line);
+}
+
+.payslip-tpl-td-center {
+  text-align: center;
+}
+
+.payslip-tpl-td-num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.payslip-tpl-td-dotted .payslip-tpl-dotted {
+  min-width: 0;
+}
+
+.payslip-tpl-kv {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+  margin-top: 0.35rem;
+}
+
+.payslip-tpl-kv td {
+  padding: 0.2rem 0;
+  vertical-align: bottom;
+}
+
+.payslip-tpl-kv-label {
+  text-align: left;
+  padding-right: 0.5rem;
+  white-space: nowrap;
+}
+
+.payslip-tpl-kv-value {
+  text-align: right;
+  width: 4.5rem;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.payslip-tpl-kv-value--dotted .payslip-tpl-dotted {
+  min-width: 0;
+}
+
+.payslip-tpl-kv-row--strong .payslip-tpl-kv-label,
+.payslip-tpl-kv-row--strong .payslip-tpl-kv-value {
+  font-weight: 700;
+}
+
+.payslip-tpl-kv-row--sub .payslip-tpl-kv-label {
+  padding-left: 0.5rem;
+}
+
+.payslip-tpl-hg-less-head {
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.68rem;
+}
+
+.payslip-tpl-footer--hg {
+  margin-top: 1rem;
+}
+
+.payslip-tpl-received {
+  max-width: 14rem;
+  font-size: 0.72rem;
+}
+
+.payroll-disburse-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-2, rgba(255, 255, 255, 0.03));
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.payroll-disburse-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.payroll-disburse-summary strong {
+  color: var(--text);
+}
+
+.payroll-cash-warn {
+  color: #f0c674;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .payslip-tpl-main-grid tr,
+  .payslip-tpl-main-grid tbody,
+  .payslip-tpl-main-grid td {
+    display: block;
+    width: 100%;
+  }
+
+  .payslip-tpl-main-col {
+    border-right: none;
+    border-bottom: 1px solid var(--ps-gold);
+  }
+
+  .payslip-tpl-main-col--summary {
+    border-bottom: none;
+  }
+
+  .payslip-tpl-emp-table tr,
+  .payslip-tpl-emp-table tbody,
+  .payslip-tpl-emp-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .payslip-tpl-meta,
+  .payslip-tpl-columns,
+  .payslip-tpl-totals {
+    grid-template-columns: 1fr;
+  }
+
+  .payslip-tpl-col {
+    border-right: none;
+    border-bottom: 1px solid var(--ps-gold);
+  }
+
+  .payslip-tpl-col:last-child {
+    border-bottom: none;
+  }
+
+  .payslip-tpl-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .payslip-tpl-footer p {
+    max-width: none;
+  }
+
+  .payslip-tpl-sign {
+    max-width: none;
+  }
+}
+
+@media print {
+  body {
+    background: #fff !important;
+  }
+
+  .modal-overlay {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .modal-panel,
+  .payslip-modal-panel {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .modal-header,
+  .modal-footer,
+  .modal-close,
+  .payslip-no-print {
+    display: none !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+  }
+
+  .payslip-tpl {
+    padding: 0.5in;
+    box-shadow: none;
+    border: none;
+    max-width: none;
+  }
+}
+
+/* My Payroll list — brand gold accent on net pay */
+.payroll-my-net {
+  color: #f5d78e;
+  font-weight: 700;
 }
 
 .loan-payments-total {

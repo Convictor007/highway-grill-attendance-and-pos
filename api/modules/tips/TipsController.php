@@ -49,9 +49,26 @@ final class TipsController
                 return;
             }
 
+            if ($method === 'POST' && $seg1 === 'pools' && $seg2 !== null && str_ends_with((string) $seg2, '/distribute-equal')) {
+                Auth::requirePermission($user, 'payroll.manage');
+                $poolId = substr((string) $seg2, 0, -strlen('/distribute-equal'));
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->distributeEqualAmongTipped($poolId),
+                ]);
+                return;
+            }
+
             if ($method === 'POST' && $seg1 === 'pools' && $seg2 !== null) {
                 Auth::requirePermission($user, 'payroll.manage');
                 $body = Request::jsonBody();
+                if (!empty($body['equal'])) {
+                    Response::json([
+                        'success' => true,
+                        'data' => $this->service->distributeEqualAmongTipped($seg2),
+                    ]);
+                    return;
+                }
                 if (empty($body['allocations']) || !is_array($body['allocations'])) {
                     Response::error('allocations array required', 422);
                     return;

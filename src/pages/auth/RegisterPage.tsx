@@ -32,6 +32,7 @@ const emptyForm = () => ({
   emergency_name: '',
   emergency_phone: '',
   employment_type: 'full_time',
+  is_stay_in: false,
 })
 
 export function RegisterPage() {
@@ -43,24 +44,36 @@ export function RegisterPage() {
   const [success, setSuccess] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  const loadOptions = async (branchId: string, pickDefaultBranch = false) => {
-    const q = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ''
-    const data = await api<{ branches: Branch[]; positions: Position[] }>(`/auth/register-options${q}`)
-    setBranches(data.branches)
+  const loadPositions = async (branchId: string, signal?: AbortSignal) => {
+    const data = await api<{ positions: Position[] }>(
+      `/auth/register-options?branch_id=${encodeURIComponent(branchId)}`,
+      signal ? { signal } : {},
+    )
     setPositions(data.positions ?? [])
-    if (pickDefaultBranch && data.branches[0]) {
-      setForm((f) => ({ ...f, branch_id: f.branch_id || data.branches[0].id }))
-    }
   }
 
   useEffect(() => {
-    loadOptions('', true).catch(() => setError('Could not load registration options.'))
+    const ac = new AbortController()
+    ;(async () => {
+      try {
+        const data = await api<{ branches: Branch[] }>('/auth/register-options', { signal: ac.signal })
+        setBranches(data.branches)
+        const defaultBranchId = data.branches[0]?.id ?? ''
+        if (!defaultBranchId) return
+        setForm((f) => ({ ...f, branch_id: defaultBranchId }))
+        await loadPositions(defaultBranchId, ac.signal)
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        setError('Could not load registration options.')
+      }
+    })()
+    return () => ac.abort()
   }, [])
 
-  useEffect(() => {
-    if (!form.branch_id) return
-    loadOptions(form.branch_id).catch(() => setPositions([]))
-  }, [form.branch_id])
+  const onBranchChange = (branchId: string) => {
+    setForm((f) => ({ ...f, branch_id: branchId, position_id: '' }))
+    loadPositions(branchId).catch(() => setPositions([]))
+  }
 
   if (!loading && user) {
     return <Navigate to="/" replace />
@@ -101,6 +114,7 @@ export function RegisterPage() {
         emergency_name: form.emergency_name || undefined,
         emergency_phone: form.emergency_phone || undefined,
         employment_type: form.employment_type,
+        is_stay_in: form.is_stay_in,
       })
       setSuccess(result.message)
       setForm({ ...emptyForm(), branch_id: form.branch_id })
@@ -170,7 +184,7 @@ export function RegisterPage() {
               <select
                 id="branch"
                 value={form.branch_id}
-                onChange={(e) => setForm({ ...form, branch_id: e.target.value, position_id: '' })}
+                onChange={(e) => onBranchChange(e.target.value)}
                 required
               >
                 {branches.map((b) => (
@@ -253,6 +267,20 @@ export function RegisterPage() {
               <option value="seasonal">Seasonal</option>
             </select>
           </div>
+
+          <label className="checkbox-row" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
+            <input
+              type="checkbox"
+              checked={form.is_stay_in}
+              onChange={(e) => setForm({ ...form, is_stay_in: e.target.checked })}
+            />
+            <span>
+              <strong>I need company stay-in housing</strong>
+              <span className="muted-block" style={{ display: 'block', marginTop: '0.25rem' }}>
+                HR will set the housing deduction on your employee record. It is deducted from each payslip (HSNG).
+              </span>
+            </span>
+          </label>
 
           <div className="form-row">
             <div className="form-group">

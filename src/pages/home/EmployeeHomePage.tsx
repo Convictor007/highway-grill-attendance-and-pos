@@ -43,14 +43,8 @@ function formatDate(iso: string) {
   return new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
-function lastNDates(n: number): string[] {
-  const out: string[] = []
-  for (let i = 0; i < n; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    out.push(d.toISOString().slice(0, 10))
-  }
-  return out
+function workDateFromClockIn(clockIn: string) {
+  return clockIn.slice(0, 10)
 }
 
 export function EmployeeHomePage() {
@@ -60,7 +54,7 @@ export function EmployeeHomePage() {
   const [busy, setBusy] = useState(false)
   const [weekHours, setWeekHours] = useState<HoursSummary | null>(null)
   const [todayShift, setTodayShift] = useState<MyShift | null>(null)
-  const [recent, setRecent] = useState<{ date: string; records: AttendanceRecord[] }[]>([])
+  const [recent, setRecent] = useState<AttendanceRecord[]>([])
   const [weekOtHours, setWeekOtHours] = useState(0)
   const [now, setNow] = useState(new Date())
   const [clockError, setClockError] = useState<string | null>(null)
@@ -78,15 +72,15 @@ export function EmployeeHomePage() {
   const today = new Date().toISOString().slice(0, 10)
 
   const refresh = async () => {
-    const [status, summary, shifts, ...dayLists] = await Promise.all([
+    const to = new Date().toISOString().slice(0, 10)
+    const fromDate = new Date()
+    fromDate.setDate(fromDate.getDate() - 6)
+    const from = fromDate.toISOString().slice(0, 10)
+    const [status, summary, shifts, history] = await Promise.all([
       fetchClockStatus().catch(() => ({ open: false, on_break: false })),
       api<HoursSummary>('/attendance/summary').catch(() => null),
       api<MyShift[]>('/shifts/my').catch(() => [] as MyShift[]),
-      ...lastNDates(7).map((date) =>
-        api<AttendanceRecord[]>(`/attendance?date=${date}`)
-          .then((records) => ({ date, records }))
-          .catch(() => ({ date, records: [] as AttendanceRecord[] }))
-      ),
+      api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`).catch(() => [] as AttendanceRecord[]),
     ])
     setOpen(status.open)
     setOnBreak(!!status.on_break)
@@ -97,12 +91,9 @@ export function EmployeeHomePage() {
     setWeekHours(summary)
     const shiftToday = shifts.find((s) => s.shift_date === today) ?? null
     setTodayShift(shiftToday)
-    const withRecords = dayLists.filter((d) => d.records.length > 0)
-    setRecent(withRecords)
+    setRecent(history)
     setWeekOtHours(
-      withRecords
-        .flatMap((d) => d.records)
-        .reduce((sum, r) => sum + (r.overtime_hours != null ? Number(r.overtime_hours) : 0), 0)
+      history.reduce((sum, r) => sum + (r.overtime_hours != null ? Number(r.overtime_hours) : 0), 0)
     )
   }
 
@@ -352,11 +343,10 @@ export function EmployeeHomePage() {
           <p className="muted-block">No clock records yet this week.</p>
         ) : (
           <ul className="dtr-list">
-            {recent.map(({ date, records }) =>
-              records.map((r) => (
+            {recent.map((r) => (
                 <li key={r.id} className="dtr-row">
                   <div className="dtr-row-date">
-                    <span className="dtr-day">{formatDate(date)}</span>
+                    <span className="dtr-day">{formatDate(workDateFromClockIn(r.clock_in))}</span>
                   </div>
                   <div className="dtr-row-times">
                     <span>
@@ -373,8 +363,7 @@ export function EmployeeHomePage() {
                     )}
                   </div>
                 </li>
-              ))
-            )}
+            ))}
           </ul>
         )}
       </section>

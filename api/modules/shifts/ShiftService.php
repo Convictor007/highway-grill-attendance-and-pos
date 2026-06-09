@@ -330,15 +330,16 @@ final class ShiftService
     }
 
     /**
-     * Ensure a week has a schedule and shift assignments by copying the prior week (recurring roster).
-     * Skips weeks that already have assignments so HR edits are not overwritten.
+     * Ensure a week has a schedule and shift assignments by copying a prior week (recurring roster).
+     * Fills only missing employee/day cells so HR edits are preserved. Terminated employees are skipped.
      */
     public function ensureScheduleRollover(string $branchId, string $weekStart, ?string $userId = null): array
     {
         $weekStart = $this->normalizeWeekStartSunday($weekStart);
         $schedule = $this->findScheduleForWeek($branchId, $weekStart);
+        $source = $this->findBestSourceSchedule($branchId, $weekStart);
+
         if (!$schedule) {
-            $source = $this->findLatestScheduleWithAssignments($branchId, $weekStart);
             $schedule = $this->createSchedule([
                 'branch_id' => $branchId,
                 'week_start' => $weekStart,
@@ -355,16 +356,10 @@ final class ShiftService
             }
         }
 
-        if ($this->assignmentCountForWeek($branchId, $weekStart) > 0) {
-            return $schedule;
+        if ($source) {
+            $this->copyAssignmentsFromWeek($source, $schedule, $weekStart);
+            $this->copyMissingEmployeesFromLatestWeek($branchId, $schedule, $weekStart);
         }
-
-        $source = $this->findLatestScheduleWithAssignments($branchId, $weekStart);
-        if (!$source) {
-            return $schedule;
-        }
-
-        $this->copyAssignmentsFromWeek($source, $schedule, $weekStart);
 
         return $this->findScheduleForWeek($branchId, $weekStart) ?? $schedule;
     }
@@ -380,27 +375,18 @@ final class ShiftService
         return $row ?: null;
     }
 
-    private function assignmentCountForWeek(string $branchId, string $weekStart): int
-    {
-        $weekEnd = date('Y-m-d', strtotime($weekStart . ' +6 days'));
-        $stmt = Database::connection()->prepare(
-            'SELECT COUNT(*) FROM shift_assignments sa
-             INNER JOIN schedules sch ON sch.id = sa.schedule_id
-             WHERE sch.branch_id = :bid AND sa.shift_date BETWEEN :from AND :to'
-        );
-        $stmt->execute(['bid' => $branchId, 'from' => $weekStart, 'to' => $weekEnd]);
-
-        return (int) $stmt->fetchColumn();
-    }
-
-    private function findLatestScheduleWithAssignments(string $branchId, string $beforeWeekStart): ?array
+    /**
+     * Prefer the most complete prior roster so a partially filled week does not block rollover.
+     */
+    private function findBestSourceSchedule(string $branchId, string $beforeWeekStart): ?array
     {
         $stmt = Database::connection()->prepare(
-            'SELECT sch.* FROM schedules sch
+            'SELECT sch.*, COUNT(sa.id) AS assignment_count
+             FROM schedules sch
              INNER JOIN shift_assignments sa ON sa.schedule_id = sch.id
              WHERE sch.branch_id = :bid AND sch.week_start < :ws
              GROUP BY sch.id
-             ORDER BY sch.week_start DESC
+             ORDER BY assignment_count DESC, sch.week_start DESC
              LIMIT 1'
         );
         $stmt->execute(['bid' => $branchId, 'ws' => $beforeWeekStart]);
@@ -409,22 +395,84 @@ final class ShiftService
         return $row ?: null;
     }
 
-    private function copyAssignmentsFromWeek(array $sourceSchedule, array $targetSchedule, string $targetWeekStart): void
+    /**
+     * For active employees still missing cells, copy from their own most recent scheduled week.
+     */
+    private function copyMissingEmployeesFromLatestWeek(string $branchId, array $targetSchedule, string $targetWeekStart): void
     {
+        $weekEnd = date('Y-m-d', strtotime($targetWeekStart . ' +6 days'));
+        $pdo = Database::connection();
+
+        $activeStmt = $pdo->prepare(
+            "SELECT id FROM employees WHERE branch_id = :bid AND status = 'active'"
+        );
+        $activeStmt->execute(['bid' => $branchId]);
+        $activeIds = array_column($activeStmt->fetchAll(), 'id');
+
+        foreach ($activeIds as $employeeId) {
+            $countStmt = $pdo->prepare(
+                'SELECT COUNT(*) FROM shift_assignments
+                 WHERE schedule_id = :sid AND employee_id = :eid AND shift_date BETWEEN :from AND :to'
+            );
+            $countStmt->execute([
+                'sid' => $targetSchedule['id'],
+                'eid' => $employeeId,
+                'from' => $targetWeekStart,
+                'to' => $weekEnd,
+            ]);
+            if ((int) $countStmt->fetchColumn() >= 7) {
+                continue;
+            }
+
+            $sourceStmt = $pdo->prepare(
+                'SELECT sch.* FROM schedules sch
+                 INNER JOIN shift_assignments sa ON sa.schedule_id = sch.id
+                 WHERE sch.branch_id = :bid
+                   AND sch.week_start < :ws
+                   AND sa.employee_id = :eid
+                 GROUP BY sch.id
+                 ORDER BY sch.week_start DESC
+                 LIMIT 1'
+            );
+            $sourceStmt->execute([
+                'bid' => $branchId,
+                'ws' => $targetWeekStart,
+                'eid' => $employeeId,
+            ]);
+            $source = $sourceStmt->fetch();
+            if (!$source) {
+                continue;
+            }
+
+            $this->copyAssignmentsFromWeek($source, $targetSchedule, $targetWeekStart, (string) $employeeId);
+        }
+    }
+
+    private function copyAssignmentsFromWeek(
+        array $sourceSchedule,
+        array $targetSchedule,
+        string $targetWeekStart,
+        ?string $onlyEmployeeId = null,
+    ): void {
         $sourceWeekStart = (string) $sourceSchedule['week_start'];
         $sourceWeekEnd = date('Y-m-d', strtotime($sourceWeekStart . ' +6 days'));
         $pdo = Database::connection();
 
-        $stmt = $pdo->prepare(
-            'SELECT sa.employee_id, sa.shift_template_id, sa.shift_date, sa.start_time, sa.end_time, sa.break_mins, sa.notes
-             FROM shift_assignments sa
-             WHERE sa.schedule_id = :sid AND sa.shift_date BETWEEN :from AND :to'
-        );
-        $stmt->execute([
+        $sql = 'SELECT sa.employee_id, sa.shift_template_id, sa.shift_date, sa.start_time, sa.end_time, sa.break_mins, sa.notes
+                FROM shift_assignments sa
+                WHERE sa.schedule_id = :sid AND sa.shift_date BETWEEN :from AND :to';
+        $params = [
             'sid' => $sourceSchedule['id'],
             'from' => $sourceWeekStart,
             'to' => $sourceWeekEnd,
-        ]);
+        ];
+        if ($onlyEmployeeId !== null) {
+            $sql .= ' AND sa.employee_id = :eid';
+            $params['eid'] = $onlyEmployeeId;
+        }
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
         $rows = $stmt->fetchAll();
         if ($rows === []) {
             return;

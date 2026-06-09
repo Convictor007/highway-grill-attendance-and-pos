@@ -75,7 +75,7 @@ export function DashboardPage() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle={`Welcome back, ${name} · ${user?.role_name}`} />
+      <PageHeader title="HR Dashboard" subtitle={`Welcome back, ${name} · ${user?.role_name}`} />
 
       {announcements.length > 0 && (
         <div className="stack" style={{ marginBottom: '1.5rem' }}>

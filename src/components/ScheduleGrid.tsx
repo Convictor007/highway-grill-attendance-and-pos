@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { LoadingBlock } from './LoadingBlock'
 import type { RosterGrid, RosterGridCell } from '../types/hrms'
 
 export type ScheduleCellEditPayload = {
@@ -60,7 +61,7 @@ export function ScheduleGrid({
   }, [data?.week_start, loading])
 
   if (loading) {
-    return <p className="loading-block">Loading schedule…</p>
+    return <LoadingBlock label="Loading schedule…" />
   }
 
   if (!data) {

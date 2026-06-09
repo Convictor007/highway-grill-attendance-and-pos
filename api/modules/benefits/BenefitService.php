@@ -82,14 +82,29 @@ final class BenefitService
 
     public function monthlyTotalForEmployee(string $employeeId): float
     {
+        return $this->periodTotalForEmployee($employeeId, 'monthly');
+    }
+
+    public function periodTotalForEmployee(string $employeeId, string $payFrequency = 'semi_monthly'): float
+    {
         if (!Schema::hasTable('employee_benefit_enrollments')) {
             return 0.0;
         }
         $stmt = Database::connection()->prepare(
-            "SELECT COALESCE(SUM(amount), 0) FROM employee_benefit_enrollments
+            "SELECT amount, frequency FROM employee_benefit_enrollments
              WHERE employee_id = :eid AND is_active = 1"
         );
         $stmt->execute(['eid' => $employeeId]);
-        return round((float) $stmt->fetchColumn(), 2);
+        $total = 0.0;
+        foreach ($stmt->fetchAll() as $row) {
+            $amt = (float) $row['amount'];
+            if (($row['frequency'] ?? 'monthly') === 'per_payroll') {
+                $total += $amt;
+                continue;
+            }
+            $total += $payFrequency === 'monthly' ? $amt : $amt / 2;
+        }
+
+        return round($total, 2);
     }
 }

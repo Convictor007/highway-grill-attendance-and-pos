@@ -38,14 +38,8 @@ function formatDateLabel(iso: string) {
   })
 }
 
-function rangeDays(from: Date, count: number): string[] {
-  const out: string[] = []
-  for (let i = 0; i < count; i++) {
-    const d = new Date(from)
-    d.setDate(from.getDate() - i)
-    out.push(d.toISOString().slice(0, 10))
-  }
-  return out
+function workDateFromClockIn(clockIn: string) {
+  return clockIn.slice(0, 10)
 }
 
 export function DtrPage() {
@@ -53,7 +47,7 @@ export function DtrPage() {
   const [loading, setLoading] = useState(true)
   const [clockError, setClockError] = useState<string | null>(null)
   const canClock = Boolean(user?.employee_id)
-  const [rows, setRows] = useState<{ date: string; records: AttendanceRecord[] }[]>([])
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [summary, setSummary] = useState<HoursSummary | null>(null)
   const [open, setOpen] = useState(false)
   const [onBreak, setOnBreak] = useState(false)
@@ -68,10 +62,11 @@ export function DtrPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const monday = new Date()
-      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
-      const dates = rangeDays(new Date(), 14)
-      const [status, weekSum, ...lists] = await Promise.all([
+      const to = new Date().toISOString().slice(0, 10)
+      const fromDate = new Date()
+      fromDate.setDate(fromDate.getDate() - 13)
+      const from = fromDate.toISOString().slice(0, 10)
+      const [status, weekSum, history] = await Promise.all([
         api<{
           open: boolean
           on_break?: boolean
@@ -81,9 +76,7 @@ export function DtrPage() {
           shift?: ShiftClockContext | null
         }>('/attendance/status'),
         api<HoursSummary>('/attendance/summary'),
-        ...dates.map((date) =>
-          api<AttendanceRecord[]>(`/attendance?date=${date}`).then((records) => ({ date, records }))
-        ),
+        api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`),
       ])
       setOpen(status.open)
       setOnBreak(!!status.on_break)
@@ -92,7 +85,7 @@ export function DtrPage() {
       setPositionLabel(status.position_label ?? null)
       setShiftCtx(status.shift ?? null)
       setSummary(weekSum)
-      setRows(lists.filter((x) => x.records.length > 0))
+      setRecords(history)
     } finally {
       setLoading(false)
     }
@@ -255,7 +248,7 @@ export function DtrPage() {
       <div className="card table-wrap">
         {loading ? (
           <LoadingBlock />
-        ) : rows.length === 0 ? (
+        ) : records.length === 0 ? (
           <EmptyState title="No records" description="Your clock in/out history will appear here." />
         ) : (
           <table className="dtr-table">
@@ -270,10 +263,9 @@ export function DtrPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.flatMap(({ date, records }) =>
-                records.map((r) => (
+              {records.map((r) => (
                   <tr key={r.id}>
-                    <td>{formatDateLabel(date)}</td>
+                    <td>{formatDateLabel(workDateFromClockIn(r.clock_in))}</td>
                     <td>{formatTime(r.clock_in)}</td>
                     <td>{formatTime(r.clock_out)}</td>
                     <td>{r.actual_hours != null ? Number(r.actual_hours).toFixed(2) : '—'}</td>
@@ -290,8 +282,7 @@ export function DtrPage() {
                       />
                     </td>
                   </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
         )}

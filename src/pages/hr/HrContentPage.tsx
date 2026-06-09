@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, apiUpload } from '../../lib/api'
+import { useNotification } from '../../hooks/useNotification'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
@@ -24,6 +25,7 @@ interface DocumentRow {
 const DOC_CATEGORIES = ['contract', 'certificate', 'memo', 'id', 'other'] as const
 
 export function HrContentPage() {
+  const { success, error: notifyError, confirm } = useNotification()
   const [tab, setTab] = useState<'memos' | 'documents'>('memos')
   const [loading, setLoading] = useState(true)
   const [branches, setBranches] = useState<Branch[]>([])
@@ -45,7 +47,6 @@ export function HrContentPage() {
   const [docFile, setDocFile] = useState<File | null>(null)
   const [docEmployeeId, setDocEmployeeId] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [editingMemo, setEditingMemo] = useState<AnnouncementRow | null>(null)
 
   const loadAnnouncements = async () => {
@@ -85,7 +86,6 @@ export function HrContentPage() {
 
   const publishMemo = async (e: FormEvent) => {
     e.preventDefault()
-    setError(null)
     setBusy(true)
     try {
       await api('/announcements', {
@@ -97,24 +97,25 @@ export function HrContentPage() {
           priority: memoForm.priority,
         }),
       })
+      success('Memo published')
       setMemoForm((f) => ({ ...f, title: '', body: '' }))
       await loadAnnouncements()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not publish memo')
+      notifyError(err instanceof Error ? err.message : 'Could not publish memo')
     } finally {
       setBusy(false)
     }
   }
 
   const deleteMemo = async (row: AnnouncementRow) => {
-    if (!confirm(`Delete memo "${row.title}"?`)) return
-    setError(null)
+    if (!(await confirm(`Delete memo "${row.title}"?`, { variant: 'danger', confirmLabel: 'Delete' }))) return
     setBusy(true)
     try {
       await api(`/announcements/${row.id}`, { method: 'DELETE' })
+      success('Memo deleted')
       await loadAnnouncements()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete memo')
+      notifyError(err instanceof Error ? err.message : 'Could not delete memo')
     } finally {
       setBusy(false)
     }
@@ -122,7 +123,6 @@ export function HrContentPage() {
 
   const uploadDocument = async (e: FormEvent) => {
     e.preventDefault()
-    setError(null)
     setBusy(true)
     try {
       if (docFile) {
@@ -143,25 +143,26 @@ export function HrContentPage() {
           }),
         })
       }
+      success('Document added')
       setDocForm((f) => ({ ...f, title: '', file_url: '' }))
       setDocFile(null)
       await loadDocuments(docForm.employee_id)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not add document')
+      notifyError(err instanceof Error ? err.message : 'Could not add document')
     } finally {
       setBusy(false)
     }
   }
 
   const deleteDocument = async (id: string, title: string) => {
-    if (!confirm(`Delete document "${title}"?`)) return
-    setError(null)
+    if (!(await confirm(`Delete document "${title}"?`, { variant: 'danger', confirmLabel: 'Delete' }))) return
     setBusy(true)
     try {
       await api(`/documents/${id}`, { method: 'DELETE' })
+      success('Document deleted')
       await loadDocuments(docEmployeeId)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete document')
+      notifyError(err instanceof Error ? err.message : 'Could not delete document')
     } finally {
       setBusy(false)
     }
@@ -180,7 +181,6 @@ export function HrContentPage() {
         </button>
       </div>
 
-      {error && <p className="error-msg" style={{ marginBottom: '1rem' }}>{error}</p>}
       {loading && <LoadingBlock />}
 
       {!loading && tab === 'memos' && (

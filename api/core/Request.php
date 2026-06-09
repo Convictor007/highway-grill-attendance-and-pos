@@ -47,4 +47,14 @@ final class Request
     {
         return isset($_GET[$key]) ? (string) $_GET[$key] : $default;
     }
+
+    public static function queryInt(string $key, int $default = 0): int
+    {
+        $value = self::query($key);
+        if ($value === null || $value === '') {
+            return $default;
+        }
+
+        return (int) $value;
+    }
 }

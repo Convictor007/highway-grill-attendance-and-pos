@@ -4,12 +4,17 @@ import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
 import { LoanPaymentsModal } from '../../components/LoanPaymentsModal'
+import { useNotification } from '../../hooks/useNotification'
+import { repaymentTermSummary, type RepaymentSchedule } from '../../lib/loanTerms'
 
 interface Loan {
   id: string
   loan_type: string
   principal: string
   balance: string
+  term_months: number
+  repayment_schedule?: RepaymentSchedule
+  term_duration?: number
   monthly_deduction: string
   purpose: string | null
   status: string
@@ -18,7 +23,12 @@ interface Loan {
   emp_number?: string
 }
 
+function loanTypeLabel(type: string) {
+  return type === 'cash_advance' ? 'Cash advance' : 'Salary loan'
+}
+
 export function HrLoansPage() {
+  const { success, error: notifyError } = useNotification()
   const [rows, setRows] = useState<Loan[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentsLoanId, setPaymentsLoanId] = useState<string | null>(null)
@@ -38,11 +48,16 @@ export function HrLoansPage() {
   }, [])
 
   const review = async (id: string, status: 'approved' | 'rejected') => {
-    await api(`/loans/${id}/review`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    })
-    load()
+    try {
+      await api(`/loans/${id}/review`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      })
+      success(status === 'approved' ? 'Loan approved' : 'Loan rejected')
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not update loan')
+    }
   }
 
   const pending = rows.filter((r) => r.status === 'pending')
@@ -68,7 +83,8 @@ export function HrLoansPage() {
                 <th>Employee</th>
                 <th>Type</th>
                 <th>Amount</th>
-                <th>Monthly</th>
+                <th>Term</th>
+                <th>Per cutoff</th>
                 <th>Purpose</th>
                 <th></th>
               </tr>
@@ -81,10 +97,15 @@ export function HrLoansPage() {
                     <br />
                     <small style={{ color: 'var(--muted)' }}>{r.emp_number}</small>
                   </td>
-                  <td>{r.loan_type}</td>
+                  <td>{loanTypeLabel(r.loan_type)}</td>
                   <td>₱{Number(r.principal).toLocaleString()}</td>
+                  <td>
+                    {r.repayment_schedule
+                      ? repaymentTermSummary(r.repayment_schedule, r.term_duration ?? r.term_months)
+                      : `${r.term_months} cutoff(s)`}
+                  </td>
                   <td>₱{Number(r.monthly_deduction).toLocaleString()}</td>
-                  <td>{r.purpose ?? '—'}</td>
+                  <td>{r.purpose?.trim() ? r.purpose : '—'}</td>
                   <td>
                     <div className="quick-actions" style={{ margin: 0 }}>
                       <button type="button" className="btn btn-primary btn-sm" onClick={() => review(r.id, 'approved')}>

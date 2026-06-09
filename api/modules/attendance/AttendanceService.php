@@ -387,6 +387,22 @@ final class AttendanceService
         ];
     }
 
+    /** One row per shift (by clock-in date) — for DTR / employee history. */
+    public function employeeHistory(string $employeeId, string $from, string $to): array
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT a.*, e.emp_number, e.first_name, e.last_name, e.branch_id
+             FROM attendance a
+             INNER JOIN employees e ON e.id = a.employee_id
+             WHERE a.employee_id = :eid
+               AND DATE(a.clock_in) BETWEEN :f AND :t
+             ORDER BY a.clock_in DESC'
+        );
+        $stmt->execute(['eid' => $employeeId, 'f' => $from, 't' => $to]);
+
+        return $stmt->fetchAll();
+    }
+
     public function breakStart(string $employeeId): array
     {
         $open = $this->openSession($employeeId);

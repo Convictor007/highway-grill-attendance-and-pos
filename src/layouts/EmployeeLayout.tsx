@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { NavIcon } from '../components/NavIcon'
+import { SidebarUserMenu } from '../components/SidebarUserMenu'
 import { employeeMenuItems, filterNav } from '../config/navigation'
 import { NotificationBell } from '../components/NotificationBell'
 
@@ -75,10 +76,11 @@ export function EmployeeLayout() {
           </NavLink>
         </nav>
         <div className="sidebar-panel-foot">
-          <p className="user-chip">{user?.employee?.first_name ?? user?.email}</p>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={handleLogout}>
-            Sign out
-          </button>
+          <SidebarUserMenu
+            primary={user?.employee?.first_name ?? user?.email ?? 'Account'}
+            secondary={user?.role_name}
+            onLogout={handleLogout}
+          />
         </div>
       </aside>
 

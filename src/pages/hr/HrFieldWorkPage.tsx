@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { GeofenceZoneModal, type GeofenceSiteInput } from '../../components/GeofenceZoneModal'
@@ -28,6 +29,7 @@ interface Branch {
 
 export function HrFieldWorkPage() {
   const { user } = useAuth()
+  const { success, error: notifyError, confirm } = useNotification()
   const canManage = hasPermission(user, 'attendance.manage')
   const [sites, setSites] = useState<GeofenceSiteInput[]>([])
   const [checkins, setCheckins] = useState<BranchCheckin[]>([])
@@ -68,11 +70,21 @@ export function HrFieldWorkPage() {
   }
 
   const removeZone = async (id: string) => {
-    if (!confirm('Remove this work zone? Employees will no longer be able to check in inside it.')) return
+    if (
+      !(await confirm('Remove this work zone? Employees will no longer be able to check in inside it.', {
+        variant: 'danger',
+        confirmLabel: 'Remove',
+      }))
+    ) {
+      return
+    }
     setDeleting(true)
     try {
       await api(`/field-work/sites/${id}`, { method: 'DELETE' })
+      success('Work zone removed')
       await load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not remove work zone')
     } finally {
       setDeleting(false)
     }

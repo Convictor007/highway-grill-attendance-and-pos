@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { EmptyState } from '../../components/EmptyState'
@@ -10,6 +11,7 @@ import type { LeaveBalance, LeaveRequest } from '../../types/hrms'
 
 export function LeavePage() {
   const { user } = useAuth()
+  const { success, error: notifyError, confirm } = useNotification()
   const canApply = hasPermission(user, 'leave.apply')
   const canApprove = hasPermission(user, 'leave.approve')
   const canManageTypes = hasPermission(user, 'leave.manage')
@@ -46,23 +48,38 @@ export function LeavePage() {
 
   const onApply = async (e: FormEvent) => {
     e.preventDefault()
-    await api('/leave/requests', { method: 'POST', body: JSON.stringify(form) })
-    setForm({ leave_type_id: types[0]?.id ?? '', start_date: '', end_date: '', reason: '' })
-    load()
+    try {
+      await api('/leave/requests', { method: 'POST', body: JSON.stringify(form) })
+      success('Leave request submitted')
+      setForm({ leave_type_id: types[0]?.id ?? '', start_date: '', end_date: '', reason: '' })
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not submit leave request')
+    }
   }
 
   const cancel = async (id: string) => {
-    if (!confirm('Cancel this leave request?')) return
-    await api(`/leave/${id}/cancel`, { method: 'PUT', body: '{}' })
-    load()
+    if (!(await confirm('Cancel this leave request?'))) return
+    try {
+      await api(`/leave/${id}/cancel`, { method: 'PUT', body: '{}' })
+      success('Leave request cancelled')
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not cancel leave request')
+    }
   }
 
   const review = async (id: string, status: 'approved' | 'rejected') => {
-    await api(`/leave/${id}/review`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    })
-    load()
+    try {
+      await api(`/leave/${id}/review`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      })
+      success(status === 'approved' ? 'Leave approved' : 'Leave rejected')
+      load()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not update leave request')
+    }
   }
 
   return (

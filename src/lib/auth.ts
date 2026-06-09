@@ -52,6 +52,7 @@ export async function register(payload: {
   emergency_name?: string
   emergency_phone?: string
   employment_type?: string
+  is_stay_in?: boolean
 }): Promise<{ message: string; emp_number: string; account_status: string }> {
   return api('/auth/register', {
     method: 'POST',

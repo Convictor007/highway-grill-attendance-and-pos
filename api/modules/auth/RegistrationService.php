@@ -7,6 +7,7 @@ namespace Hg\Api\Modules\Auth;
 use Hg\Api\Core\Auth;
 use Hg\Api\Core\Database;
 use Hg\Api\Core\EmailService;
+use Hg\Api\Core\Schema;
 use Hg\Api\Modules\Employees\EmployeeService;
 use Hg\Api\Modules\Notifications\NotificationService;
 
@@ -123,15 +124,19 @@ final class RegistrationService
             throw new \InvalidArgumentException('date_of_birth must be YYYY-MM-DD');
         }
 
+        $isStayIn = !empty($data['is_stay_in']) ? 1 : 0;
+        $housingCols = Schema::hasColumn('employees', 'is_stay_in') ? ', is_stay_in' : '';
+        $housingVals = Schema::hasColumn('employees', 'is_stay_in') ? ', :stay_in' : '';
+
         $pdo->beginTransaction();
         try {
             $pdo->prepare(
                 'INSERT INTO employees (id, branch_id, department_id, position_id, emp_number, first_name, last_name,
                  email, phone, hire_date, employment_type, status, date_of_birth, gender, nationality,
-                 address, emergency_name, emergency_phone)
+                 address, emergency_name, emergency_phone' . $housingCols . ')
                  VALUES (:id, :bid, :did, :pid, :num, :fn, :ln, :email, :phone, CURDATE(), :etype, \'pending\',
-                 :dob, :gender, :nationality, :address, :emergency_name, :emergency_phone)'
-            )->execute([
+                 :dob, :gender, :nationality, :address, :emergency_name, :emergency_phone' . $housingVals . ')'
+            )->execute(array_merge([
                 'id' => $employeeId,
                 'bid' => $branchId,
                 'did' => ($data['department_id'] ?? '') !== '' ? $data['department_id'] : null,
@@ -148,7 +153,7 @@ final class RegistrationService
                 'address' => trim((string) ($data['address'] ?? '')) ?: null,
                 'emergency_name' => trim((string) ($data['emergency_name'] ?? '')) ?: null,
                 'emergency_phone' => trim((string) ($data['emergency_phone'] ?? '')) ?: null,
-            ]);
+            ], Schema::hasColumn('employees', 'is_stay_in') ? ['stay_in' => $isStayIn] : []));
 
             $pdo->prepare(
                 'INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active, account_status)
@@ -232,7 +237,7 @@ final class RegistrationService
              FROM users u
              INNER JOIN role_permissions rp ON rp.role_id = u.role_id
              INNER JOIN permissions p ON p.permission_id = rp.permission_id
-             WHERE p.permission_key = \'users.manage\'
+             WHERE p.permission_key IN (\'users.manage\', \'users.approve\')
                AND u.is_active = 1
                AND u.account_status = \'active\''
         );

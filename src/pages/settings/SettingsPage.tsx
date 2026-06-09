@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -38,6 +39,7 @@ function defaultTab(canBranches: boolean, canDepts: boolean, canHolidays: boolea
 
 export function SettingsPage() {
   const { user } = useAuth()
+  const { success, error: notifyError, confirm } = useNotification()
   const canBranches = hasPermission(user, 'settings.branches.manage')
   const canDepts = hasPermission(user, 'settings.departments.manage')
   const canHolidays = hasPermission(user, 'payroll.view')
@@ -520,9 +522,14 @@ export function SettingsPage() {
                           type="button"
                           className="text-link text-link--danger"
                           onClick={async () => {
-                            if (!confirm('Delete this holiday?')) return
-                            await api(`/holidays/${h.id}`, { method: 'DELETE' })
-                            loadHolidays(holidayYear)
+                            if (!(await confirm('Delete this holiday?', { variant: 'danger', confirmLabel: 'Delete' }))) return
+                            try {
+                              await api(`/holidays/${h.id}`, { method: 'DELETE' })
+                              success('Holiday deleted')
+                              loadHolidays(holidayYear)
+                            } catch (err) {
+                              notifyError(err instanceof Error ? err.message : 'Could not delete holiday')
+                            }
                           }}
                         >
                           Delete

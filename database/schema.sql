@@ -98,6 +98,10 @@ CREATE TABLE employees (
     hire_date DATE NOT NULL,
     probation_end DATE,
     employment_type ENUM('full_time', 'part_time', 'casual', 'seasonal') NOT NULL DEFAULT 'full_time',
+    pay_basis ENUM('hourly', 'daily') NOT NULL DEFAULT 'hourly',
+    pay_rate DECIMAL(10,2) NULL COMMENT 'Hourly or daily rate; falls back to position min_hourly',
+    is_stay_in TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'Employee uses company stay-in housing',
+    housing_deduction DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT 'Housing deduction per payroll run',
     status ENUM('pending', 'active', 'on_leave', 'resigned', 'terminated') NOT NULL DEFAULT 'active',
     photo_url TEXT,
     emergency_name VARCHAR(100),
@@ -339,7 +343,9 @@ CREATE TABLE payroll_runs (
     period_start DATE NOT NULL,
     period_end DATE NOT NULL,
     pay_date DATE NOT NULL,
-    status ENUM('draft', 'processing', 'approved', 'paid', 'cancelled') NOT NULL DEFAULT 'draft',
+    run_type ENUM('regular', '13th_month') NOT NULL DEFAULT 'regular',
+    pay_frequency ENUM('semi_monthly', 'monthly') NOT NULL DEFAULT 'semi_monthly',
+    status ENUM('draft', 'processing', 'partially_paid', 'approved', 'paid', 'cancelled') NOT NULL DEFAULT 'draft',
     total_gross DECIMAL(12,2) DEFAULT 0,
     total_net DECIMAL(12,2) DEFAULT 0,
     processed_by CHAR(36) NULL,
@@ -358,6 +364,7 @@ CREATE TABLE payslips (
     holiday_hours DECIMAL(6,2) DEFAULT 0,
     basic_pay DECIMAL(10,2) DEFAULT 0,
     overtime_pay DECIMAL(10,2) DEFAULT 0,
+    holiday_pay DECIMAL(10,2) DEFAULT 0,
     tips_amount DECIMAL(10,2) DEFAULT 0,
     service_charge DECIMAL(10,2) DEFAULT 0,
     gross_pay DECIMAL(10,2) DEFAULT 0,
@@ -367,11 +374,40 @@ CREATE TABLE payslips (
     pagibig_amount DECIMAL(10,2) DEFAULT 0,
     other_deductions DECIMAL(10,2) DEFAULT 0,
     net_pay DECIMAL(10,2) DEFAULT 0,
+    payment_status ENUM('ready', 'paid', 'deferred') NOT NULL DEFAULT 'ready',
+    paid_at DATETIME NULL,
     generated_at DATETIME,
     document_id CHAR(36) NULL,
     FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id) ON DELETE CASCADE,
     FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
     FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE payroll_run_deferrals (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    payroll_run_id CHAR(36) NOT NULL,
+    employee_id CHAR(36) NOT NULL,
+    note VARCHAR(255) NULL,
+    deferred_by CHAR(36) NULL,
+    deferred_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_payroll_run_deferral (payroll_run_id, employee_id),
+    FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id) ON DELETE CASCADE,
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+    FOREIGN KEY (deferred_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE employee_benefit_enrollments (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    employee_id CHAR(36) NOT NULL,
+    benefit_code VARCHAR(50) NOT NULL,
+    benefit_name VARCHAR(100) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    frequency ENUM('monthly', 'per_payroll') NOT NULL DEFAULT 'monthly',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    notes TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE,
+    INDEX idx_benefit_employee (employee_id, is_active)
 ) ENGINE=InnoDB;
 
 CREATE TABLE payroll_adjustments (
@@ -662,6 +698,8 @@ CREATE TABLE employee_loans (
     principal DECIMAL(10,2) NOT NULL,
     balance DECIMAL(10,2) NOT NULL,
     term_months SMALLINT NOT NULL DEFAULT 6,
+    repayment_schedule ENUM('semi_monthly', 'one_month') NOT NULL DEFAULT 'semi_monthly',
+    term_duration SMALLINT NOT NULL DEFAULT 2,
     monthly_deduction DECIMAL(10,2) NOT NULL,
     purpose TEXT,
     status ENUM('pending', 'approved', 'active', 'paid', 'rejected', 'cancelled') NOT NULL DEFAULT 'pending',

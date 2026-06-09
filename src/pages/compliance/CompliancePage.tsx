@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { useNotification } from '../../hooks/useNotification'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
@@ -34,6 +35,7 @@ interface AuditEntry {
 }
 
 export function CompliancePage() {
+  const { success, error: notifyError, confirm } = useNotification()
   const [tab, setTab] = useState<'logs' | 'checklists' | 'audit'>('logs')
   const [checklists, setChecklists] = useState<Checklist[]>([])
   const [logs, setLogs] = useState<ComplianceLog[]>([])
@@ -85,28 +87,43 @@ export function CompliancePage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    await api('/compliance/logs', { method: 'POST', body: JSON.stringify(form) })
-    setForm((f) => ({ ...f, notes: '' }))
-    await loadLogs()
+    try {
+      await api('/compliance/logs', { method: 'POST', body: JSON.stringify(form) })
+      success('Compliance log saved')
+      setForm((f) => ({ ...f, notes: '' }))
+      await loadLogs()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not save compliance log')
+    }
   }
 
   const onCreateChecklist = async (e: FormEvent) => {
     e.preventDefault()
-    await api('/compliance/checklists', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...checklistForm,
-        due_day: checklistForm.due_day ? Number(checklistForm.due_day) : null,
-      }),
-    })
-    setChecklistForm({ name: '', checklist_type: 'labor', frequency: 'monthly', due_day: '' })
-    await loadLogs()
+    try {
+      await api('/compliance/checklists', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...checklistForm,
+          due_day: checklistForm.due_day ? Number(checklistForm.due_day) : null,
+        }),
+      })
+      success('Checklist created')
+      setChecklistForm({ name: '', checklist_type: 'labor', frequency: 'monthly', due_day: '' })
+      await loadLogs()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not create checklist')
+    }
   }
 
   const deleteChecklist = async (id: string, name: string) => {
-    if (!confirm(`Delete checklist "${name}"?`)) return
-    await api(`/compliance/checklists/${id}`, { method: 'DELETE' })
-    await loadLogs()
+    if (!(await confirm(`Delete checklist "${name}"?`, { variant: 'danger', confirmLabel: 'Delete' }))) return
+    try {
+      await api(`/compliance/checklists/${id}`, { method: 'DELETE' })
+      success('Checklist deleted')
+      await loadLogs()
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not delete checklist')
+    }
   }
 
   return (

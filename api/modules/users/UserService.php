@@ -16,7 +16,8 @@ final class UserService
                     u.last_login_at, u.approved_at, u.activated_at,
                     r.role_slug, r.role_name,
                     e.emp_number, e.first_name, e.last_name, e.status AS employee_status,
-                    e.photo_url, e.gender, e.phone, p.title AS position_title';
+                    e.photo_url, e.gender, e.phone, e.is_stay_in, e.housing_deduction,
+                    p.title AS position_title';
 
     public function list(?string $accountStatus = null): array
     {

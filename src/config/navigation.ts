@@ -1,6 +1,7 @@
 import type { AuthUser } from '../types/roles'
 import { hasPermission } from '../lib/auth'
 import { canUseEmployeeFeatures } from '../lib/accountStatus'
+import { isSystemAdmin } from '../lib/roles'
 
 export type NavItem = {
   to: string
@@ -9,6 +10,11 @@ export type NavItem = {
   icon: string
   end?: boolean
   perm?: string | string[]
+}
+
+export type NavSection = {
+  label?: string
+  items: NavItem[]
 }
 
 /** Employee self-service menu (Profile last in full menu) */
@@ -24,10 +30,11 @@ export const employeeMenuItems: NavItem[] = [
   { to: '/profile', label: 'Profile', description: 'Your info & settings', icon: 'user' },
 ]
 
-export const adminMenuItems: NavItem[] = [
-  { to: '/', label: 'Dashboard', icon: 'home', end: true },
+/** HR daily operations — no system admin (settings / compliance) */
+export const hrMenuItems: NavItem[] = [
+  { to: '/', label: 'HR Dashboard', icon: 'home', end: true },
   { to: '/employees', label: 'Employees', icon: 'users', perm: 'employees.view' },
-  { to: '/users', label: 'Users', icon: 'key', perm: 'users.manage' },
+  { to: '/users', label: 'Crew approvals', icon: 'key', perm: 'users.approve' },
   { to: '/shifts', label: 'Shifts', icon: 'schedule', perm: 'shifts.manage' },
   { to: '/attendance', label: 'Attendance', icon: 'clock', perm: 'attendance.view' },
   { to: '/hr/attendance-stats', label: 'Attendance stats', icon: 'overtime', perm: 'attendance.view' },
@@ -36,9 +43,22 @@ export const adminMenuItems: NavItem[] = [
   { to: '/hr/content', label: 'HR content', icon: 'memo', perm: 'employees.manage' },
   { to: '/leave', label: 'Leave', icon: 'calendar', perm: 'leave.view' },
   { to: '/payroll', label: 'Payroll', icon: 'wallet', perm: 'payroll.view' },
-  { to: '/settings', label: 'Settings', icon: 'settings', perm: ['settings.branches.manage', 'settings.departments.manage'] },
-  { to: '/compliance', label: 'Compliance', icon: 'shield', perm: 'compliance.view' },
 ]
+
+/** System admin only — no HR daily operations */
+export const adminSystemItems: NavItem[] = [
+  { to: '/admin', label: 'Overview', icon: 'home', end: true },
+  { to: '/admin/settings', label: 'Settings', icon: 'settings' },
+  { to: '/admin/compliance', label: 'Compliance', icon: 'shield' },
+  { to: '/admin/users', label: 'Users', icon: 'key', perm: 'users.manage' },
+]
+
+export function staffMenuSections(user: AuthUser | null): NavSection[] {
+  if (isSystemAdmin(user)) {
+    return [{ items: filterNav(adminSystemItems, user) }]
+  }
+  return [{ items: filterNav(hrMenuItems, user) }]
+}
 
 export function filterNav(items: NavItem[], user: AuthUser | null): NavItem[] {
   return items.filter((item) => {

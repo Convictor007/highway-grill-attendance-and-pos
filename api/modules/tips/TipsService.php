@@ -103,6 +103,34 @@ final class TipsService
         return $stmt->fetchAll();
     }
 
+    public function distributeEqualAmongTipped(string $poolId): array
+    {
+        $pool = $this->getPool($poolId);
+        if (!$pool) {
+            throw new \RuntimeException('Tips pool not found');
+        }
+        $stmt = Database::connection()->prepare(
+            "SELECT e.id FROM employees e
+             INNER JOIN positions p ON p.id = e.position_id
+             WHERE e.branch_id = :bid AND e.status = 'active' AND p.is_tipped = 1
+             ORDER BY e.last_name, e.first_name"
+        );
+        $stmt->execute(['bid' => $pool['branch_id']]);
+        $employees = $stmt->fetchAll();
+        if ($employees === []) {
+            throw new \RuntimeException('No tipped employees in this branch');
+        }
+        $count = count($employees);
+        $pctEach = round(100 / $count, 4);
+        $allocations = [];
+        foreach ($employees as $i => $emp) {
+            $pct = $i === $count - 1 ? round(100 - ($pctEach * ($count - 1)), 4) : $pctEach;
+            $allocations[] = ['employee_id' => $emp['id'], 'percentage' => $pct];
+        }
+
+        return $this->distribute($poolId, $allocations);
+    }
+
     public function tipsForEmployeeInPeriod(string $employeeId, string $from, string $to): float
     {
         $stmt = Database::connection()->prepare(

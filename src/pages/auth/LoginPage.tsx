@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Spinner } from '../../components/Spinner'
 import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../hooks/useNotification'
 import { ApiError } from '../../lib/api'
+import { RoleSlug } from '../../types/roles'
 
 const demos = [
   { label: 'Admin', email: 'admin@highwaygrill.local' },
@@ -11,25 +14,25 @@ const demos = [
 
 export function LoginPage() {
   const { user, loading, login } = useAuth()
+  const { error: notifyError } = useNotification()
   const navigate = useNavigate()
   const [email, setEmail] = useState('hr@highwaygrill.local')
   const [password, setPassword] = useState('dsadsadsa')
-  const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   if (!loading && user) {
-    return <Navigate to="/" replace />
+    return <Navigate to={user.role_slug === RoleSlug.Admin ? '/admin' : '/'} replace />
   }
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    setError('')
     setSubmitting(true)
     try {
-      await login(email, password)
-      navigate('/')
+      const loggedIn = await login(email, password)
+      const dest = loggedIn.role_slug === RoleSlug.Admin ? '/admin' : '/'
+      navigate(dest)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Login failed')
+      notifyError(err instanceof ApiError ? err.message : 'Login failed')
     } finally {
       setSubmitting(false)
     }
@@ -62,9 +65,15 @@ export function LoginPage() {
             autoComplete="current-password"
           />
         </div>
-        {error && <p className="error-msg">{error}</p>}
         <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={submitting}>
-          {submitting ? 'Signing in…' : 'Sign in'}
+          {submitting ? (
+            <>
+              <Spinner size="sm" label="Signing in" />
+              Signing in…
+            </>
+          ) : (
+            'Sign in'
+          )}
         </button>
       </form>
       <div className="quick-actions" style={{ marginTop: '1rem', justifyContent: 'center' }}>

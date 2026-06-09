@@ -17,14 +17,15 @@ final class UserController
     {
         try {
             $user = Auth::requireUser();
-            Auth::requirePermission($user, 'users.manage');
 
             if ($method === 'GET' && $seg1 === 'pending') {
+                $this->requireCrewApproval($user);
                 Response::json(['success' => true, 'data' => $this->service->listPendingRegistrations()]);
                 return;
             }
 
             if ($method === 'POST' && $seg1 !== null && $seg2 === 'approve') {
+                $this->requireCrewApproval($user);
                 Response::json([
                     'success' => true,
                     'data' => $this->service->approveRegistration($seg1, $user['id']),
@@ -33,6 +34,7 @@ final class UserController
             }
 
             if ($method === 'POST' && $seg1 !== null && $seg2 === 'activate') {
+                $this->requireCrewApproval($user);
                 Response::json([
                     'success' => true,
                     'data' => $this->service->activateEmployee($seg1, $user['id']),
@@ -41,6 +43,7 @@ final class UserController
             }
 
             if ($method === 'POST' && $seg1 !== null && $seg2 === 'reject') {
+                $this->requireCrewApproval($user);
                 $body = Request::jsonBody();
                 Response::json([
                     'success' => true,
@@ -52,6 +55,8 @@ final class UserController
                 ]);
                 return;
             }
+
+            Auth::requirePermission($user, 'users.manage');
 
             if ($method === 'GET' && $seg1 === null) {
                 Response::json(['success' => true, 'data' => $this->service->list()]);
@@ -76,6 +81,18 @@ final class UserController
             Response::error('Not found', 404);
         } catch (Throwable $e) {
             Response::error($e->getMessage(), 400);
+        }
+    }
+
+    /** @param array<string, mixed> $user */
+    private function requireCrewApproval(array $user): void
+    {
+        if (
+            !Auth::hasPermission($user, 'users.manage')
+            && !Auth::hasPermission($user, 'users.approve')
+        ) {
+            Response::error('Forbidden', 403);
+            exit;
         }
     }
 }

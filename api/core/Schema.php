@@ -9,6 +9,26 @@ final class Schema
     /** @var array<string, bool> */
     private static array $columnCache = [];
 
+    /** @var array<string, bool> */
+    private static array $tableCache = [];
+
+    public static function hasTable(string $table): bool
+    {
+        if (isset(self::$tableCache[$table])) {
+            return self::$tableCache[$table];
+        }
+
+        $stmt = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t'
+        );
+        $stmt->execute(['t' => $table]);
+        $exists = (int) $stmt->fetchColumn() > 0;
+        self::$tableCache[$table] = $exists;
+
+        return $exists;
+    }
+
     public static function hasColumn(string $table, string $column): bool
     {
         $key = $table . '.' . $column;
