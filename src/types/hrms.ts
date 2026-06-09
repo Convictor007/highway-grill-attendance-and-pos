@@ -148,6 +148,7 @@ export interface TipsDistribution {
   amount: string | number
   first_name?: string
   last_name?: string
+  emp_number?: string
 }
 
 export interface BenefitEnrollment {

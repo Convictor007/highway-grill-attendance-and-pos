@@ -21,7 +21,13 @@ final class AnnouncementController
             $user = Auth::requireUser();
 
             if ($method === 'GET' && $id === null) {
-                Auth::requirePermission($user, 'announcements.view');
+                if (
+                    !Auth::hasPermission($user, 'announcements.view')
+                    && !Auth::hasPermission($user, 'employees.manage')
+                ) {
+                    Response::error('Forbidden', 403);
+                    return;
+                }
                 if (Auth::hasPermission($user, 'employees.manage')) {
                     Response::json(['success' => true, 'data' => $this->service->listAll()]);
                     return;

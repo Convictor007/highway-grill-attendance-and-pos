@@ -103,7 +103,7 @@ export function ClockGeofenceBanner({
           {showEnableButton && (
             <button
               type="button"
-              className="btn btn-primary btn-sm geofence-location-prompt__btn"
+              className="btn btn-enable-location btn-sm geofence-location-prompt__btn"
               disabled={requesting || loading}
               onClick={onRequestLocation}
             >

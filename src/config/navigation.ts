@@ -40,7 +40,9 @@ export const hrMenuItems: NavItem[] = [
   { to: '/hr/attendance-stats', label: 'Attendance stats', icon: 'overtime', perm: 'attendance.view' },
   { to: '/hr/field-work', label: 'Field work', icon: 'map', perm: 'attendance.view' },
   { to: '/hr/loans', label: 'Loans', icon: 'loan', perm: 'loans.manage' },
+  { to: '/hr/tips', label: 'Tips pool', icon: 'wallet', perm: 'payroll.view' },
   { to: '/hr/content', label: 'HR content', icon: 'memo', perm: 'employees.manage' },
+  { to: '/hr/reports', label: 'Reports', icon: 'overtime', perm: 'reports.view' },
   { to: '/leave', label: 'Leave', icon: 'calendar', perm: 'leave.view' },
   { to: '/payroll', label: 'Payroll', icon: 'wallet', perm: 'payroll.view' },
 ]

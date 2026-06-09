@@ -147,31 +147,31 @@ export function AttendancePage() {
               This week: {weekHours.total_hours.toFixed(1)} hours ({weekHours.shift_count} shifts)
             </p>
           )}
-          <div className="quick-actions">
-            {!open && (
+          <div className="clock-actions">
+            {!open ? (
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-clock-in btn-sm"
                 disabled={!geofence.canClockIn || geofence.loading}
                 onClick={clockIn}
               >
                 Clock in
               </button>
-            )}
-            {open && !onBreak && (
+            ) : (
               <>
-                <button type="button" className="btn btn-ghost" onClick={breakStart}>
-                  Start break
-                </button>
-                <button type="button" className="btn btn-primary" onClick={clockOut}>
+                {!onBreak ? (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={breakStart}>
+                    Start break
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-primary btn-sm" onClick={breakEnd}>
+                    End break
+                  </button>
+                )}
+                <button type="button" className="btn btn-clock-out btn-sm" disabled={onBreak} onClick={clockOut}>
                   Clock out
                 </button>
               </>
-            )}
-            {open && onBreak && (
-              <button type="button" className="btn btn-primary" onClick={breakEnd}>
-                End break
-              </button>
             )}
           </div>
         </div>

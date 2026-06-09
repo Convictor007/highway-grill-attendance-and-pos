@@ -57,7 +57,10 @@ export function DashboardPage() {
         .then((rows) => setMyBalances(rows.filter((b) => b.employee_id === user?.employee_id)))
         .catch(() => setMyBalances([]))
     }
-    if (hasPermission(user, 'announcements.view')) {
+    if (
+      hasPermission(user, 'announcements.view') ||
+      hasPermission(user, 'employees.manage')
+    ) {
       api<Announcement[]>('/announcements').then(setAnnouncements).catch(() => setAnnouncements([]))
     }
   }, [user, isHrView])
@@ -68,6 +71,7 @@ export function DashboardPage() {
     { label: 'Attendance today', value: stats?.attendance_rate_today != null ? `${stats.attendance_rate_today}%` : undefined, to: '/hr/attendance-stats', perm: 'attendance.view' },
     { label: 'Month hours', value: stats?.month_hours, to: '/hr/attendance-stats', perm: 'attendance.view' },
     { label: 'Pending leave', value: stats?.pending_leave, to: '/leave', perm: 'leave.view' },
+    { label: 'Pending loans', value: stats?.pending_loans, to: '/hr/loans', perm: 'loans.manage' },
     { label: 'Draft payroll', value: stats?.draft_payroll_runs, to: '/payroll', perm: 'payroll.view' },
   ].filter((c) => hasPermission(user, c.perm))
 
@@ -132,6 +136,14 @@ export function DashboardPage() {
             })}
           </div>
         </div>
+      )}
+
+      {isHrView && (
+        <p style={{ marginBottom: '1rem' }}>
+          <Link to="/hr/reports" className="text-link">
+            View full reports
+          </Link>
+        </p>
       )}
 
       {cards.length > 0 && (

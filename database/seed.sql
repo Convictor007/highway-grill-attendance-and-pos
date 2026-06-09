@@ -65,7 +65,7 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.role_id, p.permission_id
 FROM roles r
 JOIN permissions p ON p.permission_key IN (
-  'users.approve', 'employees.view', 'employees.manage',
+  'users.approve', 'employees.view', 'employees.manage', 'announcements.view',
   'attendance.view', 'attendance.manage',
   'leave.view', 'leave.manage', 'leave.apply', 'leave.approve',
   'payroll.view', 'payroll.manage', 'shifts.manage', 'reports.view',
