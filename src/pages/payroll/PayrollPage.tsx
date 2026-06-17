@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
@@ -6,14 +7,14 @@ import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { PayrollRunsSection } from '../../components/PayrollRunsSection'
 import { DatePicker } from '../../components/DatePicker'
-import type { BenefitEnrollment, Branch, Employee, PayrollAdjustment, PayrollRun } from '../../types/hrms'
+import type { Branch, Employee, PayrollAdjustment, PayrollRun } from '../../types/hrms'
 
 function money(value: string | number | undefined | null) {
   if (value == null || value === '') return '—'
   return `₱${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-type PayrollTab = 'runs' | 'adjustments' | 'benefits' | '13th'
+type PayrollTab = 'runs' | 'adjustments' | '13th'
 
 export function PayrollPage() {
   const { user } = useAuth()
@@ -22,7 +23,6 @@ export function PayrollPage() {
   const [tab, setTab] = useState<PayrollTab>('runs')
   const [employees, setEmployees] = useState<Employee[]>([])
   const [adjustments, setAdjustments] = useState<PayrollAdjustment[]>([])
-  const [benefits, setBenefits] = useState<BenefitEnrollment[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [runModalOpen, setRunModalOpen] = useState(false)
   const [openRunId, setOpenRunId] = useState<string | null>(null)
@@ -34,13 +34,6 @@ export function PayrollPage() {
     description: '',
     recurring: true,
   })
-  const [benefitForm, setBenefitForm] = useState({
-    employee_id: '',
-    benefit_name: '',
-    benefit_code: 'allowance',
-    amount: '',
-    frequency: 'monthly',
-  })
   const [thirteenthForm, setThirteenthForm] = useState({
     branch_id: '',
     period_start: '',
@@ -49,13 +42,11 @@ export function PayrollPage() {
   })
 
   const loadExtras = async () => {
-    const [adj, ben, emps] = await Promise.all([
+    const [adj, emps] = await Promise.all([
       api<PayrollAdjustment[]>('/payroll/adjustments?recurring=1').catch(() => []),
-      api<BenefitEnrollment[]>('/benefits').catch(() => []),
       api<Employee[]>('/employees?status=active').catch(() => []),
     ])
     setAdjustments(adj)
-    setBenefits(ben)
     setEmployees(emps)
   }
 
@@ -85,10 +76,20 @@ export function PayrollPage() {
       />
 
       {canManage && (
+        <p className="form-hint" style={{ marginBottom: '1rem' }}>
+          SSS, PhilHealth, Pag-IBIG IDs and allowances are managed in{' '}
+          <Link to="/hr/benefits" className="text-link">
+            Benefits
+          </Link>
+          .
+        </p>
+      )}
+
+      {canManage && (
         <div className="tabs" style={{ marginBottom: '1rem' }}>
-          {(['runs', 'adjustments', 'benefits', '13th'] as PayrollTab[]).map((t) => (
+          {(['runs', 'adjustments', '13th'] as PayrollTab[]).map((t) => (
             <button key={t} type="button" className={`tab ${tab === t ? 'active' : ''}`} onClick={() => setTab(t)}>
-              {t === '13th' ? '13th month' : t === 'benefits' ? 'Allowances' : t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === '13th' ? '13th month' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
@@ -211,98 +212,6 @@ export function PayrollPage() {
                         Delete
                       </button>
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {tab === 'benefits' && canManage && (
-        <div className="stack">
-          <form
-            className="card"
-            onSubmit={async (e) => {
-              e.preventDefault()
-              try {
-                await api('/benefits', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    ...benefitForm,
-                    amount: Number(benefitForm.amount),
-                  }),
-                })
-                success('Benefit enrolled')
-                await loadExtras()
-              } catch (err) {
-                notifyError(err instanceof Error ? err.message : 'Could not enroll benefit')
-              }
-            }}
-          >
-            <h3 className="section-title">Enroll allowance</h3>
-            <p className="form-hint" style={{ marginTop: 0 }}>
-              Meal, transport, or other recurring allowances added to gross pay. Government contributions (SSS,
-              PhilHealth, Pag-IBIG, tax) are automatic — do not enroll those here.
-            </p>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Employee</label>
-                <select
-                  value={benefitForm.employee_id}
-                  onChange={(e) => setBenefitForm({ ...benefitForm, employee_id: e.target.value })}
-                  required
-                >
-                  <option value="">Select…</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.first_name} {e.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Benefit name</label>
-                <input
-                  value={benefitForm.benefit_name}
-                  onChange={(e) => setBenefitForm({ ...benefitForm, benefit_name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label>Amount (₱)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={benefitForm.amount}
-                  onChange={(e) => setBenefitForm({ ...benefitForm, amount: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-            <button type="submit" className="btn btn-primary">
-              Enroll
-            </button>
-          </form>
-          <div className="card table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Benefit</th>
-                  <th>Amount</th>
-                  <th>Frequency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {benefits.map((b) => (
-                  <tr key={b.id}>
-                    <td>
-                      {b.first_name} {b.last_name}
-                    </td>
-                    <td>{b.benefit_name}</td>
-                    <td>{money(b.amount)}</td>
-                    <td>{b.frequency}</td>
                   </tr>
                 ))}
               </tbody>

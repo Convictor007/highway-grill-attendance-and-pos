@@ -1,0 +1,24 @@
+export function env(key: string, fallback = ''): string {
+  return process.env[key]?.trim() ?? fallback
+}
+
+export function envInt(key: string, fallback: number): number {
+  const raw = process.env[key]
+  if (raw === undefined || raw === '') return fallback
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) ? n : fallback
+}
+
+export function envBool(key: string, fallback = false): boolean {
+  const raw = process.env[key]
+  if (raw === undefined || raw === '') return fallback
+  return raw === 'true' || raw === '1'
+}
+
+export const config = {
+  corsOrigin: env('CORS_ORIGIN', 'http://localhost:5173'),
+  sessionTtlHours: envInt('SESSION_TTL_HOURS', 24),
+  authHashPasswords: envBool('AUTH_HASH_PASSWORDS', false),
+  hrNotifyEmail: env('HR_NOTIFY_EMAIL', ''),
+  mailEnabled: envBool('MAIL_ENABLED', false),
+}

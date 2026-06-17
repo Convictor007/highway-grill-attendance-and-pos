@@ -16,15 +16,28 @@ export function formatDateDisplay(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
   if (!y || !m || !d) return iso
   const dt = new Date(y, m - 1, d)
+  if (Number.isNaN(dt.getTime())) return iso
   return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+/** Normalize DB/API time values to HH:mm for inputs and display. */
+export function normalizeTimeInput(raw: unknown): string {
+  if (raw == null || raw === '') return '09:00'
+  const s = String(raw).trim()
+  const match = s.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return '09:00'
+  const h = Math.min(23, Math.max(0, parseInt(match[1], 10)))
+  const m = Math.min(59, Math.max(0, parseInt(match[2], 10)))
+  return `${pad2(h)}:${pad2(m)}`
+}
+
 export function formatTimeDisplay(hhmm: string): string {
-  if (!hhmm) return 'Select time'
-  const [h, m] = hhmm.split(':').map(Number)
-  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm
+  const normalized = normalizeTimeInput(hhmm)
+  const [h, m] = normalized.split(':').map(Number)
+  if (Number.isNaN(h) || Number.isNaN(m)) return 'Select time'
   const dt = new Date()
   dt.setHours(h, m, 0, 0)
+  if (Number.isNaN(dt.getTime())) return normalized
   return dt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }
 

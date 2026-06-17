@@ -197,12 +197,17 @@ export function ScheduleGrid({
 }
 
 function formatShortDate(iso: string) {
-  return new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
+  if (!iso) return '—'
+  const d = new Date(iso + 'T12:00:00')
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
 }
 
 function formatDayLong(iso: string) {
   if (!iso) return ''
-  return new Date(iso + 'T12:00:00').toLocaleDateString(undefined, {
+  const d = new Date(iso + 'T12:00:00')
+  if (Number.isNaN(d.getTime())) return iso
+  return d.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'short',
     day: 'numeric',

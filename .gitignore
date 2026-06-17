@@ -8,6 +8,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+server/.next
+server/node_modules
+server/tsconfig.tsbuildinfo
 api/vendor
 dist
 dist-ssr
@@ -26,7 +29,7 @@ dist-ssr
 *.sln
 *.sw?
 
-# Uploaded documents (keep folder only)
+.cursor/ (keep folder only)
 api/uploads/documents/*
 !api/uploads/documents/.gitkeep
 api/uploads/photos/*

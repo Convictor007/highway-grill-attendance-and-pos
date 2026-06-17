@@ -277,7 +277,7 @@ export function RegisterPage() {
             <span>
               <strong>I need company stay-in housing</strong>
               <span className="muted-block" style={{ display: 'block', marginTop: '0.25rem' }}>
-                HR will set the housing deduction on your employee record. It is deducted from each payslip (HSNG).
+                HR will set the monthly housing deduction on your employee record. Semi-monthly payslips deduct half each run (HSNG).
               </span>
             </span>
           </label>

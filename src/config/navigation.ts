@@ -12,9 +12,23 @@ export type NavItem = {
   perm?: string | string[]
 }
 
+export type NavGroup = {
+  type: 'group'
+  id: string
+  label: string
+  icon: string
+  items: NavItem[]
+}
+
+export type NavEntry = NavItem | NavGroup
+
 export type NavSection = {
   label?: string
-  items: NavItem[]
+  items: NavEntry[]
+}
+
+export function isNavGroup(entry: NavEntry): entry is NavGroup {
+  return 'type' in entry && entry.type === 'group'
 }
 
 /** Employee self-service menu (Profile last in full menu) */
@@ -31,21 +45,43 @@ export const employeeMenuItems: NavItem[] = [
 ]
 
 /** HR daily operations — no system admin (settings / compliance) */
-export const hrMenuItems: NavItem[] = [
+export const hrMenuEntries: NavEntry[] = [
   { to: '/', label: 'HR Dashboard', icon: 'home', end: true },
-  { to: '/employees', label: 'Employees', icon: 'users', perm: 'employees.view' },
-  { to: '/users', label: 'Crew approvals', icon: 'key', perm: 'users.approve' },
+  {
+    type: 'group',
+    id: 'people',
+    label: 'Employees',
+    icon: 'users',
+    items: [
+      { to: '/employees', label: 'Employee list', icon: 'users', perm: 'employees.view' },
+      { to: '/users', label: 'Crew approvals', icon: 'key', perm: 'users.approve' },
+    ],
+  },
   { to: '/shifts', label: 'Shifts', icon: 'schedule', perm: 'shifts.manage' },
-  { to: '/attendance', label: 'Attendance', icon: 'clock', perm: 'attendance.view' },
-  { to: '/hr/attendance-stats', label: 'Attendance stats', icon: 'overtime', perm: 'attendance.view' },
+  {
+    type: 'group',
+    id: 'attendance',
+    label: 'Attendance',
+    icon: 'clock',
+    items: [
+      { to: '/attendance', label: 'Attendance register', icon: 'clock', perm: 'attendance.view' },
+      { to: '/hr/attendance-stats', label: 'Attendance stats', icon: 'overtime', perm: 'attendance.view' },
+    ],
+  },
   { to: '/hr/field-work', label: 'Field work', icon: 'map', perm: 'attendance.view' },
   { to: '/hr/loans', label: 'Loans', icon: 'loan', perm: 'loans.manage' },
+  { to: '/hr/benefits', label: 'Benefits', icon: 'benefit', perm: 'payroll.manage' },
   { to: '/hr/tips', label: 'Tips pool', icon: 'wallet', perm: 'payroll.view' },
   { to: '/hr/content', label: 'HR content', icon: 'memo', perm: 'employees.manage' },
   { to: '/hr/reports', label: 'Reports', icon: 'overtime', perm: 'reports.view' },
   { to: '/leave', label: 'Leave', icon: 'calendar', perm: 'leave.view' },
   { to: '/payroll', label: 'Payroll', icon: 'wallet', perm: 'payroll.view' },
 ]
+
+/** @deprecated flat list — use hrMenuEntries */
+export const hrMenuItems: NavItem[] = hrMenuEntries.flatMap((entry) =>
+  isNavGroup(entry) ? entry.items : [entry],
+)
 
 /** System admin only — no HR daily operations */
 export const adminSystemItems: NavItem[] = [
@@ -59,18 +95,33 @@ export function staffMenuSections(user: AuthUser | null): NavSection[] {
   if (isSystemAdmin(user)) {
     return [{ items: filterNav(adminSystemItems, user) }]
   }
-  return [{ items: filterNav(hrMenuItems, user) }]
+  return [{ items: filterNavEntries(hrMenuEntries, user) }]
+}
+
+function itemVisible(item: NavItem, user: AuthUser | null): boolean {
+  if (user?.role_slug === 'employee' && item.perm && !canUseEmployeeFeatures(user)) {
+    return item.to === '/profile'
+  }
+  if (!item.perm) return true
+  const list = Array.isArray(item.perm) ? item.perm : [item.perm]
+  return list.some((p) => hasPermission(user, p))
 }
 
 export function filterNav(items: NavItem[], user: AuthUser | null): NavItem[] {
-  return items.filter((item) => {
-    if (user?.role_slug === 'employee' && item.perm && !canUseEmployeeFeatures(user)) {
-      return item.to === '/profile'
+  return items.filter((item) => itemVisible(item, user))
+}
+
+export function filterNavEntries(entries: NavEntry[], user: AuthUser | null): NavEntry[] {
+  const out: NavEntry[] = []
+  for (const entry of entries) {
+    if (isNavGroup(entry)) {
+      const items = entry.items.filter((item) => itemVisible(item, user))
+      if (items.length > 0) out.push({ ...entry, items })
+    } else if (itemVisible(entry, user)) {
+      out.push(entry)
     }
-    if (!item.perm) return true
-    const list = Array.isArray(item.perm) ? item.perm : [item.perm]
-    return list.some((p) => hasPermission(user, p))
-  })
+  }
+  return out
 }
 
 export function isEmployeePortal(user: AuthUser | null): boolean {

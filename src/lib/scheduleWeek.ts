@@ -1,15 +1,17 @@
+import { toLocalIsoDate } from './datetime'
+
 /** Sunday of the week containing `date` (YYYY-MM-DD). */
 export function sundayOfWeek(date = new Date()): string {
   const d = new Date(date)
   d.setHours(12, 0, 0, 0)
   d.setDate(d.getDate() - d.getDay())
-  return d.toISOString().slice(0, 10)
+  return toLocalIsoDate(d)
 }
 
 export function shiftWeek(start: string, deltaWeeks: number): string {
   const d = new Date(start + 'T12:00:00')
   d.setDate(d.getDate() + deltaWeeks * 7)
-  return d.toISOString().slice(0, 10)
+  return toLocalIsoDate(d)
 }
 
 export function tomorrowWeekStart(): string {

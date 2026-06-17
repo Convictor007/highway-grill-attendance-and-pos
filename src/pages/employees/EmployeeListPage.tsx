@@ -13,7 +13,7 @@ import type { Branch, Department, Employee, Gender, Position } from '../../types
 
 type ViewMode = 'card' | 'list' | 'grid'
 
-const VIEW_KEY = 'hg_employee_view'
+const VIEW_KEY = 'hg_employee_view_v2'
 
 const emptyForm = () => ({
   branch_id: '',
@@ -74,7 +74,8 @@ export function EmployeeListPage() {
   const [form, setForm] = useState(emptyForm())
   const [view, setView] = useState<ViewMode>(() => {
     const saved = localStorage.getItem(VIEW_KEY) as ViewMode | null
-    return saved === 'list' || saved === 'grid' ? saved : 'card'
+    if (saved === 'list' || saved === 'grid' || saved === 'card') return saved
+    return 'card'
   })
 
   const setViewMode = (mode: ViewMode) => {
@@ -376,12 +377,12 @@ export function EmployeeListPage() {
             </label>
             {form.is_stay_in && (
               <div className="form-group">
-                <label>Housing deduction per payroll (₱)</label>
+                <label>Housing deduction per month (₱)</label>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder="e.g. 500 per semi-monthly run"
+                  placeholder="e.g. 1000 — half per semi-monthly run"
                   value={form.housing_deduction}
                   onChange={(e) => setForm({ ...form, housing_deduction: e.target.value })}
                 />

@@ -23,9 +23,7 @@ type Props = {
   onSaved: () => void
 }
 
-function formatTime(t: string) {
-  return t?.slice(0, 5) ?? '09:00'
-}
+import { normalizeTimeInput } from '../lib/datetime'
 
 function cellMode(cell: RosterGridCell): 'working' | 'rest' {
   if (cell.status === 'day_off') return 'rest'
@@ -47,12 +45,12 @@ export function ScheduleCellEditModal({ open, target, templates, onClose, onSave
     const initialMode = cellMode(target.cell)
     setMode(initialMode)
     setTemplateId('')
-    setStartTime(formatTime(target.cell.start_time ?? templates[0]?.start_time ?? '09:00'))
-    setEndTime(formatTime(target.cell.end_time ?? templates[0]?.end_time ?? '17:00'))
+    setStartTime(normalizeTimeInput(target.cell.start_time ?? templates[0]?.start_time ?? '09:00'))
+    setEndTime(normalizeTimeInput(target.cell.end_time ?? templates[0]?.end_time ?? '17:00'))
     if (target.cell.status === 'unset' && templates[0]) {
       setMode('working')
-      setStartTime(formatTime(templates[0].start_time))
-      setEndTime(formatTime(templates[0].end_time))
+      setStartTime(normalizeTimeInput(templates[0].start_time))
+      setEndTime(normalizeTimeInput(templates[0].end_time))
       setTemplateId(templates[0].id)
     }
     setError(null)
@@ -63,8 +61,8 @@ export function ScheduleCellEditModal({ open, target, templates, onClose, onSave
     const t = templates.find((x) => x.id === id)
     if (!t) return
     setMode('working')
-    setStartTime(formatTime(t.start_time))
-    setEndTime(formatTime(t.end_time))
+    setStartTime(normalizeTimeInput(t.start_time))
+    setEndTime(normalizeTimeInput(t.end_time))
   }
 
   const save = async () => {
@@ -152,7 +150,7 @@ export function ScheduleCellEditModal({ open, target, templates, onClose, onSave
                 <option value="">Pick hours manually</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.name} ({formatTime(t.start_time)}–{formatTime(t.end_time)})
+                    {t.name} ({normalizeTimeInput(t.start_time)}–{normalizeTimeInput(t.end_time)})
                   </option>
                 ))}
               </select>

@@ -24,8 +24,10 @@ type Props = {
   onSaved: () => void
 }
 
+import { normalizeTimeInput } from '../lib/datetime'
+
 function toTimeInput(value: string): string {
-  return value?.slice(0, 5) || '09:00'
+  return normalizeTimeInput(value)
 }
 
 const defaultForm = (branchId: string) => ({

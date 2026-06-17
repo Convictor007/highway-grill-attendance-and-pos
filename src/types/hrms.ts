@@ -164,6 +164,78 @@ export interface BenefitEnrollment {
   last_name?: string
 }
 
+export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
+
+export type BenefitsTab = 'overview' | GovernmentAgency | 'allowances' | 'tax'
+
+export interface GovernmentProfile {
+  employee_id: string
+  sss_number: string | null
+  philhealth_number: string | null
+  pagibig_number: string | null
+  tin: string | null
+  sss_enrolled: boolean
+  philhealth_enrolled: boolean
+  pagibig_enrolled: boolean
+  notes: string | null
+}
+
+export interface BenefitContributionRow {
+  payslip_id: string
+  pay_date: string
+  period_start: string
+  period_end: string
+  gross_pay: number
+  amount: number
+}
+
+export interface BenefitsAgencySummary {
+  agency: GovernmentAgency
+  label: string
+  member_id: string | null
+  enrolled: boolean
+  monthly_employee_share: number
+  per_payroll_share: number
+  ytd: number
+}
+
+export interface BenefitsOverview {
+  employee: {
+    pay_basis: string
+    pay_rate: number
+    monthly_compensation: number
+    first_name: string
+    last_name: string
+    emp_number: string
+  } | null
+  profile: GovernmentProfile
+  monthly_compensation: number
+  agencies: BenefitsAgencySummary[]
+  withholding_tax: {
+    monthly: number
+    per_payroll: number
+    ytd: number
+  }
+  enrollments: BenefitEnrollment[]
+  contribution_history: {
+    sss: BenefitContributionRow[]
+    philhealth: BenefitContributionRow[]
+    pagibig: BenefitContributionRow[]
+    tax: BenefitContributionRow[]
+  }
+  latest_payslip: {
+    pay_date: string
+    period_start: string
+    period_end: string
+    sss_amount: number
+    philhealth_amount: number
+    pagibig_amount: number
+    tax_amount: number
+    gross_pay: number
+    net_pay: number
+  } | null
+}
+
 export interface OrgMasterlistEntry {
   id: string
   emp_number: string

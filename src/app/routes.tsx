@@ -34,6 +34,7 @@ import { AttendanceStatsPage } from '../pages/attendance/AttendanceStatsPage'
 import { HrFieldWorkPage } from '../pages/hr/HrFieldWorkPage'
 import { HrTipsPage } from '../pages/hr/HrTipsPage'
 import { HrReportsPage } from '../pages/hr/HrReportsPage'
+import { HrBenefitsPage } from '../pages/hr/HrBenefitsPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -182,6 +183,16 @@ export function AppRoutes() {
             <RequireHr>
               <RequirePermission permission="loans.manage">
                 <HrLoansPage />
+              </RequirePermission>
+            </RequireHr>
+          }
+        />
+        <Route
+          path="hr/benefits"
+          element={
+            <RequireHr>
+              <RequirePermission permission="payroll.manage">
+                <HrBenefitsPage />
               </RequirePermission>
             </RequireHr>
           }

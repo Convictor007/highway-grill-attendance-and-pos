@@ -6,14 +6,18 @@ import { ScheduleGrid, type ScheduleCellEditPayload } from '../../components/Sch
 import { ScheduleCellEditModal, type ScheduleCellEditTarget } from '../../components/ScheduleCellEditModal'
 import { sundayOfWeek, shiftWeek } from '../../lib/scheduleWeek'
 import { DatePicker } from '../../components/DatePicker'
+import { useNotification } from '../../hooks/useNotification'
 import { formatDateDisplay } from '../../lib/datetime'
 import type { Branch, RosterGrid } from '../../types/hrms'
 
+import { normalizeTimeInput } from '../../lib/datetime'
+
 function formatTime(t: string) {
-  return t?.slice(0, 5) ?? '—'
+  return normalizeTimeInput(t)
 }
 
 export function ShiftsPage() {
+  const { error: notifyError } = useNotification()
   const [tab, setTab] = useState<'templates' | 'roster'>('roster')
   const [templates, setTemplates] = useState<ShiftTemplateRecord[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
@@ -61,6 +65,9 @@ export function ShiftsPage() {
           `/shifts/roster?branch_id=${encodeURIComponent(branchId)}&week_start=${encodeURIComponent(weekStart)}`
         )
       )
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not load roster')
+      setRosterGrid(null)
     } finally {
       setRosterLoading(false)
     }
