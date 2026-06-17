@@ -106,7 +106,7 @@ export async function updateEmployee(id: string, data: Record<string, unknown>) 
   if (!existing) return null
 
   const fields = [
-    'first_name', 'last_name', 'email', 'phone', 'branch_id', 'department_id', 'position_id',
+    'emp_number', 'first_name', 'last_name', 'email', 'phone', 'branch_id', 'department_id', 'position_id',
     'employment_type', 'status', 'address', 'date_of_birth', 'gender', 'nationality', 'national_id',
     'emergency_name', 'emergency_phone', 'photo_url', 'hire_date', 'pay_basis', 'pay_rate',
     'is_stay_in', 'housing_deduction',

@@ -1,0 +1,57 @@
+import { Modal } from './Modal'
+import { UserAccountEditPanel, type UserAccountDraft } from './UserAccountEditPanel'
+import type { AppUser, Employee, Role } from '../types/hrms'
+
+const FORM_ID = 'user-account-edit-form'
+
+type Props = {
+  open: boolean
+  user: AppUser | null
+  roles: Role[]
+  employees: Employee[]
+  saving: boolean
+  onClose: () => void
+  onSave: (draft: UserAccountDraft, permissionIds: number[] | null) => Promise<void>
+}
+
+export function UserAccountEditModal({
+  open,
+  user,
+  roles,
+  employees,
+  saving,
+  onClose,
+  onSave,
+}: Props) {
+  if (!user) return null
+
+  return (
+    <Modal
+      open={open}
+      title="Edit staff account"
+      onClose={onClose}
+      size="large"
+      panelClassName="staff-edit-modal-panel"
+      footer={
+        <>
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button type="submit" form={FORM_ID} className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
+          </button>
+        </>
+      }
+    >
+      <UserAccountEditPanel
+        formId={FORM_ID}
+        inModal
+        user={user}
+        roles={roles}
+        employees={employees}
+        saving={saving}
+        onSave={onSave}
+      />
+    </Modal>
+  )
+}

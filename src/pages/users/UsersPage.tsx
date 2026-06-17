@@ -3,9 +3,12 @@ import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
+import { isManageableStaffRole } from '../../lib/roles'
 import { PageHeader } from '../../components/PageHeader'
 import { EmptyState } from '../../components/EmptyState'
-import { RolePermissionsModal } from '../../components/RolePermissionsModal'
+import { UserAccountEditModal } from '../../components/UserAccountEditModal'
+import { saveRolePermissions } from '../../components/RolePermissionsEditor'
+import type { UserAccountDraft } from '../../components/UserAccountEditPanel'
 import type { AppUser, Employee, Role } from '../../types/hrms'
 
 type Props = {
@@ -37,7 +40,8 @@ export function UsersPage({ fullAdmin = false }: Props) {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [roles, setRoles] = useState<Role[]>([])
   const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editingUser, setEditingUser] = useState<AppUser | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [form, setForm] = useState({
     email: '',
@@ -45,13 +49,8 @@ export function UsersPage({ fullAdmin = false }: Props) {
     role_id: 0,
     employee_id: '',
   })
-  const [editForm, setEditForm] = useState({
-    role_id: 0,
-    employee_id: '',
-    is_active: true,
-    password: '',
-  })
-  const [permissionsRole, setPermissionsRole] = useState<Role | null>(null)
+
+  const staffRoles = roles.filter((r) => isManageableStaffRole(r.role_slug))
 
   const load = async () => {
     const p = await api<AppUser[]>('/users/pending')
@@ -66,7 +65,8 @@ export function UsersPage({ fullAdmin = false }: Props) {
     setUsers(u)
     setEmployees(e.filter((x) => x.status === 'active'))
     setRoles(r)
-    if (r[0] && !form.role_id) setForm((f) => ({ ...f, role_id: r[0].role_id }))
+    const defaultRole = r.find((x) => x.role_slug === 'hr') ?? r.find((x) => x.role_slug !== 'admin')
+    if (defaultRole && !form.role_id) setForm((f) => ({ ...f, role_id: defaultRole.role_id }))
   }
 
   useEffect(() => {
@@ -92,32 +92,56 @@ export function UsersPage({ fullAdmin = false }: Props) {
     }
   }
 
-  const startEdit = (u: AppUser) => {
-    setEditingId(u.id)
-    setEditForm({
-      role_id: u.role_id ?? roles.find((r) => r.role_slug === u.role_slug)?.role_id ?? 0,
-      employee_id: u.employee_id ?? '',
-      is_active: Boolean(u.is_active),
-      password: '',
-    })
-  }
-
-  const onSaveEdit = async (id: string) => {
+  const onSaveUser = async (id: string, draft: UserAccountDraft, permissionIds: number[] | null) => {
+    setSavingId(id)
     try {
       await api(`/users/${id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          role_id: editForm.role_id,
-          employee_id: editForm.employee_id || null,
-          is_active: editForm.is_active,
-          ...(editForm.password ? { password: editForm.password } : {}),
+          email: draft.email,
+          role_id: draft.role_id,
+          employee_id: draft.employee_id || null,
+          is_active: draft.is_active,
+          account_status: draft.account_status,
+          ...(draft.password ? { password: draft.password } : {}),
         }),
       })
-      success('User updated')
-      setEditingId(null)
-      load()
+
+      if (draft.employee_id) {
+        await api(`/employees/${draft.employee_id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            first_name: draft.first_name,
+            last_name: draft.last_name,
+            emp_number: draft.emp_number,
+            phone: draft.phone || null,
+            email: draft.email,
+            branch_id: draft.branch_id || null,
+            department_id: draft.department_id || null,
+            position_id: draft.position_id || null,
+            date_of_birth: draft.date_of_birth || null,
+            gender: draft.gender || null,
+            nationality: draft.nationality || null,
+            national_id: draft.national_id || null,
+            address: draft.address || null,
+            emergency_name: draft.emergency_name || null,
+            emergency_phone: draft.emergency_phone || null,
+          }),
+        })
+      }
+
+      if (permissionIds) {
+        const role = roles.find((r) => r.role_id === draft.role_id)
+        if (role) await saveRolePermissions(role.role_slug, permissionIds)
+      }
+
+      success('Staff account updated')
+      setEditingUser(null)
+      await load()
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not update user')
+    } finally {
+      setSavingId(null)
     }
   }
 
@@ -151,10 +175,10 @@ export function UsersPage({ fullAdmin = false }: Props) {
   return (
     <div>
       <PageHeader
-        title={isFullAdmin ? 'User accounts' : 'Crew approvals'}
+        title={isFullAdmin ? 'Staff logins' : 'Crew approvals'}
         subtitle={
           isFullAdmin
-            ? 'Manage logins, roles, and permissions. Restaurant crew should self-register.'
+            ? 'Manage HR and crew accounts, roles, and permissions. Your system admin login is not shown here.'
             : 'Review self-registrations — approve sign-in, then activate for time clock and schedules'
         }
         actions={
@@ -167,7 +191,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
       />
 
       {!isFullAdmin && pending.length === 0 && (
-        <EmptyState title="No pending registrations" message="New crew sign-ups will appear here for approval." />
+        <EmptyState title="No pending registrations" description="New crew sign-ups will appear here for approval." />
       )}
 
       {pending.length > 0 && (
@@ -252,7 +276,8 @@ export function UsersPage({ fullAdmin = false }: Props) {
       {isFullAdmin && showForm && (
         <form className="card" style={{ marginBottom: '1.5rem' }} onSubmit={onCreate}>
           <p className="muted-block" style={{ marginBottom: '1rem' }}>
-            Use this only for admin/HR logins. Restaurant employees should use <strong>Register</strong> on the login page.
+            Create HR or other staff logins here. Restaurant crew should use <strong>Register</strong> on the login page.
+            System admin accounts cannot be created from this screen.
           </p>
           <div className="form-row">
             <div className="form-group">
@@ -268,7 +293,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
             <div className="form-group">
               <label>Role</label>
               <select value={form.role_id} onChange={(e) => setForm({ ...form, role_id: Number(e.target.value) })} required>
-                {roles.map((r) => (
+                {staffRoles.map((r) => (
                   <option key={r.role_id} value={r.role_id}>{r.role_name}</option>
                 ))}
               </select>
@@ -289,31 +314,21 @@ export function UsersPage({ fullAdmin = false }: Props) {
         </form>
       )}
 
-      {isFullAdmin && (
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <h3 className="section-title">Roles & permissions</h3>
-        <div className="role-permissions-actions">
-          {roles.map((r) => (
-            <button
-              key={r.role_id}
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setPermissionsRole(r)}
-            >
-              {r.role_name}
-            </button>
-          ))}
-        </div>
-      </div>
+      {isFullAdmin && users.length === 0 && (
+        <EmptyState
+          title="No staff logins yet"
+          description="Add an HR login or wait for crew to self-register. The system admin account is managed separately."
+        />
       )}
 
-      {isFullAdmin && (
-      <div className="card table-wrap">
+      {isFullAdmin && users.length > 0 && (
+      <div className="card table-wrap user-accounts-table">
         <table>
           <thead>
             <tr>
               <th>Email</th>
               <th>Role</th>
+              <th>Position</th>
               <th>Employee</th>
               <th>Account</th>
               <th></th>
@@ -323,45 +338,10 @@ export function UsersPage({ fullAdmin = false }: Props) {
             {users.map((u) => (
               <tr key={u.id}>
                 <td>{u.email}</td>
+                <td>{u.role_name}</td>
+                <td>{u.position_title ?? '—'}</td>
                 <td>
-                  {editingId === u.id ? (
-                    <div className="stack-sm">
-                      <select
-                        value={editForm.role_id}
-                        onChange={(e) => setEditForm((f) => ({ ...f, role_id: Number(e.target.value) }))}
-                      >
-                        {roles.map((r) => (
-                          <option key={r.role_id} value={r.role_id}>{r.role_name}</option>
-                        ))}
-                      </select>
-                      <label className="muted-block" style={{ marginTop: '0.35rem' }}>New password (optional)</label>
-                      <input
-                        type="password"
-                        value={editForm.password}
-                        onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
-                        placeholder="Leave blank to keep current"
-                        minLength={6}
-                        autoComplete="new-password"
-                      />
-                    </div>
-                  ) : (
-                    u.role_name
-                  )}
-                </td>
-                <td>
-                  {editingId === u.id ? (
-                    <select
-                      value={editForm.employee_id}
-                      onChange={(e) => setEditForm((f) => ({ ...f, employee_id: e.target.value }))}
-                    >
-                      <option value="">— None —</option>
-                      {employees.map((emp) => (
-                        <option key={emp.id} value={emp.id}>
-                          {emp.emp_number} — {emp.first_name} {emp.last_name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : u.first_name ? (
+                  {u.first_name ? (
                     `${u.first_name} ${u.last_name}`
                   ) : (
                     <span className="error-msg" style={{ margin: 0 }}>Not linked</span>
@@ -369,20 +349,13 @@ export function UsersPage({ fullAdmin = false }: Props) {
                 </td>
                 <td>{statusLabel(u.account_status)}</td>
                 <td>
-                  {editingId === u.id ? (
-                    <div className="quick-actions" style={{ margin: 0 }}>
-                      <button type="button" className="btn btn-primary btn-sm" onClick={() => onSaveEdit(u.id)}>
-                        Save
-                      </button>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => startEdit(u)}>
-                      Edit
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setEditingUser(u)}
+                  >
+                    Edit
+                  </button>
                 </td>
               </tr>
             ))}
@@ -392,10 +365,16 @@ export function UsersPage({ fullAdmin = false }: Props) {
       )}
 
       {isFullAdmin && (
-      <RolePermissionsModal
-        open={permissionsRole != null}
-        role={permissionsRole}
-        onClose={() => setPermissionsRole(null)}
+      <UserAccountEditModal
+        open={editingUser != null}
+        user={editingUser}
+        roles={staffRoles}
+        employees={employees}
+        saving={editingUser != null && savingId === editingUser.id}
+        onClose={() => setEditingUser(null)}
+        onSave={async (draft, permissionIds) => {
+          if (editingUser) await onSaveUser(editingUser.id, draft, permissionIds)
+        }}
       />
       )}
     </div>

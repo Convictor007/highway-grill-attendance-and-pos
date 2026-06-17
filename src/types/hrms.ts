@@ -78,6 +78,21 @@ export interface AppUser {
   position_title?: string
   is_stay_in?: number | boolean
   housing_deduction?: string | number | null
+  phone?: string | null
+  date_of_birth?: string | null
+  gender?: Gender | null
+  nationality?: string | null
+  national_id?: string | null
+  address?: string | null
+  emergency_name?: string | null
+  emergency_phone?: string | null
+  hire_date?: string | null
+  employment_type?: string | null
+  branch_id?: string | null
+  department_id?: string | null
+  position_id?: string | null
+  last_login_at?: string | null
+  created_at?: string | null
   approved_at?: string | null
   activated_at?: string | null
 }

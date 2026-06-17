@@ -12,6 +12,7 @@
   --clock-out: #c45c26;
   --danger: #d4537e;
   --radius: 8px;
+  color-scheme: dark;
   font-family: 'Segoe UI', system-ui, sans-serif;
   line-height: 1.5;
   color: var(--text);
@@ -190,6 +191,62 @@ th {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
+  color-scheme: dark;
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(232, 93, 4, 0.2);
+}
+
+.form-group input:disabled,
+.form-group select:disabled,
+.form-group textarea:disabled,
+.form-group input[readonly]:not([type='checkbox']):not([type='radio']) {
+  background: var(--surface-hover);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.form-group select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.form-group input[type='date']::-webkit-calendar-picker-indicator,
+.form-group input[type='time']::-webkit-calendar-picker-indicator,
+.form-group input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  filter: invert(0.75);
+  cursor: pointer;
+}
+
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus,
+.form-group textarea:-webkit-autofill,
+.form-group textarea:-webkit-autofill:hover,
+.form-group textarea:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg) inset !important;
+  -webkit-text-fill-color: var(--text) !important;
+  caret-color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
 }
 
 .form-row {
@@ -5320,4 +5377,177 @@ tr.row-clickable:hover td {
 
 .schedule-week-picker-wrap .picker-trigger {
   min-width: 200px;
+}
+
+/* Staff account edit modal */
+.staff-edit-modal-panel {
+  max-width: min(720px, 96vw);
+}
+
+.staff-edit-modal-panel .modal-body {
+  background: var(--bg);
+  padding: 0 1.5rem 1.25rem;
+}
+
+.staff-edit-modal-panel .modal-header {
+  background: var(--surface);
+}
+
+.staff-edit-modal-panel .modal-footer {
+  background: var(--surface);
+}
+
+.staff-edit-form--modal .form-group {
+  margin-bottom: 0.85rem;
+}
+
+.staff-edit-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 0 1rem;
+  margin-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.staff-edit-avatar {
+  flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #c44d00);
+}
+
+.staff-edit-name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.staff-edit-email {
+  margin: 0.15rem 0 0.5rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.staff-edit-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tabs--staff-edit {
+  margin-bottom: 1rem;
+}
+
+.staff-edit-pane {
+  min-height: 12rem;
+}
+
+.staff-edit-section + .staff-edit-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.staff-edit-section-title {
+  margin: 0 0 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.staff-edit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.staff-edit-toggle input {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+.staff-edit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.staff-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.staff-perm-intro {
+  margin-bottom: 1rem;
+}
+
+.staff-perm-system-note {
+  margin-bottom: 0.75rem;
+}
+
+.role-permissions-editor--compact .role-permissions-groups {
+  max-height: 42vh;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.role-permissions-editor--compact .section-title {
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+}
+
+.readonly-field {
+  opacity: 0.85;
+  cursor: not-allowed;
+}
+
+/* System admin dashboard */
+.admin-account-note code {
+  color: var(--accent);
+  font-size: 0.9em;
+}
+
+.admin-tools-grid {
+  margin-bottom: 1.5rem;
+}
+
+.admin-tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 7rem;
+}
+
+.admin-tool-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.admin-tool-desc {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
 }

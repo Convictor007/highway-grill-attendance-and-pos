@@ -14,3 +14,8 @@ export function isManagementRole(user: AuthUser | null): boolean {
 export function isSystemAdmin(user: AuthUser | null): boolean {
   return user?.role_slug === 'admin'
 }
+
+/** Logins that appear in Admin → Staff logins (HR + employee accounts). */
+export function isManageableStaffRole(roleSlug?: string | null): boolean {
+  return roleSlug != null && roleSlug !== 'admin'
+}

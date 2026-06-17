@@ -88,7 +88,7 @@ export const adminSystemItems: NavItem[] = [
   { to: '/admin', label: 'Overview', icon: 'home', end: true },
   { to: '/admin/settings', label: 'Settings', icon: 'settings' },
   { to: '/admin/compliance', label: 'Compliance', icon: 'shield' },
-  { to: '/admin/users', label: 'Users', icon: 'key', perm: 'users.manage' },
+  { to: '/admin/users', label: 'Staff logins', icon: 'key', perm: 'users.manage' },
 ]
 
 export function staffMenuSections(user: AuthUser | null): NavSection[] {

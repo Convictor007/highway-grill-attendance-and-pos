@@ -3,8 +3,8 @@
 -- Run AFTER hg.sql. Requires AUTH_HASH_PASSWORDS=true on the API.
 --
 -- Logins:
---   admin@highwaygrill.com  / hg2015
---   hr@highwaygrill.com     / HrTemp2025!  (change from Admin → Users)
+--   admin@highwaygrill.com  / hg2015   (login-only — not in Staff logins)
+--   hr@highwaygrill.com     / HrTemp2025!
 -- No demo employee — crew register via the login page.
 -- =============================================================================
 
@@ -74,21 +74,19 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped) VALUES
 (1, 1, 'HR Manager',   'M1',  80.00, 120.00, false),
 (2, 2, 'Line Cook',    'K2',  70.00,  95.00, false),
-(3, 3, 'Service Crew', 'S1',  65.00,  85.00, true),
-(4, 1, 'System Admin', 'SYS',  0.00,   0.00, false)
+(3, 3, 'Service Crew', 'S1',  65.00,  85.00, true)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO employees (
   id, branch_id, department_id, position_id, emp_number, first_name, last_name,
   email, phone, hire_date, employment_type, pay_basis, pay_rate, is_stay_in, housing_deduction, status
 ) VALUES
-(1, 1, 1, 4, 'HG-ADM', 'System', 'Admin', 'admin@highwaygrill.com', NULL, '2024-01-01', 'full_time', 'hourly', 0,    false, 0, 'active'),
-(2, 1, 1, 1, 'HG-HR',  'HR', 'Manager', 'hr@highwaygrill.com', '+63-900-000-0001', '2024-01-15', 'full_time', 'hourly', 95.00, false, 0, 'active')
+(1, 1, 1, 1, 'HG-HR', 'HR', 'Manager', 'hr@highwaygrill.com', '+63-900-000-0001', '2024-01-15', 'full_time', 'hourly', 95.00, false, 0, 'active')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO users (id, email, password_hash, role_id, employee_id, is_active, account_status, activated_at) VALUES
-(1, 'admin@highwaygrill.com', '$2b$10$bqNP7HI5iOCKpoyRn0czkObfX2bEL9.NWqpSg3PNYrFEtImQ/wEVe', 1, 1, true, 'active', NOW()),
-(2, 'hr@highwaygrill.com',    '$2b$10$kkczef//Ci.vFrSrlhRlgu56k43nKjYTHNuSRBMR36TYS9nu9TKZC', 2, 2, true, 'active', NOW())
+(1, 'admin@highwaygrill.com', '$2b$10$bqNP7HI5iOCKpoyRn0czkObfX2bEL9.NWqpSg3PNYrFEtImQ/wEVe', 1, NULL, true, 'active', NOW()),
+(2, 'hr@highwaygrill.com',    '$2b$10$kkczef//Ci.vFrSrlhRlgu56k43nKjYTHNuSRBMR36TYS9nu9TKZC', 2, 1, true, 'active', NOW())
 ON CONFLICT (email) DO NOTHING;
 
 INSERT INTO leave_types (id, name, paid, days_per_year, carry_forward, requires_approval, color_hex) VALUES

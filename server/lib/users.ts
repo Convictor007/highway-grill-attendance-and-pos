@@ -5,12 +5,17 @@ import { ValidationError } from './errors'
 import { ensureBalancesForEmployee } from './leave'
 import { createNotification } from './notifications'
 
+export const SYSTEM_ADMIN_ROLE_SLUG = 'admin'
+
 const USER_SELECT = `
   SELECT u.id, u.email, u.is_active, u.account_status, u.employee_id, u.role_id,
-         u.last_login_at, u.approved_at, u.activated_at,
+         u.last_login_at, u.approved_at, u.activated_at, u.created_at,
          r.role_slug, r.role_name,
          e.emp_number, e.first_name, e.last_name, e.status AS employee_status,
          e.photo_url, e.gender, e.phone, e.is_stay_in, e.housing_deduction,
+         e.date_of_birth, e.nationality, e.national_id, e.address,
+         e.emergency_name, e.emergency_phone, e.hire_date, e.employment_type,
+         e.branch_id, e.department_id, e.position_id,
          p.title AS position_title
   FROM users u
   INNER JOIN roles r ON r.role_id = u.role_id
@@ -18,12 +23,23 @@ const USER_SELECT = `
   LEFT JOIN positions p ON p.id = e.position_id
 `
 
-export async function listUsers(accountStatus?: string | null) {
-  const db = getDb()
-  if (accountStatus) {
-    return unsafe(`${USER_SELECT} WHERE u.account_status = $1 ORDER BY u.email`, [accountStatus])
+/** Staff logins managed from Admin → Users (excludes the system owner account). */
+const MANAGEABLE_USERS_WHERE = `WHERE r.role_slug <> '${SYSTEM_ADMIN_ROLE_SLUG}'`
+
+function assertManageableUser(user: { role_slug?: string }) {
+  if (user.role_slug === SYSTEM_ADMIN_ROLE_SLUG) {
+    throw new Error('System admin account cannot be changed from user management')
   }
-  return unsafe(`${USER_SELECT} ORDER BY u.email`)
+}
+
+export async function listUsers(accountStatus?: string | null) {
+  if (accountStatus) {
+    return unsafe(
+      `${USER_SELECT} ${MANAGEABLE_USERS_WHERE} AND u.account_status = $1 ORDER BY u.email`,
+      [accountStatus],
+    )
+  }
+  return unsafe(`${USER_SELECT} ${MANAGEABLE_USERS_WHERE} ORDER BY u.email`)
 }
 
 export async function listPendingRegistrations() {
@@ -47,6 +63,11 @@ export async function createUser(data: Record<string, unknown>) {
   }
 
   const db = getDb()
+  const [role] = await db`SELECT role_slug FROM roles WHERE role_id = ${roleId} LIMIT 1`
+  if (role?.role_slug === SYSTEM_ADMIN_ROLE_SLUG) {
+    throw new ValidationError('System admin accounts cannot be created here')
+  }
+
   const existing = await db`SELECT id FROM users WHERE email = ${email} LIMIT 1`
   if (existing[0]) throw new Error('Email already registered')
 
@@ -70,7 +91,28 @@ export async function createUser(data: Record<string, unknown>) {
 }
 
 export async function updateUser(id: string, data: Record<string, unknown>) {
+  const target = await getUser(id)
+  assertManageableUser(target)
+
   const db = getDb()
+  if (data.role_id != null) {
+    const [role] = await db`SELECT role_slug FROM roles WHERE role_id = ${Number(data.role_id)} LIMIT 1`
+    if (role?.role_slug === SYSTEM_ADMIN_ROLE_SLUG) {
+      throw new ValidationError('Cannot assign the system admin role from user management')
+    }
+  }
+  if (data.email != null) {
+    const email = String(data.email).trim().toLowerCase()
+    if (!email) throw new ValidationError('email is required')
+    const existing = await db`SELECT id FROM users WHERE email = ${email} AND id <> ${id} LIMIT 1`
+    if (existing[0]) throw new Error('Email already registered')
+    await db`UPDATE users SET email = ${email} WHERE id = ${id}`
+    const linked = await db`SELECT employee_id FROM users WHERE id = ${id} LIMIT 1`
+    const employeeId = linked[0]?.employee_id
+    if (employeeId) {
+      await db`UPDATE employees SET email = ${email} WHERE id = ${employeeId}`
+    }
+  }
   if (data.password) {
     await db`UPDATE users SET password_hash = ${hashPassword(String(data.password))} WHERE id = ${id}`
   }
