@@ -41,7 +41,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [form, setForm] = useState({
     email: '',
-    password: 'dsadsadsa',
+    password: '',
     role_id: 0,
     employee_id: '',
   })
@@ -261,7 +261,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
             </div>
             <div className="form-group">
               <label>Password</label>
-              <input value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+              <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} />
             </div>
           </div>
           <div className="form-row">
@@ -325,14 +325,25 @@ export function UsersPage({ fullAdmin = false }: Props) {
                 <td>{u.email}</td>
                 <td>
                   {editingId === u.id ? (
-                    <select
-                      value={editForm.role_id}
-                      onChange={(e) => setEditForm((f) => ({ ...f, role_id: Number(e.target.value) }))}
-                    >
-                      {roles.map((r) => (
-                        <option key={r.role_id} value={r.role_id}>{r.role_name}</option>
-                      ))}
-                    </select>
+                    <div className="stack-sm">
+                      <select
+                        value={editForm.role_id}
+                        onChange={(e) => setEditForm((f) => ({ ...f, role_id: Number(e.target.value) }))}
+                      >
+                        {roles.map((r) => (
+                          <option key={r.role_id} value={r.role_id}>{r.role_name}</option>
+                        ))}
+                      </select>
+                      <label className="muted-block" style={{ marginTop: '0.35rem' }}>New password (optional)</label>
+                      <input
+                        type="password"
+                        value={editForm.password}
+                        onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
+                        placeholder="Leave blank to keep current"
+                        minLength={6}
+                        autoComplete="new-password"
+                      />
+                    </div>
                   ) : (
                     u.role_name
                   )}

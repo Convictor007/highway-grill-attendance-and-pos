@@ -1,7 +1,11 @@
 import { createHash, randomBytes, timingSafeEqual } from 'crypto'
+import bcrypt from 'bcryptjs'
 import { getDb } from './db'
 import { config } from './env'
 import { permissionsForUser } from './permissions'
+
+const BCRYPT_ROUNDS = 10
+
 export class UnauthorizedError extends Error {
   constructor() {
     super('Unauthorized')
@@ -27,9 +31,13 @@ function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
 }
 
-function verifyPassword(plain: string, stored: string): boolean {
-  if (config.authHashPasswords) {
-    throw new Error('AUTH_HASH_PASSWORDS=true is not yet supported on the Node API — keep false during migration')
+function isBcryptHash(stored: string): boolean {
+  return stored.startsWith('$2a$') || stored.startsWith('$2b$') || stored.startsWith('$2y$')
+}
+
+async function verifyPassword(plain: string, stored: string): Promise<boolean> {
+  if (config.authHashPasswords || isBcryptHash(stored)) {
+    return bcrypt.compare(plain, stored)
   }
   const a = Buffer.from(stored)
   const b = Buffer.from(plain)
@@ -39,7 +47,7 @@ function verifyPassword(plain: string, stored: string): boolean {
 
 export function hashPassword(plain: string): string {
   if (config.authHashPasswords) {
-    throw new Error('AUTH_HASH_PASSWORDS=true is not yet supported on the Node API — keep false during migration')
+    return bcrypt.hashSync(plain, BCRYPT_ROUNDS)
   }
   return plain
 }
@@ -55,7 +63,7 @@ export async function login(email: string, password: string) {
     LIMIT 1
   `
   const row = rows[0] as (AuthUser & { password_hash: string }) | undefined
-  if (!row || !verifyPassword(password, row.password_hash)) {
+  if (!row || !(await verifyPassword(password, row.password_hash))) {
     return null
   }
 

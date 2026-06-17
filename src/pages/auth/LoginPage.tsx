@@ -6,18 +6,12 @@ import { useNotification } from '../../hooks/useNotification'
 import { ApiError } from '../../lib/api'
 import { RoleSlug } from '../../types/roles'
 
-const demos = [
-  { label: 'Admin', email: 'admin@highwaygrill.local' },
-  { label: 'HR', email: 'hr@highwaygrill.local' },
-  { label: 'Employee', email: 'employee@highwaygrill.local' },
-]
-
 export function LoginPage() {
   const { user, loading, login } = useAuth()
   const { error: notifyError } = useNotification()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('hr@highwaygrill.local')
-  const [password, setPassword] = useState('dsadsadsa')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   if (!loading && user) {
@@ -76,24 +70,8 @@ export function LoginPage() {
           )}
         </button>
       </form>
-      <div className="quick-actions" style={{ marginTop: '1rem', justifyContent: 'center' }}>
-        {demos.map((d) => (
-          <button
-            key={d.email}
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => {
-              setEmail(d.email)
-              setPassword('dsadsadsa')
-            }}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
       <p className="login-hint">
         New employee? <Link to="/register">Register here</Link>
-        {' · '}Dev password: dsadsadsa
       </p>
     </div>
   )
