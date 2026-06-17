@@ -1,4 +1,6 @@
 {
   "framework": "nextjs",
-  "regions": ["sin1"]
+  "regions": ["sin1"],
+  "installCommand": "cd .. && npm run install:vercel",
+  "buildCommand": "cd .. && npm run build:vercel"
 }

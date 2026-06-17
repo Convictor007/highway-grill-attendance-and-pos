@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 server/.next
+server/public
 server/node_modules
 server/tsconfig.tsbuildinfo
 api/vendor

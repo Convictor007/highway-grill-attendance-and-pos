@@ -15,8 +15,16 @@ export function envBool(key: string, fallback = false): boolean {
   return raw === 'true' || raw === '1'
 }
 
+function defaultCorsOrigin(): string {
+  const explicit = process.env.CORS_ORIGIN?.trim()
+  if (explicit) return explicit
+  const vercel = process.env.VERCEL_URL?.trim()
+  if (vercel) return `https://${vercel}`
+  return 'http://localhost:5173'
+}
+
 export const config = {
-  corsOrigin: env('CORS_ORIGIN', 'http://localhost:5173'),
+  corsOrigin: defaultCorsOrigin(),
   sessionTtlHours: envInt('SESSION_TTL_HOURS', 24),
   authHashPasswords: envBool('AUTH_HASH_PASSWORDS', false),
   hrNotifyEmail: env('HR_NOTIFY_EMAIL', ''),
