@@ -29,4 +29,12 @@ export const config = {
   authHashPasswords: envBool('AUTH_HASH_PASSWORDS', false),
   hrNotifyEmail: env('HR_NOTIFY_EMAIL', ''),
   mailEnabled: envBool('MAIL_ENABLED', false),
+  mailFrom: env('MAIL_FROM', 'noreply@highwaygrill.local'),
+  mailFromName: env('MAIL_FROM_NAME', 'Highway Grill HR'),
+  appUrl: env('APP_URL', 'http://localhost:5173'),
+  smtpHost: env('SMTP_HOST', ''),
+  smtpPort: envInt('SMTP_PORT', 587),
+  smtpUser: env('SMTP_USER', ''),
+  smtpPass: env('SMTP_PASS', ''),
+  smtpEncryption: env('SMTP_ENCRYPTION', 'tls'),
 }

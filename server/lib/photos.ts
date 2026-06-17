@@ -1,7 +1,5 @@
-import { mkdir, writeFile } from 'fs/promises'
-import path from 'path'
-import { env } from './env'
 import { ValidationError } from './errors'
+import { savePublicFile } from './storage'
 
 const ALLOWED = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif'])
 const MAX_BYTES = 3 * 1024 * 1024
@@ -17,19 +15,10 @@ export async function saveEmployeePhoto(employeeId: string, file: File): Promise
   const filename = `${employeeId}.${normalizedExt}`
   const buffer = Buffer.from(await file.arrayBuffer())
 
-  const blobToken = env('BLOB_READ_WRITE_TOKEN')
-  if (blobToken) {
-    const { put } = await import('@vercel/blob')
-    const blob = await put(`photos/${filename}`, buffer, {
-      access: 'public',
-      token: blobToken,
-      contentType: file.type || `image/${normalizedExt}`,
-    })
-    return blob.url
-  }
-
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'photos')
-  await mkdir(uploadDir, { recursive: true })
-  await writeFile(path.join(uploadDir, filename), buffer)
-  return `/uploads/photos/${filename}`
+  return savePublicFile(
+    'photos',
+    filename,
+    buffer,
+    file.type || `image/${normalizedExt}`,
+  )
 }

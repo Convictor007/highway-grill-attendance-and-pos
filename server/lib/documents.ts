@@ -1,8 +1,8 @@
-import { mkdir, unlink, writeFile } from 'fs/promises'
+import { unlink } from 'fs/promises'
 import path from 'path'
 import { getDb } from './db'
-import { env } from './env'
 import { ValidationError } from './errors'
+import { savePublicFile } from './storage'
 
 const CATEGORIES = new Set(['contract', 'id', 'certificate', 'payslip', 'memo', 'other'])
 const MAX_BYTES = 10 * 1024 * 1024
@@ -74,21 +74,8 @@ async function saveDocumentFile(id: string, file: File): Promise<{ url: string; 
   const mime = file.type || safeExt
   const sizeKb = Math.ceil(file.size / 1024)
 
-  const blobToken = env('BLOB_READ_WRITE_TOKEN')
-  if (blobToken) {
-    const { put } = await import('@vercel/blob')
-    const blob = await put(`documents/${filename}`, buffer, {
-      access: 'public',
-      token: blobToken,
-      contentType: mime,
-    })
-    return { url: blob.url, fileType: mime, sizeKb }
-  }
-
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'documents')
-  await mkdir(uploadDir, { recursive: true })
-  await writeFile(path.join(uploadDir, filename), buffer)
-  return { url: `/uploads/documents/${filename}`, fileType: mime, sizeKb }
+  const url = await savePublicFile('documents', filename, buffer, mime)
+  return { url, fileType: mime, sizeKb }
 }
 
 export async function upload(fields: Record<string, string>, file: File | null, userId: string) {

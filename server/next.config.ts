@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  serverExternalPackages: [
+    '@sparticuz/chromium-min',
+    'puppeteer-core',
+    'puppeteer',
+    'nodemailer',
+  ],
 }
 
 export default nextConfig
