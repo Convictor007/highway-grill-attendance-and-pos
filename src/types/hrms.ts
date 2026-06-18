@@ -179,7 +179,9 @@ export interface BenefitEnrollment {
   last_name?: string
 }
 
-export type BenefitsTab = 'government' | 'allowances' | 'compliance' | 'remittance'
+export type BenefitsTab = 'manage' | 'compliance' | 'remittance'
+
+export type DeductionMode = 'auto' | 'manual'
 
 /** @deprecated Legacy per-agency tabs */
 export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
@@ -204,7 +206,38 @@ export interface GovernmentProfile {
   sss_enrolled: boolean
   philhealth_enrolled: boolean
   pagibig_enrolled: boolean
+  sss_deduction_mode?: DeductionMode
+  sss_monthly_amount?: number | null
+  philhealth_deduction_mode?: DeductionMode
+  philhealth_monthly_amount?: number | null
+  pagibig_deduction_mode?: DeductionMode
+  pagibig_monthly_amount?: number | null
+  tax_deduction_mode?: DeductionMode
+  tax_monthly_amount?: number | null
+  tax_enrolled?: boolean
   notes: string | null
+}
+
+export interface BenefitsDeductionSetup {
+  employee: {
+    pay_basis: string
+    pay_rate: number
+    monthly_compensation: number
+    first_name: string
+    last_name: string
+    emp_number: string
+  } | null
+  profile: GovernmentProfile
+  auto_monthly: {
+    sss: number
+    philhealth: number
+    pagibig: number
+    tax: number
+  }
+  per_payroll: {
+    semi_monthly: { sss: number; philhealth: number; pagibig: number; tax: number }
+    monthly: { sss: number; philhealth: number; pagibig: number; tax: number }
+  }
 }
 
 export interface BenefitContributionRow {

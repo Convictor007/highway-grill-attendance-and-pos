@@ -8,17 +8,17 @@ import { BenefitsTabNav } from '../../components/benefits/BenefitsTabNav'
 import { BenefitsAllowancesPanel } from '../../components/benefits/BenefitsAllowancesPanel'
 import { BenefitsCompliancePanel } from '../../components/benefits/BenefitsCompliancePanel'
 import { BenefitsRemittancePanel } from '../../components/benefits/BenefitsRemittancePanel'
-import { GovernmentProfileForm } from '../../components/benefits/GovernmentProfileForm'
+import { StatutoryDeductionsForm } from '../../components/benefits/StatutoryDeductionsForm'
 import { BenefitEnrollmentModal } from '../../components/benefits/BenefitEnrollmentModal'
 import { HR_BENEFITS_TABS } from '../../lib/benefitsUi'
 import type {
   BenefitEnrollment,
   BenefitsComplianceReport,
+  BenefitsDeductionSetup,
   BenefitsRemittanceSummary,
   BenefitsTab,
   Branch,
   Employee,
-  GovernmentProfile,
 } from '../../types/hrms'
 
 export function HrBenefitsPage() {
@@ -26,11 +26,11 @@ export function HrBenefitsPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [employeeId, setEmployeeId] = useState('')
-  const [tab, setTab] = useState<BenefitsTab>('government')
-  const [profile, setProfile] = useState<GovernmentProfile | null>(null)
+  const [tab, setTab] = useState<BenefitsTab>('manage')
+  const [setup, setSetup] = useState<BenefitsDeductionSetup | null>(null)
   const [enrollments, setEnrollments] = useState<BenefitEnrollment[]>([])
   const [loading, setLoading] = useState(true)
-  const [savingProfile, setSavingProfile] = useState(false)
+  const [savingDeductions, setSavingDeductions] = useState(false)
   const [enrollmentOpen, setEnrollmentOpen] = useState(false)
   const [editingEnrollment, setEditingEnrollment] = useState<BenefitEnrollment | null>(null)
   const [savingEnrollment, setSavingEnrollment] = useState(false)
@@ -55,22 +55,22 @@ export function HrBenefitsPage() {
 
   const loadEmployeeBenefits = async (eid: string) => {
     if (!eid) {
-      setProfile(null)
+      setSetup(null)
       setEnrollments([])
       return
     }
     setLoading(true)
     try {
-      const [profileRow, enrollmentRows] = await Promise.all([
-        api<GovernmentProfile | null>(`/benefits/government-profile?employee_id=${encodeURIComponent(eid)}`).catch(
+      const [setupRow, enrollmentRows] = await Promise.all([
+        api<BenefitsDeductionSetup>(`/benefits/deduction-setup?employee_id=${encodeURIComponent(eid)}`).catch(
           () => null,
         ),
         api<BenefitEnrollment[]>(`/benefits?employee_id=${encodeURIComponent(eid)}`).catch(() => []),
       ])
-      setProfile(profileRow)
+      setSetup(setupRow)
       setEnrollments(enrollmentRows)
     } catch {
-      setProfile(null)
+      setSetup(null)
       setEnrollments([])
     } finally {
       setLoading(false)
@@ -123,24 +123,23 @@ export function HrBenefitsPage() {
     ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
     : undefined
 
-  const saveProfile = async (payload: Record<string, unknown>) => {
-    setSavingProfile(true)
+  const saveDeductions = async (payload: Record<string, unknown>) => {
+    setSavingDeductions(true)
     try {
       await api('/benefits/government-profile', { method: 'PUT', body: JSON.stringify(payload) })
-      success('Saved')
+      success('Deductions saved')
       await loadEmployeeBenefits(employeeId)
       if (tab === 'compliance') await loadCompliance(complianceBranch)
     } catch (err) {
-      notifyError(err instanceof Error ? err.message : 'Could not save')
+      notifyError(err instanceof Error ? err.message : 'Could not save deductions')
     } finally {
-      setSavingProfile(false)
+      setSavingDeductions(false)
     }
   }
 
   const openAddAllowance = () => {
     setEditingEnrollment(null)
     setEnrollmentOpen(true)
-    setTab('allowances')
   }
 
   const openEditAllowance = (enrollment: BenefitEnrollment) => {
@@ -186,14 +185,15 @@ export function HrBenefitsPage() {
 
   const fixEmployeeFromCompliance = (eid: string) => {
     setEmployeeId(eid)
-    setTab('government')
+    setTab('manage')
   }
-
-  const showEmployeePanels = tab !== 'compliance' && tab !== 'remittance'
 
   return (
     <div>
-      <PageHeader title="Benefits" subtitle="Government IDs, allowances, compliance, and remittance" />
+      <PageHeader
+        title="Benefits"
+        subtitle="Assign statutory deductions and allowances — applied automatically on payroll"
+      />
 
       <BenefitsTabNav active={tab} onChange={setTab} tabs={HR_BENEFITS_TABS} />
 
@@ -226,39 +226,34 @@ export function HrBenefitsPage() {
         </div>
       )}
 
-      {showEmployeePanels && (
-        <div className="card" style={{ margin: '1rem 0' }}>
-          <div className="form-group" style={{ maxWidth: 360, margin: 0 }}>
-            <label>Employee</label>
-            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-              <option value="">Select employee…</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name} ({e.emp_number})
-                </option>
-              ))}
-            </select>
+      {tab === 'manage' && (
+        <>
+          <div className="card" style={{ margin: '1rem 0' }}>
+            <div className="form-group" style={{ maxWidth: 360, margin: 0 }}>
+              <label>Employee</label>
+              <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+                <option value="">Select employee…</option>
+                {employees.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.first_name} {e.last_name} ({e.emp_number})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
-      )}
 
-      {showEmployeePanels && !employeeId ? (
-        <EmptyState title="Select an employee" description="Choose a crew member to manage benefits." />
-      ) : showEmployeePanels ? (
-        loading ? (
-          <LoadingBlock />
-        ) : (
-          <div className="stack" style={{ marginTop: '0.5rem' }}>
-            {tab === 'government' && (
-              <GovernmentProfileForm
+          {!employeeId ? (
+            <EmptyState title="Select an employee" description="Choose a crew member to manage benefits and deductions." />
+          ) : loading ? (
+            <LoadingBlock />
+          ) : (
+            <div className="stack" style={{ marginTop: '0.5rem' }}>
+              <StatutoryDeductionsForm
                 employeeId={employeeId}
-                profile={profile}
-                saving={savingProfile}
-                onSave={saveProfile}
+                setup={setup}
+                saving={savingDeductions}
+                onSave={saveDeductions}
               />
-            )}
-
-            {tab === 'allowances' && (
               <BenefitsAllowancesPanel
                 enrollments={enrollments}
                 canManage
@@ -266,10 +261,10 @@ export function HrBenefitsPage() {
                 onEdit={openEditAllowance}
                 onDelete={deleteEnrollment}
               />
-            )}
-          </div>
-        )
-      ) : null}
+            </div>
+          )}
+        </>
+      )}
 
       <BenefitEnrollmentModal
         open={enrollmentOpen}

@@ -1,6 +1,6 @@
 import { ValidationError } from './errors'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
-import { forPayPeriod, thirteenthMonthTax } from './payroll-ph-deductions'
+import { forPayPeriod, thirteenthMonthTax, profileToDeductionConfig } from './payroll-ph-deductions'
 import { getGovernmentProfile } from './government-benefits'
 import * as payrollAdjustments from './payroll-adjustments'
 import { holidayHoursInPeriod, holidayPremiumPay } from './holidays'
@@ -242,11 +242,7 @@ async function computeRegularPayslip(
   const adjDebits = Math.max(0, -adjNet)
   const gross = Math.round((basicPay + holidayPay + overtimePay + benefitsAmount + Math.max(0, adjNet)) * 100) / 100
   const profile = await getGovernmentProfile(employeeId)
-  const deductions = forPayPeriod(gross, payFrequency, {
-    sss_enrolled: Boolean(profile.sss_enrolled),
-    philhealth_enrolled: Boolean(profile.philhealth_enrolled),
-    pagibig_enrolled: Boolean(profile.pagibig_enrolled),
-  })
+  const deductions = forPayPeriod(gross, payFrequency, profileToDeductionConfig(profile as Record<string, unknown>))
 
   return {
     regular_hours: regularHours,

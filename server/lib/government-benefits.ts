@@ -1,6 +1,6 @@
 import { getDb } from './db'
 import { list as listEnrollments } from './benefits'
-import { monthlyEmployeeShares } from './payroll-ph-deductions'
+import { monthlyEmployeeShares, effectiveDeductionsFromMonthly, profileToDeductionConfig } from './payroll-ph-deductions'
 import { ValidationError } from './errors'
 import {
   normalizeGovernmentProfileFields,
@@ -63,8 +63,28 @@ export async function getGovernmentProfile(employeeId: string) {
     sss_enrolled: true,
     philhealth_enrolled: true,
     pagibig_enrolled: true,
+    sss_deduction_mode: 'auto',
+    sss_monthly_amount: null,
+    philhealth_deduction_mode: 'auto',
+    philhealth_monthly_amount: null,
+    pagibig_deduction_mode: 'auto',
+    pagibig_monthly_amount: null,
+    tax_deduction_mode: 'auto',
+    tax_monthly_amount: null,
+    tax_enrolled: true,
     notes: null,
   }
+}
+
+function parseDeductionMode(v: unknown, fallback: string) {
+  return v === 'manual' ? 'manual' : fallback === 'manual' ? 'manual' : 'auto'
+}
+
+function parseMonthlyAmountField(v: unknown): number | null {
+  if (v == null || v === '') return null
+  const n = Number(v)
+  if (!Number.isFinite(n) || n < 0) throw new ValidationError('Deduction amount must be zero or positive')
+  return Math.round(n * 100) / 100
 }
 
 export async function upsertGovernmentProfile(employeeId: string, data: Record<string, unknown>) {
@@ -86,6 +106,44 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
       'philhealth_enrolled' in data ? Boolean(data.philhealth_enrolled) : Boolean(existing.philhealth_enrolled),
     pagibig_enrolled:
       'pagibig_enrolled' in data ? Boolean(data.pagibig_enrolled) : Boolean(existing.pagibig_enrolled),
+    tax_enrolled: 'tax_enrolled' in data ? Boolean(data.tax_enrolled) : Boolean(existing.tax_enrolled ?? true),
+    sss_deduction_mode: parseDeductionMode(
+      data.sss_deduction_mode,
+      String(existing.sss_deduction_mode ?? 'auto'),
+    ),
+    sss_monthly_amount:
+      'sss_monthly_amount' in data
+        ? parseMonthlyAmountField(data.sss_monthly_amount)
+        : existing.sss_monthly_amount != null
+          ? Number(existing.sss_monthly_amount)
+          : null,
+    philhealth_deduction_mode: parseDeductionMode(
+      data.philhealth_deduction_mode,
+      String(existing.philhealth_deduction_mode ?? 'auto'),
+    ),
+    philhealth_monthly_amount:
+      'philhealth_monthly_amount' in data
+        ? parseMonthlyAmountField(data.philhealth_monthly_amount)
+        : existing.philhealth_monthly_amount != null
+          ? Number(existing.philhealth_monthly_amount)
+          : null,
+    pagibig_deduction_mode: parseDeductionMode(
+      data.pagibig_deduction_mode,
+      String(existing.pagibig_deduction_mode ?? 'auto'),
+    ),
+    pagibig_monthly_amount:
+      'pagibig_monthly_amount' in data
+        ? parseMonthlyAmountField(data.pagibig_monthly_amount)
+        : existing.pagibig_monthly_amount != null
+          ? Number(existing.pagibig_monthly_amount)
+          : null,
+    tax_deduction_mode: parseDeductionMode(data.tax_deduction_mode, String(existing.tax_deduction_mode ?? 'auto')),
+    tax_monthly_amount:
+      'tax_monthly_amount' in data
+        ? parseMonthlyAmountField(data.tax_monthly_amount)
+        : existing.tax_monthly_amount != null
+          ? Number(existing.tax_monthly_amount)
+          : null,
     notes: 'notes' in data ? (data.notes ? String(data.notes) : null) : existing.notes,
   }
 
@@ -95,10 +153,20 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
   await db`
     INSERT INTO employee_government_profiles (
       employee_id, sss_number, philhealth_number, pagibig_number, tin,
-      sss_enrolled, philhealth_enrolled, pagibig_enrolled, notes
+      sss_enrolled, philhealth_enrolled, pagibig_enrolled,
+      sss_deduction_mode, sss_monthly_amount,
+      philhealth_deduction_mode, philhealth_monthly_amount,
+      pagibig_deduction_mode, pagibig_monthly_amount,
+      tax_deduction_mode, tax_monthly_amount, tax_enrolled,
+      notes
     ) VALUES (
       ${employeeId}, ${normalized.sss_number}, ${normalized.philhealth_number}, ${normalized.pagibig_number}, ${normalized.tin},
-      ${merged.sss_enrolled}, ${merged.philhealth_enrolled}, ${merged.pagibig_enrolled}, ${merged.notes}
+      ${merged.sss_enrolled}, ${merged.philhealth_enrolled}, ${merged.pagibig_enrolled},
+      ${merged.sss_deduction_mode}, ${merged.sss_monthly_amount},
+      ${merged.philhealth_deduction_mode}, ${merged.philhealth_monthly_amount},
+      ${merged.pagibig_deduction_mode}, ${merged.pagibig_monthly_amount},
+      ${merged.tax_deduction_mode}, ${merged.tax_monthly_amount}, ${merged.tax_enrolled},
+      ${merged.notes}
     )
     ON CONFLICT (employee_id) DO UPDATE SET
       sss_number = EXCLUDED.sss_number,
@@ -108,10 +176,41 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
       sss_enrolled = EXCLUDED.sss_enrolled,
       philhealth_enrolled = EXCLUDED.philhealth_enrolled,
       pagibig_enrolled = EXCLUDED.pagibig_enrolled,
+      sss_deduction_mode = EXCLUDED.sss_deduction_mode,
+      sss_monthly_amount = EXCLUDED.sss_monthly_amount,
+      philhealth_deduction_mode = EXCLUDED.philhealth_deduction_mode,
+      philhealth_monthly_amount = EXCLUDED.philhealth_monthly_amount,
+      pagibig_deduction_mode = EXCLUDED.pagibig_deduction_mode,
+      pagibig_monthly_amount = EXCLUDED.pagibig_monthly_amount,
+      tax_deduction_mode = EXCLUDED.tax_deduction_mode,
+      tax_monthly_amount = EXCLUDED.tax_monthly_amount,
+      tax_enrolled = EXCLUDED.tax_enrolled,
       notes = EXCLUDED.notes,
       updated_at = NOW()
   `
   return getGovernmentProfile(employeeId)
+}
+
+export async function getDeductionSetup(employeeId: string) {
+  const [compensation, profile] = await Promise.all([
+    getEmployeeCompensation(employeeId),
+    getGovernmentProfile(employeeId),
+  ])
+  const monthly = compensation?.monthly_compensation ?? 0
+  const autoMonthly = monthlyEmployeeShares(monthly)
+  const config = profileToDeductionConfig(profile as Record<string, unknown>)
+  const semiMonthly = effectiveDeductionsFromMonthly(monthly, 'semi_monthly', config)
+  const monthlyPay = effectiveDeductionsFromMonthly(monthly, 'monthly', config)
+
+  return {
+    employee: compensation,
+    profile,
+    auto_monthly: autoMonthly,
+    per_payroll: {
+      semi_monthly: semiMonthly,
+      monthly: monthlyPay,
+    },
+  }
 }
 
 export async function contributionHistory(employeeId: string) {

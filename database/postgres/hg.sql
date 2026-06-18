@@ -171,6 +171,15 @@ CREATE TABLE employee_government_profiles (
     sss_enrolled          BOOLEAN NOT NULL DEFAULT true,
     philhealth_enrolled   BOOLEAN NOT NULL DEFAULT true,
     pagibig_enrolled      BOOLEAN NOT NULL DEFAULT true,
+    sss_deduction_mode    VARCHAR(10) NOT NULL DEFAULT 'auto',
+    sss_monthly_amount    NUMERIC(12, 2),
+    philhealth_deduction_mode VARCHAR(10) NOT NULL DEFAULT 'auto',
+    philhealth_monthly_amount NUMERIC(12, 2),
+    pagibig_deduction_mode VARCHAR(10) NOT NULL DEFAULT 'auto',
+    pagibig_monthly_amount NUMERIC(12, 2),
+    tax_deduction_mode    VARCHAR(10) NOT NULL DEFAULT 'auto',
+    tax_monthly_amount    NUMERIC(12, 2),
+    tax_enrolled          BOOLEAN NOT NULL DEFAULT true,
     notes                 TEXT,
     updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

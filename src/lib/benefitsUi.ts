@@ -7,8 +7,7 @@ export function formatBenefitMoney(v: string | number | undefined | null) {
 }
 
 export const HR_BENEFITS_TABS: { id: BenefitsTab; label: string }[] = [
-  { id: 'government', label: 'Government IDs' },
-  { id: 'allowances', label: 'Allowances' },
+  { id: 'manage', label: 'Employee benefits' },
   { id: 'compliance', label: 'Compliance' },
   { id: 'remittance', label: 'Remittance' },
 ]
