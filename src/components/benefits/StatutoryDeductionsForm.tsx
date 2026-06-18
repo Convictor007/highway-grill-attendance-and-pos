@@ -16,49 +16,49 @@ const AGENCIES: {
   label: string
   idPlaceholder: string
   idField: 'sss_number' | 'philhealth_number' | 'pagibig_number' | 'tin'
-  modeField: 'sss_deduction_mode' | 'philhealth_deduction_mode' | 'pagibig_deduction_mode' | 'tax_deduction_mode'
   amountField:
     | 'sss_monthly_amount'
     | 'philhealth_monthly_amount'
     | 'pagibig_monthly_amount'
     | 'tax_monthly_amount'
   enrolledField: 'sss_enrolled' | 'philhealth_enrolled' | 'pagibig_enrolled' | 'tax_enrolled'
+  modeField: 'sss_deduction_mode' | 'philhealth_deduction_mode' | 'pagibig_deduction_mode' | 'tax_deduction_mode'
 }[] = [
   {
     key: 'sss',
     label: 'SSS',
     idPlaceholder: '34-1234567-8',
     idField: 'sss_number',
-    modeField: 'sss_deduction_mode',
     amountField: 'sss_monthly_amount',
     enrolledField: 'sss_enrolled',
+    modeField: 'sss_deduction_mode',
   },
   {
     key: 'philhealth',
     label: 'PhilHealth',
     idPlaceholder: '12-345678901-2',
     idField: 'philhealth_number',
-    modeField: 'philhealth_deduction_mode',
     amountField: 'philhealth_monthly_amount',
     enrolledField: 'philhealth_enrolled',
+    modeField: 'philhealth_deduction_mode',
   },
   {
     key: 'pagibig',
     label: 'Pag-IBIG',
     idPlaceholder: '1212-3456-7890',
     idField: 'pagibig_number',
-    modeField: 'pagibig_deduction_mode',
     amountField: 'pagibig_monthly_amount',
     enrolledField: 'pagibig_enrolled',
+    modeField: 'pagibig_deduction_mode',
   },
   {
     key: 'tax',
     label: 'Withholding tax',
     idPlaceholder: '123-456-789-000',
     idField: 'tin',
-    modeField: 'tax_deduction_mode',
     amountField: 'tax_monthly_amount',
     enrolledField: 'tax_enrolled',
+    modeField: 'tax_deduction_mode',
   },
 ]
 
@@ -67,10 +67,6 @@ const emptyForm = () => ({
   philhealth_number: '',
   pagibig_number: '',
   tin: '',
-  sss_deduction_mode: 'manual' as 'auto' | 'manual',
-  philhealth_deduction_mode: 'manual' as 'auto' | 'manual',
-  pagibig_deduction_mode: 'manual' as 'auto' | 'manual',
-  tax_deduction_mode: 'manual' as 'auto' | 'manual',
   sss_monthly_amount: '',
   philhealth_monthly_amount: '',
   pagibig_monthly_amount: '',
@@ -81,9 +77,6 @@ const emptyForm = () => ({
 export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: Props) {
   const [form, setForm] = useState(emptyForm())
   const profile = setup?.profile
-  const auto = setup?.auto_monthly
-  const semi = setup?.per_payroll.semi_monthly
-  const monthly = setup?.per_payroll.monthly
 
   useEffect(() => {
     if (!profile) {
@@ -95,10 +88,6 @@ export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: P
       philhealth_number: profile.philhealth_number ?? '',
       pagibig_number: profile.pagibig_number ?? '',
       tin: profile.tin ?? '',
-      sss_deduction_mode: profile.sss_deduction_mode === 'auto' ? 'auto' : 'manual',
-      philhealth_deduction_mode: profile.philhealth_deduction_mode === 'auto' ? 'auto' : 'manual',
-      pagibig_deduction_mode: profile.pagibig_deduction_mode === 'auto' ? 'auto' : 'manual',
-      tax_deduction_mode: profile.tax_deduction_mode === 'auto' ? 'auto' : 'manual',
       sss_monthly_amount: profile.sss_monthly_amount != null ? String(profile.sss_monthly_amount) : '',
       philhealth_monthly_amount:
         profile.philhealth_monthly_amount != null ? String(profile.philhealth_monthly_amount) : '',
@@ -111,20 +100,11 @@ export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: P
   const hasId = (field: (typeof AGENCIES)[number]['idField']) => Boolean(form[field].trim())
 
   const preview = (agency: (typeof AGENCIES)[number]) => {
-    const idPresent = hasId(agency.idField)
-    if (!idPresent) return { semi: 0, monthly: 0, active: false }
-    const mode = form[agency.modeField]
+    if (!hasId(agency.idField)) return { semi: 0, monthly: 0, active: false }
     const amountStr = form[agency.amountField]
-    if (mode === 'manual') {
-      const m = amountStr === '' ? 0 : Number(amountStr)
-      if (!m) return { semi: 0, monthly: 0, active: false }
-      return { semi: m / 2, monthly: m, active: true }
-    }
-    return {
-      semi: semi?.[agency.key] ?? 0,
-      monthly: monthly?.[agency.key] ?? 0,
-      active: true,
-    }
+    const m = amountStr === '' ? 0 : Number(amountStr)
+    if (!m) return { semi: 0, monthly: 0, active: false }
+    return { semi: m / 2, monthly: m, active: true }
   }
 
   const onSubmit = async (e: FormEvent) => {
@@ -140,11 +120,9 @@ export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: P
 
     for (const agency of AGENCIES) {
       const idPresent = hasId(agency.idField)
-      const mode = form[agency.modeField]
       const amountStr = form[agency.amountField]
-      payload[agency.modeField] = idPresent ? mode : 'manual'
-      payload[agency.amountField] =
-        idPresent && mode === 'manual' ? (amountStr === '' ? null : Number(amountStr)) : null
+      payload[agency.modeField] = 'manual'
+      payload[agency.amountField] = idPresent ? (amountStr === '' ? null : Number(amountStr)) : null
       const p = preview(agency)
       payload[agency.enrolledField] = idPresent && p.active
     }
@@ -157,9 +135,10 @@ export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: P
       <div className="card">
         <h3 className="section-title">Statutory deductions</h3>
         <p className="form-hint" style={{ marginTop: 0 }}>
-          Each benefit is optional. Fill in only what applies — no member ID means no deduction on payroll.
-          Enter a monthly amount (or use the statutory formula). Semi-monthly payroll deducts half the monthly
-          amount each run.
+          Optional per benefit. Enter the member ID and the <strong>monthly amount you want deducted</strong> — that is
+          the number you control here. No ID or no amount means nothing is deducted. Use the <strong>Bulk apply</strong>{' '}
+          tab to set the same amount for many employees at once. Semi-monthly payroll takes half the monthly amount each
+          run.
         </p>
 
         <div className="table-wrap">
@@ -168,7 +147,7 @@ export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: P
               <tr>
                 <th>Benefit</th>
                 <th>Member ID</th>
-                <th>Monthly deduction</th>
+                <th>Monthly deduction (₱)</th>
                 <th>Per semi-monthly run</th>
                 <th>Per monthly run</th>
               </tr>
@@ -176,16 +155,12 @@ export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: P
             <tbody>
               {AGENCIES.map((agency) => {
                 const idPresent = hasId(agency.idField)
-                const mode = form[agency.modeField]
                 const p = preview(agency)
-                const autoAmt = auto?.[agency.key] ?? 0
                 return (
                   <tr key={agency.key}>
                     <td>
                       <strong>{agency.label}</strong>
-                      {!idPresent && (
-                        <div className="doc-meta">Not enrolled — no ID on file</div>
-                      )}
+                      {!idPresent && <div className="doc-meta">Skipped — no member ID</div>}
                     </td>
                     <td>
                       <input
@@ -196,34 +171,16 @@ export function StatutoryDeductionsForm({ employeeId, setup, saving, onSave }: P
                       />
                     </td>
                     <td>
-                      <div className="stack" style={{ gap: '0.35rem' }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={form[agency.amountField]}
-                          disabled={!idPresent || mode === 'auto'}
-                          onChange={(e) => setForm({ ...form, [agency.amountField]: e.target.value })}
-                          placeholder={idPresent ? 'Monthly amount (₱)' : '—'}
-                        />
-                        <label className="geofence-field geofence-field--checkbox">
-                          <input
-                            type="checkbox"
-                            checked={mode === 'auto'}
-                            disabled={!idPresent}
-                            onChange={(e) =>
-                              setForm({
-                                ...form,
-                                [agency.modeField]: e.target.checked ? 'auto' : 'manual',
-                              })
-                            }
-                          />
-                          <span>
-                            Use statutory formula
-                            {idPresent ? ` (${formatBenefitMoney(autoAmt)}/mo)` : ''}
-                          </span>
-                        </label>
-                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={form[agency.amountField]}
+                        disabled={!idPresent}
+                        onChange={(e) => setForm({ ...form, [agency.amountField]: e.target.value })}
+                        placeholder={idPresent ? 'e.g. 270.00' : '—'}
+                        aria-label={`${agency.label} monthly deduction`}
+                      />
                     </td>
                     <td>{p.active ? formatBenefitMoney(p.semi) : '—'}</td>
                     <td>{p.active ? formatBenefitMoney(p.monthly) : '—'}</td>
