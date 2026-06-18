@@ -32,6 +32,7 @@ if (!url) {
 const patches = [
   'database/postgres/patch_benefit_deductions.sql',
   'database/postgres/patch_benefit_optional.sql',
+  'database/postgres/patch_benefit_manual_only.sql',
 ]
 
 const sql = postgres(url, { max: 1 })

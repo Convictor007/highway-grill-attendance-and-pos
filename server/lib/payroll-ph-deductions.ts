@@ -1,3 +1,4 @@
+/** @deprecated Statutory formulas are not used for payroll deductions — HR sets manual amounts only. */
 export function monthlyEmployeeShares(monthlyCompensation: number) {
   const taxable = Math.max(0, monthlyCompensation)
   return {
@@ -17,8 +18,6 @@ export function monthlyEmployerShares(monthlyCompensation: number) {
   }
 }
 
-export type DeductionMode = 'auto' | 'manual'
-
 export type StatutoryDeductionConfig = {
   sss_number?: string | null
   philhealth_number?: string | null
@@ -28,13 +27,9 @@ export type StatutoryDeductionConfig = {
   philhealth_enrolled?: boolean
   pagibig_enrolled?: boolean
   tax_enrolled?: boolean
-  sss_deduction_mode?: DeductionMode
   sss_monthly_amount?: number | null
-  philhealth_deduction_mode?: DeductionMode
   philhealth_monthly_amount?: number | null
-  pagibig_deduction_mode?: DeductionMode
   pagibig_monthly_amount?: number | null
-  tax_deduction_mode?: DeductionMode
   tax_monthly_amount?: number | null
 }
 
@@ -49,73 +44,59 @@ function hasMemberId(value: string | null | undefined) {
   return Boolean(value?.trim())
 }
 
-function resolveDeduction(
+/** Payroll uses HR-configured monthly amounts only — never embedded statutory formulas. */
+function resolveManualDeduction(
   hasId: boolean,
   enrolled: boolean,
-  mode: DeductionMode | undefined,
   manualMonthly: number | null | undefined,
-  autoMonthly: number,
   divisor: number,
 ) {
   if (!hasId || !enrolled) return 0
-  if (mode === 'manual') {
-    if (manualMonthly == null || !Number.isFinite(manualMonthly) || manualMonthly <= 0) return 0
-    return roundMoney(manualMonthly / divisor)
-  }
-  return roundMoney(autoMonthly / divisor)
+  if (manualMonthly == null || !Number.isFinite(manualMonthly) || manualMonthly <= 0) return 0
+  return roundMoney(manualMonthly / divisor)
 }
 
 export function effectiveDeductionsFromMonthly(
-  monthlyCompensation: number,
+  _monthlyCompensation: number,
   payFrequency: 'monthly' | 'semi_monthly',
   config: StatutoryDeductionConfig = {},
 ) {
-  const autoMonthly = monthlyEmployeeShares(monthlyCompensation)
   const divisor = payFrequency === 'monthly' ? 1 : 2
   return {
-    sss: resolveDeduction(
+    sss: resolveManualDeduction(
       hasMemberId(config.sss_number),
       config.sss_enrolled !== false,
-      config.sss_deduction_mode,
       config.sss_monthly_amount,
-      autoMonthly.sss,
       divisor,
     ),
-    philhealth: resolveDeduction(
+    philhealth: resolveManualDeduction(
       hasMemberId(config.philhealth_number),
       config.philhealth_enrolled !== false,
-      config.philhealth_deduction_mode,
       config.philhealth_monthly_amount,
-      autoMonthly.philhealth,
       divisor,
     ),
-    pagibig: resolveDeduction(
+    pagibig: resolveManualDeduction(
       hasMemberId(config.pagibig_number),
       config.pagibig_enrolled !== false,
-      config.pagibig_deduction_mode,
       config.pagibig_monthly_amount,
-      autoMonthly.pagibig,
       divisor,
     ),
-    tax: resolveDeduction(
+    tax: resolveManualDeduction(
       hasMemberId(config.tin),
       config.tax_enrolled !== false,
-      config.tax_deduction_mode,
       config.tax_monthly_amount,
-      autoMonthly.tax,
       divisor,
     ),
   }
 }
 
 export function forPayPeriod(
-  periodGross: number,
+  _periodGross: number,
   payFrequency = 'semi_monthly',
   config: StatutoryDeductionConfig = {},
 ) {
-  const monthlyEquiv = payFrequency === 'monthly' ? periodGross : periodGross * 2
   return effectiveDeductionsFromMonthly(
-    monthlyEquiv,
+    0,
     payFrequency === 'monthly' ? 'monthly' : 'semi_monthly',
     config,
   )
@@ -167,7 +148,6 @@ export function thirteenthMonthTax(thirteenthAmount: number) {
 }
 
 export function profileToDeductionConfig(profile: Record<string, unknown>): StatutoryDeductionConfig {
-  const mode = (v: unknown): DeductionMode => (v === 'manual' ? 'manual' : 'auto')
   const amt = (v: unknown): number | null => {
     if (v == null || v === '') return null
     const n = Number(v)
@@ -182,13 +162,9 @@ export function profileToDeductionConfig(profile: Record<string, unknown>): Stat
     philhealth_enrolled: profile.philhealth_enrolled !== false,
     pagibig_enrolled: profile.pagibig_enrolled !== false,
     tax_enrolled: profile.tax_enrolled !== false,
-    sss_deduction_mode: mode(profile.sss_deduction_mode),
     sss_monthly_amount: amt(profile.sss_monthly_amount),
-    philhealth_deduction_mode: mode(profile.philhealth_deduction_mode),
     philhealth_monthly_amount: amt(profile.philhealth_monthly_amount),
-    pagibig_deduction_mode: mode(profile.pagibig_deduction_mode),
     pagibig_monthly_amount: amt(profile.pagibig_monthly_amount),
-    tax_deduction_mode: mode(profile.tax_deduction_mode),
     tax_monthly_amount: amt(profile.tax_monthly_amount),
   }
 }

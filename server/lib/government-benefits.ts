@@ -111,8 +111,8 @@ export async function getGovernmentProfile(employeeId: string) {
   }
 }
 
-function parseDeductionMode(v: unknown, fallback: string) {
-  return v === 'auto' ? 'auto' : fallback === 'auto' ? 'auto' : 'manual'
+function parseDeductionMode() {
+  return 'manual'
 }
 
 function syncEnrolledFlags(merged: Record<string, unknown>) {
@@ -150,37 +150,28 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
     pagibig_enrolled:
       'pagibig_enrolled' in data ? Boolean(data.pagibig_enrolled) : Boolean(existing.pagibig_enrolled),
     tax_enrolled: 'tax_enrolled' in data ? Boolean(data.tax_enrolled) : Boolean(existing.tax_enrolled ?? false),
-    sss_deduction_mode: parseDeductionMode(
-      data.sss_deduction_mode,
-      String(existing.sss_deduction_mode ?? 'manual'),
-    ),
+    sss_deduction_mode: parseDeductionMode(),
     sss_monthly_amount:
       'sss_monthly_amount' in data
         ? parseMonthlyAmountField(data.sss_monthly_amount)
         : existing.sss_monthly_amount != null
           ? Number(existing.sss_monthly_amount)
           : null,
-    philhealth_deduction_mode: parseDeductionMode(
-      data.philhealth_deduction_mode,
-      String(existing.philhealth_deduction_mode ?? 'manual'),
-    ),
+    philhealth_deduction_mode: parseDeductionMode(),
     philhealth_monthly_amount:
       'philhealth_monthly_amount' in data
         ? parseMonthlyAmountField(data.philhealth_monthly_amount)
         : existing.philhealth_monthly_amount != null
           ? Number(existing.philhealth_monthly_amount)
           : null,
-    pagibig_deduction_mode: parseDeductionMode(
-      data.pagibig_deduction_mode,
-      String(existing.pagibig_deduction_mode ?? 'manual'),
-    ),
+    pagibig_deduction_mode: parseDeductionMode(),
     pagibig_monthly_amount:
       'pagibig_monthly_amount' in data
         ? parseMonthlyAmountField(data.pagibig_monthly_amount)
         : existing.pagibig_monthly_amount != null
           ? Number(existing.pagibig_monthly_amount)
           : null,
-    tax_deduction_mode: parseDeductionMode(data.tax_deduction_mode, String(existing.tax_deduction_mode ?? 'manual')),
+    tax_deduction_mode: parseDeductionMode(),
     tax_monthly_amount:
       'tax_monthly_amount' in data
         ? parseMonthlyAmountField(data.tax_monthly_amount)
@@ -241,19 +232,14 @@ export async function getDeductionSetup(employeeId: string) {
     getEmployeeCompensation(employeeId),
     getGovernmentProfile(employeeId),
   ])
-  const monthly = compensation?.monthly_compensation ?? 0
-  const autoMonthly = monthlyEmployeeShares(monthly)
   const config = profileToDeductionConfig(profile as Record<string, unknown>)
-  const semiMonthly = effectiveDeductionsFromMonthly(monthly, 'semi_monthly', config)
-  const monthlyPay = effectiveDeductionsFromMonthly(monthly, 'monthly', config)
 
   return {
     employee: compensation,
     profile,
-    auto_monthly: autoMonthly,
     per_payroll: {
-      semi_monthly: semiMonthly,
-      monthly: monthlyPay,
+      semi_monthly: effectiveDeductionsFromMonthly(0, 'semi_monthly', config),
+      monthly: effectiveDeductionsFromMonthly(0, 'monthly', config),
     },
   }
 }

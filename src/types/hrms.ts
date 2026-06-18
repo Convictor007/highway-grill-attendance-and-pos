@@ -223,12 +223,6 @@ export interface BenefitsDeductionSetup {
     emp_number: string
   } | null
   profile: GovernmentProfile
-  auto_monthly: {
-    sss: number
-    philhealth: number
-    pagibig: number
-    tax: number
-  }
   per_payroll: {
     semi_monthly: { sss: number; philhealth: number; pagibig: number; tax: number }
     monthly: { sss: number; philhealth: number; pagibig: number; tax: number }
