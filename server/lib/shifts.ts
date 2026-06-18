@@ -325,18 +325,19 @@ export async function ensureScheduleRollover(branchId: string, weekStart: string
 }
 
 function formatShiftLabel(start: string, end: string) {
-  const sh = parseInt(String(start).slice(0, 2), 10)
-  const eh = parseInt(String(end).slice(0, 2), 10)
-  if (Number.isNaN(sh) || Number.isNaN(eh)) return '—'
-  const h12 = (h: number) => (h === 0 || h === 12 ? '12' : h > 12 ? String(h - 12) : String(h))
-  const sm = String(start).slice(3, 5)
-  const em = String(end).slice(3, 5)
-  const suffix = (h: number, m: string) => {
-    if (m !== '00') return ''
-    return h >= 12 ? 'p' : 'a'
+  const formatPart = (time: string) => {
+    const h = parseInt(String(time).slice(0, 2), 10)
+    const m = String(time).slice(3, 5)
+    if (Number.isNaN(h)) return '—'
+    const hour12 = h === 0 || h === 12 ? 12 : h > 12 ? h - 12 : h
+    const meridiem = h >= 12 ? 'pm' : 'am'
+    const minutePart = m !== '00' ? `:${m}` : ''
+    return `${hour12}${minutePart}${meridiem}`
   }
-  const label = `${h12(sh)}${sm !== '00' ? ':' + sm : ''}${suffix(sh, sm)}-${h12(eh)}${em !== '00' ? ':' + em : ''}${suffix(eh, em)}`
-  return label.replace(/a-/g, 'a–').replace(/p-/g, 'p–')
+  const startLabel = formatPart(start)
+  const endLabel = formatPart(end)
+  if (startLabel === '—' || endLabel === '—') return '—'
+  return `${startLabel}–${endLabel}`
 }
 
 function resolveDayFootnotes(schedule: Record<string, unknown> | null): Record<number, string> {
