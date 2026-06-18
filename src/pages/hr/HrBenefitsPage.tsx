@@ -6,14 +6,12 @@ import { EmptyState } from '../../components/EmptyState'
 import { useNotification } from '../../hooks/useNotification'
 import { BenefitsTabNav } from '../../components/benefits/BenefitsTabNav'
 import { BenefitsOverviewPanel } from '../../components/benefits/BenefitsOverviewPanel'
-import { BenefitsAgencyPanel } from '../../components/benefits/BenefitsAgencyPanel'
 import { BenefitsAllowancesPanel } from '../../components/benefits/BenefitsAllowancesPanel'
-import { BenefitsManagementBar } from '../../components/benefits/BenefitsManagementBar'
 import { BenefitsCompliancePanel } from '../../components/benefits/BenefitsCompliancePanel'
 import { BenefitsRemittancePanel } from '../../components/benefits/BenefitsRemittancePanel'
-import { GovernmentProfileModal } from '../../components/benefits/GovernmentProfileModal'
+import { GovernmentProfileForm } from '../../components/benefits/GovernmentProfileForm'
 import { BenefitEnrollmentModal } from '../../components/benefits/BenefitEnrollmentModal'
-import { formatBenefitMoney, HR_BENEFITS_TABS } from '../../lib/benefitsUi'
+import { COMPLIANCE_ISSUE_LABELS, HR_BENEFITS_TABS } from '../../lib/benefitsUi'
 import type {
   BenefitEnrollment,
   BenefitsComplianceReport,
@@ -22,7 +20,6 @@ import type {
   BenefitsTab,
   Branch,
   Employee,
-  GovernmentAgency,
 } from '../../types/hrms'
 
 export function HrBenefitsPage() {
@@ -33,7 +30,6 @@ export function HrBenefitsPage() {
   const [tab, setTab] = useState<BenefitsTab>('overview')
   const [data, setData] = useState<BenefitsOverview | null>(null)
   const [loading, setLoading] = useState(true)
-  const [profileOpen, setProfileOpen] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [enrollmentOpen, setEnrollmentOpen] = useState(false)
   const [editingEnrollment, setEditingEnrollment] = useState<BenefitEnrollment | null>(null)
@@ -113,7 +109,6 @@ export function HrBenefitsPage() {
     if (tab === 'remittance') loadRemittance(remittanceYear, remittanceMonth, remittanceBranch)
   }, [tab, remittanceYear, remittanceMonth, remittanceBranch])
 
-  const agency = (id: GovernmentAgency) => data?.agencies.find((a) => a.agency === id)
   const selectedEmployee = employees.find((e) => e.id === employeeId)
   const employeeLabel = selectedEmployee
     ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}`
@@ -123,12 +118,11 @@ export function HrBenefitsPage() {
     setSavingProfile(true)
     try {
       await api('/benefits/government-profile', { method: 'PUT', body: JSON.stringify(payload) })
-      success('Government profile saved')
-      setProfileOpen(false)
+      success('Saved')
       await loadOverview(employeeId)
       if (tab === 'compliance') await loadCompliance(complianceBranch)
     } catch (err) {
-      notifyError(err instanceof Error ? err.message : 'Could not save profile')
+      notifyError(err instanceof Error ? err.message : 'Could not save')
     } finally {
       setSavingProfile(false)
     }
@@ -149,16 +143,10 @@ export function HrBenefitsPage() {
     setSavingEnrollment(true)
     try {
       if (editingEnrollment) {
-        await api(`/benefits/${editingEnrollment.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload),
-        })
+        await api(`/benefits/${editingEnrollment.id}`, { method: 'PUT', body: JSON.stringify(payload) })
         success('Allowance updated')
       } else {
-        await api('/benefits', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        })
+        await api('/benefits', { method: 'POST', body: JSON.stringify(payload) })
         success('Allowance added')
       }
       setEnrollmentOpen(false)
@@ -189,34 +177,14 @@ export function HrBenefitsPage() {
 
   const fixEmployeeFromCompliance = (eid: string) => {
     setEmployeeId(eid)
-    setTab('overview')
-    setProfileOpen(true)
+    setTab('government')
   }
 
   const showEmployeePanels = tab !== 'compliance' && tab !== 'remittance'
 
   return (
     <div>
-      <PageHeader
-        title="Benefits"
-        subtitle="Manage government IDs, statutory compliance, remittance, and allowances"
-      />
-
-      {showEmployeePanels && (
-        <div className="card" style={{ marginBottom: '1rem' }}>
-          <div className="form-group" style={{ maxWidth: 360 }}>
-            <label>Employee</label>
-            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-              <option value="">Select employee…</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.first_name} {e.last_name} ({e.emp_number})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
+      <PageHeader title="Benefits" subtitle="Government IDs, allowances, compliance, and remittance" />
 
       <BenefitsTabNav active={tab} onChange={setTab} tabs={HR_BENEFITS_TABS} />
 
@@ -249,119 +217,65 @@ export function HrBenefitsPage() {
         </div>
       )}
 
+      {showEmployeePanels && (
+        <div className="card" style={{ margin: '1rem 0' }}>
+          <div className="form-group" style={{ maxWidth: 360, margin: 0 }}>
+            <label>Employee</label>
+            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+              <option value="">Select employee…</option>
+              {employees.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.first_name} {e.last_name} ({e.emp_number})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
       {showEmployeePanels && !employeeId ? (
-        <EmptyState title="Select an employee" description="Choose a crew member to view or manage benefits." />
+        <EmptyState title="Select an employee" description="Choose a crew member to manage benefits." />
       ) : showEmployeePanels ? (
-        <>
-          {loading ? (
-            <LoadingBlock />
-          ) : !data ? (
-            <EmptyState title="Could not load benefits" description="Try again or check the API connection." />
-          ) : (
-            <div className="stack" style={{ marginTop: '1rem' }}>
-              <BenefitsManagementBar
-                data={data}
-                onEditGovernment={() => setProfileOpen(true)}
-                onAddAllowance={openAddAllowance}
+        loading ? (
+          <LoadingBlock />
+        ) : !data ? (
+          <EmptyState title="Could not load benefits" description="Try again or check the API connection." />
+        ) : (
+          <div className="stack" style={{ marginTop: '0.5rem' }}>
+            {data.compliance_issues && data.compliance_issues.length > 0 && tab !== 'government' && (
+              <div className="benefits-compliance-alert" role="status">
+                <strong>Missing info:</strong>{' '}
+                {data.compliance_issues.map((issue) => COMPLIANCE_ISSUE_LABELS[issue] ?? issue).join(' · ')}
+                {' — '}
+                <button type="button" className="text-link" onClick={() => setTab('government')}>
+                  Open Government IDs
+                </button>
+              </div>
+            )}
+
+            {tab === 'overview' && <BenefitsOverviewPanel data={data} />}
+
+            {tab === 'government' && (
+              <GovernmentProfileForm
+                employeeId={employeeId}
+                profile={data.profile}
+                saving={savingProfile}
+                onSave={saveProfile}
               />
+            )}
 
-              {tab === 'overview' && <BenefitsOverviewPanel data={data} />}
-
-              {tab === 'sss' && agency('sss') && (
-                <BenefitsAgencyPanel
-                  agency={agency('sss')!}
-                  history={data.contribution_history.sss}
-                  canEdit
-                  onEdit={() => setProfileOpen(true)}
-                />
-              )}
-              {tab === 'philhealth' && agency('philhealth') && (
-                <BenefitsAgencyPanel
-                  agency={agency('philhealth')!}
-                  history={data.contribution_history.philhealth}
-                  canEdit
-                  onEdit={() => setProfileOpen(true)}
-                />
-              )}
-              {tab === 'pagibig' && agency('pagibig') && (
-                <BenefitsAgencyPanel
-                  agency={agency('pagibig')!}
-                  history={data.contribution_history.pagibig}
-                  canEdit
-                  onEdit={() => setProfileOpen(true)}
-                />
-              )}
-
-              {tab === 'tax' && (
-                <div className="stack">
-                  <div className="card">
-                    <div className="benefits-panel-head">
-                      <div>
-                        <h3 className="section-title">Withholding tax</h3>
-                        <p className="form-hint" style={{ marginTop: 0 }}>
-                          TIN and tax withheld are based on the employee&apos;s government profile and payroll runs.
-                        </p>
-                      </div>
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setProfileOpen(true)}>
-                        Edit TIN
-                      </button>
-                    </div>
-                    <p className="muted-block" style={{ margin: 0 }}>
-                      TIN on file: <strong>{data.profile?.tin?.trim() || 'Not set'}</strong>
-                    </p>
-                  </div>
-                  <div className="card table-wrap">
-                    <h3 className="section-title">Withholding tax history</h3>
-                    {data.contribution_history.tax.length === 0 ? (
-                      <EmptyState title="No tax withheld yet" />
-                    ) : (
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Pay date</th>
-                            <th>Period</th>
-                            <th>Tax</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.contribution_history.tax.map((row) => (
-                            <tr key={row.payslip_id}>
-                              <td>{row.pay_date}</td>
-                              <td>
-                                {row.period_start} – {row.period_end}
-                              </td>
-                              <td>{formatBenefitMoney(row.amount)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {tab === 'allowances' && (
-                <BenefitsAllowancesPanel
-                  enrollments={data.enrollments}
-                  canManage
-                  onAdd={openAddAllowance}
-                  onEdit={openEditAllowance}
-                  onDelete={deleteEnrollment}
-                />
-              )}
-            </div>
-          )}
-        </>
+            {tab === 'allowances' && (
+              <BenefitsAllowancesPanel
+                enrollments={data.enrollments}
+                canManage
+                onAdd={openAddAllowance}
+                onEdit={openEditAllowance}
+                onDelete={deleteEnrollment}
+              />
+            )}
+          </div>
+        )
       ) : null}
-
-      <GovernmentProfileModal
-        open={profileOpen}
-        employeeId={employeeId}
-        profile={data?.profile ?? null}
-        saving={savingProfile}
-        onClose={() => setProfileOpen(false)}
-        onSave={saveProfile}
-      />
 
       <BenefitEnrollmentModal
         open={enrollmentOpen}

@@ -86,8 +86,8 @@ export function BenefitsCompliancePanel({
                     </td>
                     {onFixEmployee && (
                       <td>
-                        <button type="button" className="text-link" onClick={() => onFixEmployee(row.employee_id)}>
-                          Fix
+                        <button type="button" className="text-link" onClick={() => onFixEmployee?.(row.employee_id)}>
+                          Edit IDs
                         </button>
                       </td>
                     )}

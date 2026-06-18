@@ -38,7 +38,6 @@ export const employeeMenuItems: NavItem[] = [
   { to: '/payroll', label: 'My Payroll', description: 'Payslips and pay history', icon: 'wallet', perm: 'payroll.view.self' },
   { to: '/scheduling', label: 'Scheduling', description: 'Weekly roster — who works each day', icon: 'schedule', perm: 'shifts.view.self' },
   { to: '/loans', label: 'Loans', description: 'Salary loans & advances', icon: 'loan', perm: 'loans.self' },
-  { to: '/benefits', label: 'Benefits', description: 'SSS, PhilHealth, Pag-IBIG', icon: 'benefit', perm: 'payroll.view.self' },
   { to: '/service-records', label: 'Service Records', description: 'Contracts & certificates', icon: 'folder', perm: 'documents.view.self' },
   { to: '/memos', label: 'Memos & Notices', description: 'Announcements from HR', icon: 'memo', perm: 'announcements.view' },
   { to: '/profile', label: 'Profile', description: 'Your info & settings', icon: 'user' },

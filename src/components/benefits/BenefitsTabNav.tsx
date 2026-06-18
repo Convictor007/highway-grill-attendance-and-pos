@@ -1,15 +1,13 @@
 import type { BenefitsTab } from '../../types/hrms'
-import { BENEFITS_TABS } from '../../lib/benefitsUi'
-
-type TabDef = { id: BenefitsTab; label: string; description: string }
+type TabDef = { id: BenefitsTab; label: string }
 
 type Props = {
   active: BenefitsTab
   onChange: (tab: BenefitsTab) => void
-  tabs?: TabDef[]
+  tabs: TabDef[]
 }
 
-export function BenefitsTabNav({ active, onChange, tabs = BENEFITS_TABS }: Props) {
+export function BenefitsTabNav({ active, onChange, tabs }: Props) {
   return (
     <>
       <div className="benefits-tab-select-wrap desktop-hidden">

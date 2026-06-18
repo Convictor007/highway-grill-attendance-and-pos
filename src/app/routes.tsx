@@ -25,7 +25,6 @@ import { MenuPage } from '../pages/menu/MenuPage'
 import { DtrPage } from '../pages/dtr/DtrPage'
 import { MemosNoticesPage } from '../pages/memos/MemosNoticesPage'
 import { LoansPage } from '../pages/employee/LoansPage'
-import { BenefitsPage } from '../pages/employee/BenefitsPage'
 import { ServiceRecordsPage } from '../pages/employee/ServiceRecordsPage'
 import { MyDocumentsPage } from '../pages/documents/MyDocumentsPage'
 import { HrLoansPage } from '../pages/hr/HrLoansPage'
@@ -120,16 +119,7 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route
-          path="benefits"
-          element={
-            <RequirePermission permission="payroll.view.self">
-              <RequireActiveEmployee>
-                <BenefitsPage />
-              </RequireActiveEmployee>
-            </RequirePermission>
-          }
-        />
+        <Route path="benefits" element={<Navigate to="/payroll" replace />} />
         <Route
           path="service-records"
           element={

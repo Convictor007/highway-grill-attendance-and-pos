@@ -179,9 +179,10 @@ export interface BenefitEnrollment {
   last_name?: string
 }
 
-export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
+export type BenefitsTab = 'overview' | 'government' | 'allowances' | 'compliance' | 'remittance'
 
-export type BenefitsTab = 'overview' | GovernmentAgency | 'allowances' | 'tax' | 'compliance' | 'remittance'
+/** @deprecated Legacy per-agency tabs — use overview + government for HR */
+export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
 
 export type ComplianceIssueCode =
   | 'missing_sss_id'
