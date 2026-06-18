@@ -129,7 +129,7 @@ export function RegisterPage() {
     <div className="login-card card" style={{ maxWidth: 520 }}>
       <h1>Join Highway Grill</h1>
       <p className="login-sub">
-        Apply as restaurant or cafe staff. HR will review your details and notify you when you can sign in.
+        Apply for any open role at your branch. HR will review your details and notify you when you can sign in.
       </p>
 
       {success ? (

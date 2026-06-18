@@ -362,11 +362,7 @@ export function EmployeeListPage() {
                   type="number"
                   min="0"
                   step="0.01"
-                  placeholder={
-                    form.position_id
-                      ? `Position default: ₱${positions.find((p) => p.id === form.position_id)?.min_hourly ?? '—'}`
-                      : 'Leave blank to use position default'
-                  }
+                  placeholder="Optional pay rate override"
                   value={form.pay_rate}
                   onChange={(e) => setForm({ ...form, pay_rate: e.target.value })}
                 />

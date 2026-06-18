@@ -36,8 +36,6 @@ const defaultForm = (departmentId: string) => ({
   department_id: departmentId,
   title: '',
   pay_grade: '',
-  min_hourly: '',
-  max_hourly: '',
   is_tipped: false,
 })
 
@@ -54,8 +52,6 @@ export function PositionEditModal({ open, position, departments, onClose, onSave
         department_id: position.department_id,
         title: position.title,
         pay_grade: position.pay_grade != null ? String(position.pay_grade) : '',
-        min_hourly: position.min_hourly != null ? String(position.min_hourly) : '',
-        max_hourly: position.max_hourly != null ? String(position.max_hourly) : '',
         is_tipped: asBool(position.is_tipped),
       })
     } else {
@@ -75,8 +71,6 @@ export function PositionEditModal({ open, position, departments, onClose, onSave
       department_id: form.department_id,
       title: form.title.trim(),
       pay_grade: form.pay_grade !== '' ? Number(form.pay_grade) : null,
-      min_hourly: form.min_hourly !== '' ? Number(form.min_hourly) : null,
-      max_hourly: form.max_hourly !== '' ? Number(form.max_hourly) : null,
       is_tipped: form.is_tipped,
     }
 
@@ -150,28 +144,6 @@ export function PositionEditModal({ open, position, departments, onClose, onSave
             onChange={(e) => setForm({ ...form, pay_grade: e.target.value })}
           />
         </label>
-        <div className="form-row">
-          <label className="geofence-field">
-            <span>Min hourly (₱)</span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.min_hourly}
-              onChange={(e) => setForm({ ...form, min_hourly: e.target.value })}
-            />
-          </label>
-          <label className="geofence-field">
-            <span>Max hourly (₱)</span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.max_hourly}
-              onChange={(e) => setForm({ ...form, max_hourly: e.target.value })}
-            />
-          </label>
-        </div>
         <label className="geofence-field geofence-field--checkbox">
           <input
             type="checkbox"

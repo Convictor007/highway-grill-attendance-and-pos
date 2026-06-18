@@ -1,5 +1,6 @@
 import { getDb, nullableInt } from './db'
 import { hashPassword } from './auth'
+import { validatePositionForBranch } from './employees'
 
 export async function registerOptions(branchId?: string | null) {
   const db = getDb()
@@ -13,14 +14,14 @@ export async function registerOptions(branchId?: string | null) {
   if (branchId) {
     departments = await db`
       SELECT id, branch_id, name FROM departments
-      WHERE branch_id = ${branchId} AND name != 'Management'
+      WHERE branch_id = ${branchId}
       ORDER BY name
     `
     positions = await db`
       SELECT p.id, p.department_id, p.title, p.pay_grade, p.is_tipped, d.name AS department_name
       FROM positions p
       INNER JOIN departments d ON d.id = p.department_id
-      WHERE d.branch_id = ${branchId} AND d.name != 'Management'
+      WHERE d.branch_id = ${branchId}
       ORDER BY d.name, p.title
     `
   }
@@ -48,6 +49,12 @@ export async function register(data: Record<string, unknown>) {
     SELECT id, name FROM branches WHERE id = ${branchId} AND is_active = true LIMIT 1
   `
   if (!branch) throw new Error('Invalid branch')
+
+  await validatePositionForBranch(
+    branchId,
+    data.department_id != null && data.department_id !== '' ? String(data.department_id) : null,
+    data.position_id != null && data.position_id !== '' ? String(data.position_id) : null,
+  )
 
   const [existingUser] = await db`SELECT id FROM users WHERE email = ${email} LIMIT 1`
   if (existingUser) throw new Error('Email already registered')

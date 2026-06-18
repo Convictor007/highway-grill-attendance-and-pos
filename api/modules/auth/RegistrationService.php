@@ -25,7 +25,7 @@ final class RegistrationService
         if ($branchId !== null && $branchId !== '') {
             $deptStmt = $pdo->prepare(
                 "SELECT id, branch_id, name FROM departments
-                 WHERE branch_id = :bid AND name != 'Management'
+                 WHERE branch_id = :bid
                  ORDER BY name"
             );
             $deptStmt->execute(['bid' => $branchId]);
@@ -36,7 +36,6 @@ final class RegistrationService
                  FROM positions p
                  INNER JOIN departments d ON d.id = p.department_id
                  WHERE d.branch_id = :bid
-                   AND d.name != 'Management'
                  ORDER BY d.name, p.title"
             );
             $posStmt->execute(['bid' => $branchId]);

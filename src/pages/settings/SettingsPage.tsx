@@ -348,7 +348,6 @@ export function SettingsPage() {
                     <th>Branch</th>
                     <th>Department</th>
                     <th>Title</th>
-                    <th>Pay range</th>
                     <th>Tipped</th>
                     {canDepts && <th />}
                   </tr>
@@ -359,11 +358,6 @@ export function SettingsPage() {
                       <td>{p.branch_name ?? '—'}</td>
                       <td>{p.department_name ?? '—'}</td>
                       <td>{p.title}</td>
-                      <td>
-                        {p.min_hourly != null || p.max_hourly != null
-                          ? `₱${p.min_hourly ?? '—'} – ₱${p.max_hourly ?? '—'}`
-                          : '—'}
-                      </td>
                       <td>{p.is_tipped ? 'Yes' : 'No'}</td>
                       {canDepts && (
                         <td>
