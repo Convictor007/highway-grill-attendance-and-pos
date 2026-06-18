@@ -62,7 +62,7 @@ export function NotificationBell() {
   const unread = data?.unread_count ?? 0
 
   return (
-    <div className="notification-bell" ref={panelRef}>
+    <div className={`notification-bell${open ? ' notification-bell--open' : ''}`} ref={panelRef}>
       <button
         type="button"
         className="notification-bell-btn"

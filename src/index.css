@@ -5333,10 +5333,20 @@ tr.row-clickable:hover td {
 
 .notification-bell {
   position: relative;
+  z-index: 200;
+}
+
+.notification-bell--open::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+  background: rgba(0, 0, 0, 0.45);
 }
 
 .notification-bell-btn {
   position: relative;
+  z-index: 201;
   border: 1px solid var(--border);
   background: var(--surface, #fff);
   border-radius: 8px;
@@ -5367,12 +5377,32 @@ tr.row-clickable:hover td {
   position: absolute;
   right: 0;
   top: calc(100% + 0.35rem);
-  width: min(360px, 92vw);
-  max-height: 400px;
+  width: min(360px, calc(100vw - 1.5rem));
+  max-height: min(400px, 70vh);
   overflow: auto;
   z-index: 200;
   padding: 0.75rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  box-sizing: border-box;
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 900px) {
+  .notification-panel {
+    position: fixed;
+    top: calc(var(--header-height, 56px) + 0.5rem);
+    left: max(0.75rem, env(safe-area-inset-left, 0px));
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    width: auto;
+    max-height: min(70vh, calc(100dvh - var(--header-height, 56px) - 1.25rem));
+  }
+
+  .admin-shell .notification-panel {
+    top: max(0.75rem, env(safe-area-inset-top, 0px));
+    max-height: min(70vh, calc(100dvh - 1.5rem));
+  }
 }
 
 .notification-panel-head {
@@ -5391,13 +5421,26 @@ tr.row-clickable:hover td {
 .notification-list li {
   padding: 0.65rem 0;
   border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .notification-item--unread {
   background: var(--surface-2, rgba(0, 0, 0, 0.03));
-  margin: 0 -0.5rem;
-  padding-left: 0.5rem !important;
-  padding-right: 0.5rem !important;
+  margin: 0;
+  padding: 0.65rem 0.5rem !important;
+  border-radius: 6px;
+}
+
+.notification-item-body {
+  min-width: 0;
+}
+
+.notification-item-body strong,
+.notification-item-body p {
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .notification-item-body p {
@@ -5413,8 +5456,9 @@ tr.row-clickable:hover td {
 
 .notification-item-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
-  margin-top: 0.35rem;
+  margin-top: 0.15rem;
 }
 
 .dashboard-swap-list {
