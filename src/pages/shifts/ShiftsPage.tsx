@@ -12,12 +12,14 @@ import type { Branch, RosterGrid } from '../../types/hrms'
 
 import { normalizeTimeInput } from '../../lib/datetime'
 
+type DepartmentOption = { id: string; name: string }
+
 function formatTime(t: string) {
   return normalizeTimeInput(t)
 }
 
 export function ShiftsPage() {
-  const { error: notifyError } = useNotification()
+  const { error: notifyError, confirm, success } = useNotification()
   const [tab, setTab] = useState<'templates' | 'roster'>('roster')
   const [templates, setTemplates] = useState<ShiftTemplateRecord[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
@@ -28,6 +30,8 @@ export function ShiftsPage() {
   const [rosterGrid, setRosterGrid] = useState<RosterGrid | null>(null)
   const [rosterWeekStart, setRosterWeekStart] = useState(() => sundayOfWeek())
   const [rosterBranchId, setRosterBranchId] = useState('')
+  const [rosterDepartmentId, setRosterDepartmentId] = useState('')
+  const [departments, setDepartments] = useState<DepartmentOption[]>([])
   const [rosterLoading, setRosterLoading] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [swapLog, setSwapLog] = useState<
@@ -56,20 +60,34 @@ export function ShiftsPage() {
     if (b[0] && !rosterBranchId) setRosterBranchId(b[0].id)
   }
 
-  const loadRosterGrid = async (branchId: string, weekStart: string) => {
+  const loadRosterGrid = async (branchId: string, weekStart: string, departmentId?: string) => {
     if (!branchId) return setRosterGrid(null)
     setRosterLoading(true)
     try {
-      setRosterGrid(
-        await api<RosterGrid>(
-          `/shifts/roster?branch_id=${encodeURIComponent(branchId)}&week_start=${encodeURIComponent(weekStart)}`
-        )
+      const deptQ = departmentId ? `&department_id=${encodeURIComponent(departmentId)}` : ''
+      const grid = await api<RosterGrid>(
+        `/shifts/roster?branch_id=${encodeURIComponent(branchId)}&week_start=${encodeURIComponent(weekStart)}${deptQ}`
       )
+      setRosterGrid(grid)
+      if (grid.departments?.length) setDepartments(grid.departments)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not load roster')
       setRosterGrid(null)
     } finally {
       setRosterLoading(false)
+    }
+  }
+
+  const loadDepartments = async (branchId: string) => {
+    if (!branchId) {
+      setDepartments([])
+      return
+    }
+    try {
+      const rows = await api<DepartmentOption[]>(`/departments?branch_id=${encodeURIComponent(branchId)}`)
+      setDepartments(rows)
+    } catch {
+      setDepartments([])
     }
   }
 
@@ -91,10 +109,14 @@ export function ShiftsPage() {
 
   useEffect(() => {
     if (tab === 'roster' && rosterBranchId) {
-      loadRosterGrid(rosterBranchId, rosterWeekStart)
+      loadRosterGrid(rosterBranchId, rosterWeekStart, rosterDepartmentId || undefined)
       loadSwapLog()
     }
-  }, [tab, rosterBranchId, rosterWeekStart])
+  }, [tab, rosterBranchId, rosterWeekStart, rosterDepartmentId])
+
+  useEffect(() => {
+    if (rosterBranchId) loadDepartments(rosterBranchId)
+  }, [rosterBranchId])
 
   const rosterTemplates = useMemo(() => {
     if (!rosterBranchId) return templates
@@ -110,7 +132,7 @@ export function ShiftsPage() {
         method: 'PUT',
         body: JSON.stringify({ status: 'published' }),
       })
-      await loadRosterGrid(rosterBranchId, rosterWeekStart)
+      await loadRosterGrid(rosterBranchId, rosterWeekStart, rosterDepartmentId || undefined)
     } finally {
       setPublishing(false)
     }
@@ -118,8 +140,24 @@ export function ShiftsPage() {
 
   const refreshRoster = () => {
     if (rosterBranchId) {
-      loadRosterGrid(rosterBranchId, rosterWeekStart)
+      loadRosterGrid(rosterBranchId, rosterWeekStart, rosterDepartmentId || undefined)
       loadSwapLog()
+    }
+  }
+
+  const deleteTemplate = async (t: ShiftTemplateRecord) => {
+    const ok = await confirm(`Delete shift template "${t.name}"? Existing roster cells keep their times but lose the template link.`, {
+      title: 'Delete template',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
+    try {
+      await api(`/shifts/templates/${t.id}`, { method: 'DELETE' })
+      success('Shift template deleted')
+      await loadTemplates(templateBranchFilter || undefined)
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not delete template')
     }
   }
 
@@ -220,6 +258,10 @@ export function ShiftsPage() {
                         >
                           Edit
                         </button>
+                        {' · '}
+                        <button type="button" className="text-link text-link--danger" onClick={() => deleteTemplate(t)}>
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -235,10 +277,27 @@ export function ShiftsPage() {
           <div className="schedule-week-toolbar card" style={{ marginBottom: '1rem' }}>
             <div className="form-group schedule-toolbar-branch" style={{ margin: 0 }}>
               <label>Branch</label>
-              <select value={rosterBranchId} onChange={(e) => setRosterBranchId(e.target.value)}>
+              <select
+                value={rosterBranchId}
+                onChange={(e) => {
+                  setRosterBranchId(e.target.value)
+                  setRosterDepartmentId('')
+                }}
+              >
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group schedule-toolbar-department" style={{ margin: 0 }}>
+              <label>Department</label>
+              <select value={rosterDepartmentId} onChange={(e) => setRosterDepartmentId(e.target.value)}>
+                <option value="">All departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
                   </option>
                 ))}
               </select>
@@ -287,7 +346,17 @@ export function ShiftsPage() {
           </div>
 
           <div className="card schedule-grid-card" style={{ marginBottom: '1.5rem' }}>
-            <ScheduleGrid data={rosterGrid} loading={rosterLoading} editable onEditCell={openCellEdit} />
+            <ScheduleGrid
+              data={rosterGrid}
+              loading={rosterLoading}
+              editable
+              onEditCell={openCellEdit}
+              emptyMessage={
+                rosterDepartmentId
+                  ? 'No employees in this department for the selected week.'
+                  : 'No active employees for this branch.'
+              }
+            />
           </div>
 
           <ScheduleCellEditModal

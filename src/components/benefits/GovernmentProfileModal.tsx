@@ -48,7 +48,7 @@ export function GovernmentProfileModal({ open, employeeId, profile, saving, onCl
   }
 
   return (
-    <Modal open={open} title="Government benefit profile" onClose={onClose}>
+    <Modal open={open} title="Government IDs & enrollment" onClose={onClose}>
       <form className="stack" onSubmit={onSubmit}>
         <div className="form-row">
           <div className="form-group">

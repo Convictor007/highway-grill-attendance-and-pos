@@ -19,6 +19,7 @@ type Props = {
   employeeView?: boolean
   /** When false, hide Swap links in the grid (employee swap mode toggle) */
   showSwapButtons?: boolean
+  emptyMessage?: string
   onEditCell?: (payload: ScheduleCellEditPayload) => void
   onSwapRequest?: (cell: RosterGridCell & { date: string }) => void
 }
@@ -46,6 +47,7 @@ export function ScheduleGrid({
   editable,
   employeeView = false,
   showSwapButtons = false,
+  emptyMessage = 'No active employees for this branch.',
   onEditCell,
   onSwapRequest,
 }: Props) {
@@ -69,7 +71,7 @@ export function ScheduleGrid({
   }
 
   if (data.rows.length === 0) {
-    return <p style={{ color: 'var(--muted)' }}>No active employees for this branch.</p>
+    return <p style={{ color: 'var(--muted)' }}>{emptyMessage}</p>
   }
 
   const todayIndex = data.days.findIndex((d) => d.is_today)

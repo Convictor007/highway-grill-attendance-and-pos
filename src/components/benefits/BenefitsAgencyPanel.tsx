@@ -48,8 +48,8 @@ export function BenefitsAgencyPanel({ agency, history, canEdit, onEdit }: Props)
             </p>
           </div>
           {canEdit && onEdit && (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onEdit}>
-              Edit profile
+            <button type="button" className="btn btn-primary btn-sm" onClick={onEdit}>
+              Edit IDs & enrollment
             </button>
           )}
         </div>

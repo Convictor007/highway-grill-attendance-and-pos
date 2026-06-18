@@ -22,6 +22,13 @@ export async function GET(request: Request) {
     } else {
       throw new ForbiddenError()
     }
-    return jsonOk(await rosterGrid(branchId!, url.searchParams.get('week_start'), user.id))
+    return jsonOk(
+      await rosterGrid(
+        branchId!,
+        url.searchParams.get('week_start'),
+        user.id,
+        url.searchParams.get('department_id'),
+      ),
+    )
   })
 }

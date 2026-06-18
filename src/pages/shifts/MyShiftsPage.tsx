@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { PageHeader } from '../../components/PageHeader'
@@ -25,20 +25,34 @@ type ShiftSwap = {
 }
 
 export function MyShiftsPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [weekStart, setWeekStart] = useState(() => sundayOfWeek())
+  const [departmentFilter, setDepartmentFilter] = useState('')
+  const [filtersReady, setFiltersReady] = useState(false)
+  const [departmentTouched, setDepartmentTouched] = useState(false)
   const [roster, setRoster] = useState<RosterGrid | null>(null)
   const [coworkers, setCoworkers] = useState<Employee[]>([])
   const [swaps, setSwaps] = useState<ShiftSwap[]>([])
   const [loading, setLoading] = useState(true)
   const [swapCell, setSwapCell] = useState<(RosterGridCell & { date: string }) | null>(null)
   const [swapMode, setSwapMode] = useState(false)
+  const defaultDeptApplied = useRef(false)
 
-  const load = async (ws: string) => {
+  useEffect(() => {
+    if (authLoading || defaultDeptApplied.current) return
+    defaultDeptApplied.current = true
+    if (!departmentTouched && user?.employee?.department_id) {
+      setDepartmentFilter(String(user.employee.department_id))
+    }
+    setFiltersReady(true)
+  }, [authLoading, user, departmentTouched])
+
+  const load = async (ws: string, deptId: string) => {
     setLoading(true)
     try {
+      const deptQ = deptId ? `&department_id=${encodeURIComponent(deptId)}` : ''
       const [r, s, emps] = await Promise.all([
-        api<RosterGrid>(`/shifts/roster?week_start=${encodeURIComponent(ws)}`),
+        api<RosterGrid>(`/shifts/roster?week_start=${encodeURIComponent(ws)}${deptQ}`),
         api<ShiftSwap[]>('/shifts/swaps').catch(() => [] as ShiftSwap[]),
         api<Employee[]>('/shifts/coworkers').catch(() => [] as Employee[]),
       ])
@@ -51,8 +65,16 @@ export function MyShiftsPage() {
   }
 
   useEffect(() => {
-    load(weekStart)
-  }, [weekStart, user?.employee_id])
+    if (!filtersReady) return
+    load(weekStart, departmentFilter)
+  }, [weekStart, departmentFilter, filtersReady, user?.employee_id])
+
+  const departments = roster?.departments ?? []
+
+  const departmentLabel = useMemo(() => {
+    if (!departmentFilter) return 'All departments'
+    return departments.find((d) => d.id === departmentFilter)?.name ?? 'Your department'
+  }, [departmentFilter, departments])
 
   const incoming = useMemo(
     () => swaps.filter((s) => s.status === 'pending' && s.target_employee_id === user?.employee_id),
@@ -65,12 +87,12 @@ export function MyShiftsPage() {
 
   const respond = async (id: string, action: 'accept' | 'reject') => {
     await api(`/shifts/swaps/${id}`, { method: 'PUT', body: JSON.stringify({ action }) })
-    await load(weekStart)
+    await load(weekStart, departmentFilter)
   }
 
   const cancel = async (id: string) => {
     await api(`/shifts/swaps/${id}`, { method: 'PUT', body: JSON.stringify({ action: 'cancel' }) })
-    await load(weekStart)
+    await load(weekStart, departmentFilter)
   }
 
   return (
@@ -113,6 +135,24 @@ export function MyShiftsPage() {
       )}
 
       <div className="schedule-week-toolbar card">
+        <div className="form-group schedule-toolbar-department" style={{ margin: 0 }}>
+          <label>Department</label>
+          <select
+            value={departmentFilter}
+            disabled={!filtersReady || departments.length === 0}
+            onChange={(e) => {
+              setDepartmentTouched(true)
+              setDepartmentFilter(e.target.value)
+            }}
+          >
+            <option value="">All departments</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setWeekStart((w) => shiftWeek(w, -1))}>
           ← Prev week
         </button>
@@ -138,6 +178,12 @@ export function MyShiftsPage() {
         </button>
       </div>
 
+      {departmentFilter !== '' && (
+        <p className="muted-block" style={{ margin: '0 0 1rem' }}>
+          Showing <strong>{departmentLabel}</strong> schedule for this week.
+        </p>
+      )}
+
       {swapMode && (
         <p className="schedule-swap-hint muted-block" style={{ margin: '0 0 1rem' }}>
           Swap links appear on your shifts. Exchanges must be on the <strong>same day</strong>.
@@ -147,11 +193,16 @@ export function MyShiftsPage() {
       <div className="card schedule-grid-card">
         <ScheduleGrid
           data={roster}
-          loading={loading}
+          loading={loading || !filtersReady}
           employeeView
           showSwapButtons={swapMode}
           highlightEmployeeId={user?.employee_id ?? null}
           onSwapRequest={setSwapCell}
+          emptyMessage={
+            departmentFilter
+              ? 'No employees in this department for the selected week.'
+              : 'No active employees for this branch.'
+          }
         />
       </div>
 
@@ -160,7 +211,7 @@ export function MyShiftsPage() {
         cell={swapCell}
         coworkers={coworkers}
         onClose={() => setSwapCell(null)}
-        onSubmitted={() => load(weekStart)}
+        onSubmitted={() => load(weekStart, departmentFilter)}
       />
     </div>
   )

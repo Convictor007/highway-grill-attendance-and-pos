@@ -5,35 +5,83 @@ import { formatBenefitMoney, frequencyLabel } from '../../lib/benefitsUi'
 type Props = {
   enrollments: BenefitEnrollment[]
   canManage?: boolean
-  children?: React.ReactNode
+  onAdd?: () => void
+  onEdit?: (enrollment: BenefitEnrollment) => void
+  onDelete?: (enrollment: BenefitEnrollment) => void
 }
 
-export function BenefitsAllowancesPanel({ enrollments, canManage, children }: Props) {
+export function BenefitsAllowancesPanel({ enrollments, canManage, onAdd, onEdit, onDelete }: Props) {
   return (
     <div className="stack">
-      {canManage && children}
       <div className="card">
-        <h3 className="section-title">Enrolled allowances</h3>
-        <p className="form-hint" style={{ marginTop: 0 }}>
-          Meal, transport, and other recurring allowances added to gross pay. Government contributions are managed
-          under SSS, PhilHealth, and Pag-IBIG tabs.
-        </p>
+        <div className="benefits-panel-head">
+          <div>
+            <h3 className="section-title">Enrolled allowances</h3>
+            <p className="form-hint" style={{ marginTop: 0 }}>
+              Meal, transport, rice, and other recurring amounts added to gross pay. Government contributions are under
+              the SSS, PhilHealth, and Pag-IBIG tabs.
+            </p>
+          </div>
+          {canManage && onAdd && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={onAdd}>
+              Add allowance
+            </button>
+          )}
+        </div>
+
         {enrollments.length === 0 ? (
-          <EmptyState title="No allowances" description="HR can enroll meal, transport, or other benefits." />
+          <EmptyState
+            title="No allowances"
+            description="Add meal, transport, or other recurring benefits for this employee."
+          />
         ) : (
-          <ul className="doc-list">
-            {enrollments.map((b) => (
-              <li key={b.id} className="doc-row">
-                <div>
-                  <strong>{b.benefit_name}</strong>
-                  <span className="doc-meta">
-                    {b.benefit_code} · {frequencyLabel(b.frequency)}
-                  </span>
-                </div>
-                <span>{formatBenefitMoney(b.amount)}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Benefit</th>
+                  <th>Code</th>
+                  <th>Amount</th>
+                  <th>Frequency</th>
+                  <th>Status</th>
+                  {canManage && <th />}
+                </tr>
+              </thead>
+              <tbody>
+                {enrollments.map((b) => {
+                  const active = b.is_active !== false && b.is_active !== 0
+                  return (
+                    <tr key={b.id} className={!active ? 'table-row--muted' : undefined}>
+                      <td>{b.benefit_name}</td>
+                      <td>{b.benefit_code}</td>
+                      <td>{formatBenefitMoney(b.amount)}</td>
+                      <td>{frequencyLabel(b.frequency)}</td>
+                      <td>
+                        <span className={`badge badge-${active ? 'approved' : 'pending'}`}>
+                          {active ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      {canManage && (
+                        <td>
+                          <button type="button" className="text-link" onClick={() => onEdit?.(b)}>
+                            Edit
+                          </button>
+                          {' · '}
+                          <button
+                            type="button"
+                            className="text-link text-link--danger"
+                            onClick={() => onDelete?.(b)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

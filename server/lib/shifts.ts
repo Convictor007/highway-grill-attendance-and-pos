@@ -47,6 +47,11 @@ export async function updateTemplate(id: string, data: Record<string, unknown>) 
   return rows[0] ?? null
 }
 
+export async function deleteTemplate(id: string) {
+  const count = await unsafeExec(`DELETE FROM shift_templates WHERE id = $1`, [id])
+  return count > 0
+}
+
 export async function schedules(branchId?: string | null) {
   const db = getDb()
   if (branchId) {
@@ -347,7 +352,12 @@ function resolveDayFootnotes(schedule: Record<string, unknown> | null): Record<n
   return out
 }
 
-export async function rosterGrid(branchId: string, weekStart?: string | null, userId?: string | null) {
+export async function rosterGrid(
+  branchId: string,
+  weekStart?: string | null,
+  userId?: string | null,
+  departmentId?: string | null,
+) {
   const ws = normalizeWeekStartSunday(weekStart)
   await ensureScheduleRollover(branchId, ws, userId)
   await ensureScheduleRollover(branchId, addDays(ws, 7), userId)
@@ -364,17 +374,33 @@ export async function rosterGrid(branchId: string, weekStart?: string | null, us
   })
   const db = getDb()
   const branchRows = await db`SELECT name FROM branches WHERE id = ${branchId} LIMIT 1`
-  const employees = await db`
-    SELECT e.id, e.emp_number, e.first_name, e.last_name, d.name AS department_name
-    FROM employees e LEFT JOIN departments d ON d.id = e.department_id
-    WHERE e.branch_id = ${branchId} AND e.status = 'active'
-      AND NOT EXISTS (
-        SELECT 1 FROM users u
-        INNER JOIN roles r ON r.role_id = u.role_id
-        WHERE u.employee_id = e.id AND r.role_slug = 'admin'
-      )
-    ORDER BY COALESCE(d.name, 'zzz'), e.last_name, e.first_name
+  const departmentRows = await db`
+    SELECT id, name FROM departments WHERE branch_id = ${branchId} ORDER BY name
   `
+  const deptFilter = departmentId?.trim() || null
+  const employees = deptFilter
+    ? await db`
+        SELECT e.id, e.emp_number, e.first_name, e.last_name, d.name AS department_name
+        FROM employees e LEFT JOIN departments d ON d.id = e.department_id
+        WHERE e.branch_id = ${branchId} AND e.status = 'active' AND e.department_id = ${deptFilter}
+          AND NOT EXISTS (
+            SELECT 1 FROM users u
+            INNER JOIN roles r ON r.role_id = u.role_id
+            WHERE u.employee_id = e.id AND r.role_slug = 'admin'
+          )
+        ORDER BY COALESCE(d.name, 'zzz'), e.last_name, e.first_name
+      `
+    : await db`
+        SELECT e.id, e.emp_number, e.first_name, e.last_name, d.name AS department_name
+        FROM employees e LEFT JOIN departments d ON d.id = e.department_id
+        WHERE e.branch_id = ${branchId} AND e.status = 'active'
+          AND NOT EXISTS (
+            SELECT 1 FROM users u
+            INNER JOIN roles r ON r.role_id = u.role_id
+            WHERE u.employee_id = e.id AND r.role_slug = 'admin'
+          )
+        ORDER BY COALESCE(d.name, 'zzz'), e.last_name, e.first_name
+      `
   const assigns = await db`
     SELECT sa.id, sa.employee_id, sa.shift_date, sa.start_time, sa.end_time, sa.notes
     FROM shift_assignments sa INNER JOIN schedules sch ON sch.id = sa.schedule_id
@@ -425,6 +451,8 @@ export async function rosterGrid(branchId: string, weekStart?: string | null, us
     week_start: ws,
     week_end: weekEnd,
     is_current_week: today >= ws && today <= weekEnd,
+    department_id: deptFilter,
+    departments: departmentRows.map((d) => ({ id: String(d.id), name: String(d.name) })),
     days,
     footnotes: days.filter((d) => d.footnote).map((d) => ({ day_index: d.day_index, day_label: d.label, text: d.footnote })),
     rows,

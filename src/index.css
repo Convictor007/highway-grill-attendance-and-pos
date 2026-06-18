@@ -3723,6 +3723,44 @@ th {
   gap: 1rem;
 }
 
+.benefits-management-bar__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.benefits-management-bar__actions {
+  margin: 0;
+}
+
+.benefits-management-bar__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.benefits-mgmt-chip {
+  display: inline-block;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  background: var(--surface-elevated, rgba(255, 255, 255, 0.06));
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.benefits-mgmt-chip--ok {
+  color: var(--text);
+  border-color: rgba(26, 127, 55, 0.35);
+}
+
+.table-row--muted td {
+  opacity: 0.65;
+}
+
 .text-success {
   color: #1a7f37;
 }
@@ -4725,7 +4763,8 @@ tr.row-clickable:hover td {
   margin-bottom: 1rem;
 }
 
-.schedule-toolbar-branch {
+.schedule-toolbar-branch,
+.schedule-toolbar-department {
   min-width: 160px;
 }
 

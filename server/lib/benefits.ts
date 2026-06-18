@@ -40,6 +40,11 @@ export async function update(id: string, data: Record<string, unknown>) {
   return rows[0] ?? null
 }
 
+export async function remove(id: string) {
+  const count = await unsafeExec(`DELETE FROM employee_benefit_enrollments WHERE id = $1`, [id])
+  return count > 0
+}
+
 export async function periodTotalForEmployee(employeeId: string, payFrequency = 'semi_monthly'): Promise<number> {
   const db = getDb()
   const rows = await db`

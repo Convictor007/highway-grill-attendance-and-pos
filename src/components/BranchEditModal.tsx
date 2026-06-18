@@ -34,6 +34,9 @@ const DEFAULT_CENTER: [number, number] = [14.5547, 121.0244]
 
 function coordsFromBranch(branch: BranchEditInput | null): [number, number] {
   if (!branch) return DEFAULT_CENTER
+  const lat = Number(branch.default_latitude)
+  const lng = Number(branch.default_longitude)
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return [lat, lng]
   return branchMapCenter(branch.id, [branch], [], DEFAULT_CENTER)
 }
 
@@ -57,11 +60,16 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
 
   const panCenterRef = useRef<[number, number]>(DEFAULT_CENTER)
   const initIdRef = useRef<string | null>(null)
+  const addressEditedRef = useRef(false)
   const runGeocode = useMemo(() => useDebouncedGeocode(400), [])
 
   const applyGeocode = useCallback((r: GeocodeResult) => {
+    const display = r.formatted || r.short
     setParts(r.parts ?? emptyParts())
-    setFormatted(r.formatted || r.short)
+    setFormatted(display)
+    if (!addressEditedRef.current) {
+      setAddress(display)
+    }
   }, [])
 
   const fetchAddress = useCallback(
@@ -87,17 +95,18 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     }
     if (initIdRef.current === branch.id) return
     initIdRef.current = branch.id
+    addressEditedRef.current = false
 
     const coords = coordsFromBranch(branch)
     setName(branch.name)
-    setAddress(branch.address ?? '')
+    setAddress('')
     setPhone(branch.phone ?? '')
     setTimezone(branch.timezone ?? 'Asia/Manila')
     setIsActive(!!branch.is_active)
     setMapCenter(coords)
     panCenterRef.current = coords
     setFlyTo(coords)
-    setFormatted(branch.address ?? '')
+    setFormatted('')
     setParts(emptyParts())
     setSearchQuery('')
     setSearchResults([])
@@ -130,6 +139,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     (lat: number, lng: number) => {
       panCenterRef.current = [lat, lng]
       setMapCenter([lat, lng])
+      addressEditedRef.current = false
       fetchAddress(lat, lng)
     },
     [fetchAddress]
@@ -140,6 +150,7 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     panCenterRef.current = coords
     setMapCenter(coords)
     setFlyTo(coords)
+    addressEditedRef.current = false
     applyGeocode(r)
     setSearchQuery(r.short || r.formatted)
     setShowResults(false)
@@ -159,12 +170,13 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
 
     setSaving(true)
     try {
-      let resolvedAddress = address.trim() || undefined
+      const geoText = formatted.trim()
+      let resolvedAddress = address.trim() || geoText || undefined
       try {
         const geo = await reverseGeocode(lat, lng)
         if (geo.formatted) resolvedAddress = geo.formatted
       } catch {
-        // keep typed address
+        // keep typed or last geocoded address
       }
 
       await api(`/settings/branches/${branch.id}`, {
@@ -216,7 +228,14 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
           </label>
           <label className="geofence-field">
             <span>Address</span>
-            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => {
+                addressEditedRef.current = true
+                setAddress(e.target.value)
+              }}
+            />
           </label>
           <label className="geofence-field">
             <span>Phone</span>
@@ -281,11 +300,13 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
           </div>
 
           <MapCenterPin
-            initialCenter={mapCenter}
+            key={branch.id}
+            initialCenter={coordsFromBranch(branch)}
             flyTo={flyTo}
             zoom={15}
             onCenterChange={handleMapPan}
             onFlyToComplete={() => setFlyTo(null)}
+            skipInitialCenterEmit
             showBasemapSwitcher
             defaultBasemap="streets"
             className="map-center-pin-wrap branch-edit-map-pin"

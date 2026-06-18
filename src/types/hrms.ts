@@ -500,6 +500,8 @@ export interface RosterGrid {
   is_current_week?: boolean
   week_start: string
   week_end: string
+  department_id?: string | null
+  departments?: { id: string; name: string }[]
   days: RosterGridDay[]
   footnotes: { day_index?: number; day_label: string; text: string }[]
   rows: RosterGridRow[]
