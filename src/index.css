@@ -4961,20 +4961,33 @@ tr.row-clickable:hover td {
   background: var(--surface-2, rgba(0, 0, 0, 0.02));
   font-weight: 600;
   min-width: 68px;
-  vertical-align: bottom;
+  vertical-align: top;
+  text-align: center;
 }
 
 .schedule-grid-day-label {
   display: block;
   font-size: 0.8rem;
   color: var(--muted);
+  line-height: 1.2;
+}
+
+.schedule-grid-day-date {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.2;
 }
 
 .schedule-grid-day-tag {
   display: block;
   margin-top: 0.15rem;
+  min-height: 1.15rem;
   font-size: 0.7rem;
   font-weight: 500;
+  line-height: 1.2;
   color: var(--text, inherit);
 }
 
@@ -5037,13 +5050,6 @@ tr.row-clickable:hover td {
   color: var(--muted);
 }
 
-.schedule-grid-day-date {
-  display: block;
-  font-size: 0.72rem;
-  font-weight: 400;
-  color: var(--muted);
-}
-
 .schedule-grid-day-head--today {
   background: rgba(238, 77, 45, 0.12);
   box-shadow: inset 0 -3px 0 var(--accent, #ee4d2d);
@@ -5068,6 +5074,14 @@ tr.row-clickable:hover td {
   color: #fff;
   border-radius: 4px;
   padding: 0.1rem 0.35rem;
+}
+
+.schedule-grid-day-tag--tomorrow {
+  font-weight: 600;
+}
+
+.schedule-grid-day-tag--empty {
+  visibility: hidden;
 }
 
 .schedule-grid-cell--today {

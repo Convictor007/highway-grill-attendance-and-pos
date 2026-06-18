@@ -127,10 +127,18 @@ export function ScheduleGrid({
                 >
                   <span className="schedule-grid-day-label">{d.label}</span>
                   <span className="schedule-grid-day-date">{formatShortDate(d.date)}</span>
-                  {d.is_today && <span className="schedule-grid-day-tag schedule-grid-day-tag--today">Today</span>}
-                  {!d.is_today && d.is_tomorrow && (
-                    <span className="schedule-grid-day-tag">Tomorrow</span>
-                  )}
+                  <span
+                    className={[
+                      'schedule-grid-day-tag',
+                      d.is_today ? 'schedule-grid-day-tag--today' : '',
+                      d.is_tomorrow && !d.is_today ? 'schedule-grid-day-tag--tomorrow' : '',
+                      !d.is_today && !d.is_tomorrow ? 'schedule-grid-day-tag--empty' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    {d.is_today ? 'Today' : d.is_tomorrow ? 'Tomorrow' : '\u00a0'}
+                  </span>
                 </th>
               ))}
             </tr>
