@@ -8,6 +8,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { EmptyState } from '../../components/EmptyState'
 import { UserAccountEditModal } from '../../components/UserAccountEditModal'
 import { saveRolePermissions } from '../../components/RolePermissionsEditor'
+import { buildEmployeeUpdateBody } from '../../lib/staffAccount'
 import type { UserAccountDraft } from '../../components/UserAccountEditPanel'
 import type { AppUser, Employee, Role } from '../../types/hrms'
 
@@ -95,6 +96,8 @@ export function UsersPage({ fullAdmin = false }: Props) {
   const onSaveUser = async (id: string, draft: UserAccountDraft, permissionIds: number[] | null) => {
     setSavingId(id)
     try {
+      const profile = draft.employee_id ? buildEmployeeUpdateBody(draft) : undefined
+
       await api(`/users/${id}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -104,31 +107,9 @@ export function UsersPage({ fullAdmin = false }: Props) {
           is_active: draft.is_active,
           account_status: draft.account_status,
           ...(draft.password ? { password: draft.password } : {}),
+          ...(profile ? { profile } : {}),
         }),
       })
-
-      if (draft.employee_id) {
-        await api(`/employees/${draft.employee_id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            first_name: draft.first_name,
-            last_name: draft.last_name,
-            emp_number: draft.emp_number,
-            phone: draft.phone || null,
-            email: draft.email,
-            branch_id: draft.branch_id || null,
-            department_id: draft.department_id || null,
-            position_id: draft.position_id || null,
-            date_of_birth: draft.date_of_birth || null,
-            gender: draft.gender || null,
-            nationality: draft.nationality || null,
-            national_id: draft.national_id || null,
-            address: draft.address || null,
-            emergency_name: draft.emergency_name || null,
-            emergency_phone: draft.emergency_phone || null,
-          }),
-        })
-      }
 
       if (permissionIds) {
         const role = roles.find((r) => r.role_id === draft.role_id)

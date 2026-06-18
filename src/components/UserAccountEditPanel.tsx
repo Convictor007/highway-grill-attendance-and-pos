@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { ageFromDateOfBirth } from '../lib/age'
+import { toDateInputValue } from '../lib/date'
 import { RolePermissionsEditor } from './RolePermissionsEditor'
 import type { AppUser, Branch, Department, Employee, Gender, Position, Role } from '../types/hrms'
 
@@ -37,6 +38,7 @@ type Props = {
   onSave: (draft: UserAccountDraft, permissionIds: number[] | null) => Promise<void>
   inModal?: boolean
   formId?: string
+  onReadyChange?: (ready: boolean) => void
 }
 
 const TABS: { id: Tab; label: string }[] = [
@@ -50,14 +52,14 @@ function draftFromUser(user: AppUser, roles: Role[]): UserAccountDraft {
     email: user.email ?? '',
     password: '',
     role_id: user.role_id ?? roles.find((r) => r.role_slug === user.role_slug)?.role_id ?? 0,
-    employee_id: user.employee_id ?? '',
+    employee_id: user.employee_id != null ? String(user.employee_id) : '',
     is_active: Boolean(user.is_active),
     account_status: user.account_status ?? 'active',
     first_name: user.first_name ?? '',
     last_name: user.last_name ?? '',
     emp_number: user.emp_number ?? '',
     phone: user.phone ?? '',
-    date_of_birth: user.date_of_birth ?? '',
+    date_of_birth: toDateInputValue(user.date_of_birth),
     gender: (user.gender as Gender) ?? '',
     nationality: user.nationality ?? '',
     national_id: user.national_id ?? '',
@@ -82,6 +84,28 @@ function initials(draft: UserAccountDraft, user: AppUser): string {
   return `${a}${b}`.toUpperCase()
 }
 
+function mergeEmployeeIntoDraft(base: UserAccountDraft, emp: Employee): UserAccountDraft {
+  return {
+    ...base,
+    employee_id: String(emp.id),
+    first_name: emp.first_name ?? '',
+    last_name: emp.last_name ?? '',
+    emp_number: emp.emp_number ?? '',
+    phone: emp.phone ?? '',
+    email: emp.email ?? base.email,
+    date_of_birth: toDateInputValue(emp.date_of_birth),
+    gender: (emp.gender as Gender) ?? '',
+    nationality: emp.nationality ?? '',
+    national_id: emp.national_id ?? '',
+    address: emp.address ?? '',
+    emergency_name: emp.emergency_name ?? '',
+    emergency_phone: emp.emergency_phone ?? '',
+    branch_id: emp.branch_id ?? '',
+    department_id: emp.department_id ?? '',
+    position_id: emp.position_id ?? '',
+  }
+}
+
 export function UserAccountEditPanel({
   user,
   roles,
@@ -90,6 +114,7 @@ export function UserAccountEditPanel({
   onSave,
   inModal = false,
   formId,
+  onReadyChange,
 }: Props) {
   const [tab, setTab] = useState<Tab>('profile')
   const [draft, setDraft] = useState(() => draftFromUser(user, roles))
@@ -122,11 +147,43 @@ export function UserAccountEditPanel({
   }
 
   useEffect(() => {
-    setDraft(draftFromUser(user, roles))
     setTab('profile')
     setPermissionsTouched(false)
     setPermissionIds(new Set())
-  }, [user, roles])
+    onReadyChange?.(false)
+
+    if (!user.employee_id) {
+      setDraft(draftFromUser(user, roles))
+      setLoadingEmployee(false)
+      onReadyChange?.(true)
+      return
+    }
+
+    let cancelled = false
+    const base = draftFromUser(user, roles)
+    setDraft(base)
+    setLoadingEmployee(true)
+
+    api<Employee>(`/employees/${user.employee_id}`)
+      .then((emp) => {
+        if (cancelled) return
+        setDraft(mergeEmployeeIntoDraft(base, emp))
+        if (emp.branch_id) void loadOrgOptions(emp.branch_id)
+      })
+      .catch(() => {
+        if (!cancelled) setDraft(base)
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoadingEmployee(false)
+          onReadyChange?.(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user.id, user.employee_id, roles])
 
   useEffect(() => {
     setPermissionIds(new Set())
@@ -139,69 +196,20 @@ export function UserAccountEditPanel({
       .catch(() => setBranches([]))
   }, [])
 
-  useEffect(() => {
-    if (!user.employee_id) return
-    let cancelled = false
-    setLoadingEmployee(true)
-    api<Employee>(`/employees/${user.employee_id}`)
-      .then((emp) => {
-        if (cancelled) return
-        setDraft((d) => ({
-          ...d,
-          first_name: emp.first_name ?? '',
-          last_name: emp.last_name ?? '',
-          emp_number: emp.emp_number ?? '',
-          phone: emp.phone ?? '',
-          date_of_birth: emp.date_of_birth ?? '',
-          gender: (emp.gender as Gender) ?? '',
-          nationality: emp.nationality ?? '',
-          national_id: emp.national_id ?? '',
-          address: emp.address ?? '',
-          emergency_name: emp.emergency_name ?? '',
-          emergency_phone: emp.emergency_phone ?? '',
-          branch_id: emp.branch_id ?? '',
-          department_id: emp.department_id ?? '',
-          position_id: emp.position_id ?? '',
-        }))
-        if (emp.branch_id) void loadOrgOptions(emp.branch_id)
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoadingEmployee(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [user.id, user.employee_id])
-
   const onLinkEmployee = async (employeeId: string) => {
-    patch('employee_id', employeeId)
-    if (!employeeId) return
+    if (!employeeId) {
+      patch('employee_id', '')
+      return
+    }
     setLoadingEmployee(true)
+    onReadyChange?.(false)
     try {
       const emp = await api<Employee>(`/employees/${employeeId}`)
-      setDraft((d) => ({
-        ...d,
-        employee_id: employeeId,
-        first_name: emp.first_name ?? '',
-        last_name: emp.last_name ?? '',
-        emp_number: emp.emp_number ?? '',
-        phone: emp.phone ?? '',
-        email: emp.email ?? d.email,
-        date_of_birth: emp.date_of_birth ?? '',
-        gender: (emp.gender as Gender) ?? '',
-        nationality: emp.nationality ?? '',
-        national_id: emp.national_id ?? '',
-        address: emp.address ?? '',
-        emergency_name: emp.emergency_name ?? '',
-        emergency_phone: emp.emergency_phone ?? '',
-        branch_id: emp.branch_id ?? '',
-        department_id: emp.department_id ?? '',
-        position_id: emp.position_id ?? '',
-      }))
+      setDraft((d) => mergeEmployeeIntoDraft({ ...d, employee_id: employeeId }, emp))
       if (emp.branch_id) await loadOrgOptions(emp.branch_id)
     } finally {
       setLoadingEmployee(false)
+      onReadyChange?.(true)
     }
   }
 

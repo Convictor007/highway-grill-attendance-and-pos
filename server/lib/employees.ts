@@ -125,8 +125,10 @@ export async function updateEmployee(id: string, data: Record<string, unknown>) 
     else if (f === 'housing_deduction') {
       const stayIn = 'is_stay_in' in data ? Boolean(data.is_stay_in) : Boolean(existing.is_stay_in)
       val = housingDeduction(stayIn, val)
-    } else if (f === 'department_id' || f === 'position_id') {
+    } else if (f === 'department_id' || f === 'position_id' || f === 'branch_id') {
       val = nullableInt(val)
+    } else if (f === 'emp_number' || f === 'first_name' || f === 'last_name') {
+      val = String(val ?? '').trim()
     } else if (['address', 'nationality', 'national_id', 'emergency_name', 'emergency_phone', 'photo_url', 'email', 'phone'].includes(f)) {
       val = nullableStr(val)
     }
@@ -170,9 +172,11 @@ function nullableStr(value: unknown): string | null {
 
 function nullableDate(value: unknown): string | null {
   if (value == null || value === '') return null
-  const s = String(value)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new ValidationError('date_of_birth must be YYYY-MM-DD')
-  return s
+  const s = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  const d = new Date(s.includes('T') ? s : `${s}T12:00:00`)
+  if (Number.isNaN(d.getTime())) throw new ValidationError('date_of_birth must be YYYY-MM-DD')
+  return d.toISOString().slice(0, 10)
 }
 
 function normalizeGender(value: unknown): string | null {

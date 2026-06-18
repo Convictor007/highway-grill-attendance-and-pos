@@ -1,5 +1,5 @@
 import { requireUser } from '@/lib/auth'
-import { requirePermission } from '@/lib/auth-guard'
+import { requireEmployeeOrUserManage, requireEmployeeViewOrUserManage, requirePermission } from '@/lib/auth-guard'
 import { jsonError, jsonOk } from '@/lib/api-response'
 import {
   deleteEmployee,
@@ -15,7 +15,7 @@ type Params = { params: Promise<{ id: string }> }
 export async function GET(request: Request, { params }: Params) {
   return handleRoute(async () => {
     const user = await requireUser(request)
-    requirePermission(user, 'employees.view')
+    requireEmployeeViewOrUserManage(user)
     const { id } = await params
     const row = await getEmployee(id)
     if (!row) throw new NotFoundError('Employee not found')
@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: Params) {
 export async function PUT(request: Request, { params }: Params) {
   return handleRoute(async () => {
     const user = await requireUser(request)
-    requirePermission(user, 'employees.manage')
+    requireEmployeeOrUserManage(user)
     const { id } = await params
     const existing = await getEmployee(id)
     if (!existing) throw new NotFoundError('Employee not found')
@@ -38,6 +38,7 @@ export async function PUT(request: Request, { params }: Params) {
       body.position_id != null ? String(body.position_id) : (existing.position_id as string | null),
     )
     const row = await updateEmployee(id, body)
+    if (!row) throw new NotFoundError('Employee not found')
     return jsonOk(row)
   })
 }

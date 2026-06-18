@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Modal } from './Modal'
 import { UserAccountEditPanel, type UserAccountDraft } from './UserAccountEditPanel'
 import type { AppUser, Employee, Role } from '../types/hrms'
@@ -23,7 +24,11 @@ export function UserAccountEditModal({
   onClose,
   onSave,
 }: Props) {
+  const [formReady, setFormReady] = useState(true)
+
   if (!user) return null
+
+  const userKey = user.id
 
   return (
     <Modal
@@ -37,13 +42,19 @@ export function UserAccountEditModal({
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button type="submit" form={FORM_ID} className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving…' : 'Save changes'}
+          <button
+            type="submit"
+            form={FORM_ID}
+            className="btn btn-primary"
+            disabled={saving || !formReady}
+          >
+            {saving ? 'Saving…' : formReady ? 'Save changes' : 'Loading…'}
           </button>
         </>
       }
     >
       <UserAccountEditPanel
+        key={userKey}
         formId={FORM_ID}
         inModal
         user={user}
@@ -51,6 +62,7 @@ export function UserAccountEditModal({
         employees={employees}
         saving={saving}
         onSave={onSave}
+        onReadyChange={setFormReady}
       />
     </Modal>
   )

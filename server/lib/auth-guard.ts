@@ -6,6 +6,19 @@ export function requirePermission(user: AuthUser, key: string): void {
   if (!hasPermission(user, key)) throw new ForbiddenError()
 }
 
+/** Staff logins editor or HR employee records. */
+export function requireEmployeeOrUserManage(user: AuthUser): void {
+  if (!hasPermission(user, 'employees.manage') && !hasPermission(user, 'users.manage')) {
+    throw new ForbiddenError()
+  }
+}
+
+export function requireEmployeeViewOrUserManage(user: AuthUser): void {
+  if (!hasPermission(user, 'employees.view') && !hasPermission(user, 'users.manage')) {
+    throw new ForbiddenError()
+  }
+}
+
 export function requireCrewApproval(user: AuthUser): void {
   if (!hasPermission(user, 'users.manage') && !hasPermission(user, 'users.approve')) {
     throw new ForbiddenError()
