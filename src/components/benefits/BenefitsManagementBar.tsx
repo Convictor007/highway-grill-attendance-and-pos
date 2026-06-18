@@ -1,4 +1,5 @@
 import type { BenefitsOverview } from '../../types/hrms'
+import { COMPLIANCE_ISSUE_LABELS } from '../../lib/benefitsUi'
 
 type Props = {
   data: BenefitsOverview
@@ -39,6 +40,12 @@ export function BenefitsManagementBar({ data, onEditGovernment, onAddAllowance }
           </button>
         </div>
       </div>
+      {data.compliance_issues && data.compliance_issues.length > 0 && (
+        <div className="benefits-compliance-alert" role="status">
+          <strong>Action needed:</strong>{' '}
+          {data.compliance_issues.map((issue) => COMPLIANCE_ISSUE_LABELS[issue] ?? issue).join(' · ')}
+        </div>
+      )}
       <div className="benefits-management-bar__status">
         {items.map((item) => (
           <span key={item.name} className={`benefits-mgmt-chip${item.ok ? ' benefits-mgmt-chip--ok' : ''}`}>

@@ -1,6 +1,12 @@
 import { getDb } from './db'
 import { list as listEnrollments } from './benefits'
 import { monthlyEmployeeShares } from './payroll-ph-deductions'
+import { ValidationError } from './errors'
+import {
+  normalizeGovernmentProfileFields,
+  profileComplianceIssues,
+  validateGovernmentProfileInput,
+} from './government-id-validation'
 import { unsafe } from './sql'
 
 export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
@@ -64,26 +70,35 @@ export async function getGovernmentProfile(employeeId: string) {
 export async function upsertGovernmentProfile(employeeId: string, data: Record<string, unknown>) {
   const db = getDb()
   const existing = await getGovernmentProfile(employeeId)
-  const sssNumber = 'sss_number' in data ? (data.sss_number ? String(data.sss_number) : null) : existing.sss_number
-  const philhealthNumber =
-    'philhealth_number' in data ? (data.philhealth_number ? String(data.philhealth_number) : null) : existing.philhealth_number
-  const pagibigNumber =
-    'pagibig_number' in data ? (data.pagibig_number ? String(data.pagibig_number) : null) : existing.pagibig_number
-  const tin = 'tin' in data ? (data.tin ? String(data.tin) : null) : existing.tin
-  const sssEnrolled = 'sss_enrolled' in data ? Boolean(data.sss_enrolled) : Boolean(existing.sss_enrolled)
-  const philhealthEnrolled =
-    'philhealth_enrolled' in data ? Boolean(data.philhealth_enrolled) : Boolean(existing.philhealth_enrolled)
-  const pagibigEnrolled =
-    'pagibig_enrolled' in data ? Boolean(data.pagibig_enrolled) : Boolean(existing.pagibig_enrolled)
-  const notes = 'notes' in data ? (data.notes ? String(data.notes) : null) : existing.notes
+  const merged = {
+    sss_number: 'sss_number' in data ? (data.sss_number ? String(data.sss_number) : null) : existing.sss_number,
+    philhealth_number:
+      'philhealth_number' in data
+        ? data.philhealth_number
+          ? String(data.philhealth_number)
+          : null
+        : existing.philhealth_number,
+    pagibig_number:
+      'pagibig_number' in data ? (data.pagibig_number ? String(data.pagibig_number) : null) : existing.pagibig_number,
+    tin: 'tin' in data ? (data.tin ? String(data.tin) : null) : existing.tin,
+    sss_enrolled: 'sss_enrolled' in data ? Boolean(data.sss_enrolled) : Boolean(existing.sss_enrolled),
+    philhealth_enrolled:
+      'philhealth_enrolled' in data ? Boolean(data.philhealth_enrolled) : Boolean(existing.philhealth_enrolled),
+    pagibig_enrolled:
+      'pagibig_enrolled' in data ? Boolean(data.pagibig_enrolled) : Boolean(existing.pagibig_enrolled),
+    notes: 'notes' in data ? (data.notes ? String(data.notes) : null) : existing.notes,
+  }
+
+  validateGovernmentProfileInput(merged)
+  const normalized = normalizeGovernmentProfileFields(merged)
 
   await db`
     INSERT INTO employee_government_profiles (
       employee_id, sss_number, philhealth_number, pagibig_number, tin,
       sss_enrolled, philhealth_enrolled, pagibig_enrolled, notes
     ) VALUES (
-      ${employeeId}, ${sssNumber}, ${philhealthNumber}, ${pagibigNumber}, ${tin},
-      ${sssEnrolled}, ${philhealthEnrolled}, ${pagibigEnrolled}, ${notes}
+      ${employeeId}, ${normalized.sss_number}, ${normalized.philhealth_number}, ${normalized.pagibig_number}, ${normalized.tin},
+      ${merged.sss_enrolled}, ${merged.philhealth_enrolled}, ${merged.pagibig_enrolled}, ${merged.notes}
     )
     ON CONFLICT (employee_id) DO UPDATE SET
       sss_number = EXCLUDED.sss_number,
@@ -157,11 +172,12 @@ export async function contributionHistory(employeeId: string) {
 }
 
 export async function getBenefitsOverview(employeeId: string) {
-  const [compensation, profile, enrollments, history] = await Promise.all([
+  const [compensation, profile, enrollments, history, profileRow] = await Promise.all([
     getEmployeeCompensation(employeeId),
     getGovernmentProfile(employeeId),
     listEnrollments(employeeId),
     contributionHistory(employeeId),
+    getDb()`SELECT employee_id FROM employee_government_profiles WHERE employee_id = ${employeeId} LIMIT 1`,
   ])
 
   const monthly = compensation?.monthly_compensation ?? 0
@@ -205,9 +221,21 @@ export async function getBenefitsOverview(employeeId: string) {
 
   const activeEnrollments = enrollments.filter((e) => e.is_active)
 
+  const complianceIssues = profileComplianceIssues({
+    sss_number: profile.sss_number ? String(profile.sss_number) : null,
+    philhealth_number: profile.philhealth_number ? String(profile.philhealth_number) : null,
+    pagibig_number: profile.pagibig_number ? String(profile.pagibig_number) : null,
+    tin: profile.tin ? String(profile.tin) : null,
+    sss_enrolled: Boolean(profile.sss_enrolled),
+    philhealth_enrolled: Boolean(profile.philhealth_enrolled),
+    pagibig_enrolled: Boolean(profile.pagibig_enrolled),
+    has_row: Boolean(profileRow[0]),
+  })
+
   return {
     employee: compensation,
     profile,
+    compliance_issues: complianceIssues,
     monthly_compensation: monthly,
     agencies,
     withholding_tax: {
@@ -223,5 +251,133 @@ export async function getBenefitsOverview(employeeId: string) {
       tax: history.tax,
     },
     latest_payslip: history.latest,
+  }
+}
+
+export async function benefitsComplianceReport(branchId?: string | null) {
+  const params: (string | number)[] = []
+  let sql = `
+    SELECT e.id, e.emp_number, e.first_name, e.last_name, e.branch_id, b.name AS branch_name,
+      gp.sss_number, gp.philhealth_number, gp.pagibig_number, gp.tin,
+      gp.sss_enrolled, gp.philhealth_enrolled, gp.pagibig_enrolled,
+      (gp.employee_id IS NOT NULL) AS has_profile
+    FROM employees e
+    INNER JOIN branches b ON b.id = e.branch_id
+    LEFT JOIN employee_government_profiles gp ON gp.employee_id = e.id
+    WHERE e.status = 'active'
+      AND NOT EXISTS (
+        SELECT 1 FROM users u
+        INNER JOIN roles r ON r.role_id = u.role_id
+        WHERE u.employee_id = e.id AND r.role_slug = 'admin'
+      )`
+  if (branchId) {
+    params.push(branchId)
+    sql += ` AND e.branch_id = $${params.length}`
+  }
+  sql += ' ORDER BY b.name, e.last_name, e.first_name'
+
+  const rows = await unsafe<Record<string, unknown>>(sql, params)
+  const employees = rows.map((row) => {
+    const profile = {
+      sss_number: row.sss_number ? String(row.sss_number) : null,
+      philhealth_number: row.philhealth_number ? String(row.philhealth_number) : null,
+      pagibig_number: row.pagibig_number ? String(row.pagibig_number) : null,
+      tin: row.tin ? String(row.tin) : null,
+      sss_enrolled: row.sss_enrolled !== false,
+      philhealth_enrolled: row.philhealth_enrolled !== false,
+      pagibig_enrolled: row.pagibig_enrolled !== false,
+      has_row: Boolean(row.has_profile),
+    }
+    return {
+      employee_id: String(row.id),
+      emp_number: String(row.emp_number),
+      first_name: String(row.first_name),
+      last_name: String(row.last_name),
+      branch_id: String(row.branch_id),
+      branch_name: String(row.branch_name),
+      issues: profileComplianceIssues(profile),
+      profile,
+    }
+  })
+
+  const withIssues = employees.filter((e) => e.issues.length > 0)
+  return {
+    total_active: employees.length,
+    compliant: employees.length - withIssues.length,
+    with_issues: withIssues.length,
+    employees: withIssues,
+  }
+}
+
+export async function remittanceSummary(year: number, month: number, branchId?: string | null) {
+  if (month < 1 || month > 12) throw new ValidationError('month must be 1–12')
+  const periodStart = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const periodEnd = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+  const params: (string | number)[] = [periodStart, periodEnd]
+  let branchClause = ''
+  if (branchId) {
+    params.push(branchId)
+    branchClause = ` AND pr.branch_id = $${params.length}`
+  }
+
+  const totals = await unsafe<Record<string, unknown>>(
+    `SELECT
+      COUNT(DISTINCT ps.employee_id)::int AS employee_count,
+      COUNT(ps.id)::int AS payslip_count,
+      COALESCE(SUM(ps.sss_amount), 0) AS sss_employee,
+      COALESCE(SUM(ps.philhealth_amount), 0) AS philhealth_employee,
+      COALESCE(SUM(ps.pagibig_amount), 0) AS pagibig_employee,
+      COALESCE(SUM(ps.tax_amount), 0) AS tax_withheld,
+      COALESCE(SUM(ps.gross_pay), 0) AS total_gross
+    FROM payslips ps
+    INNER JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
+    WHERE pr.pay_date BETWEEN $1 AND $2
+      AND pr.status IN ('processing', 'partially_paid', 'paid', 'approved')
+      ${branchClause}`,
+    params,
+  )
+
+  const row = totals[0] ?? {}
+  const sssEmp = Number(row.sss_employee ?? 0)
+  const philEmp = Number(row.philhealth_employee ?? 0)
+  const pagEmp = Number(row.pagibig_employee ?? 0)
+
+  return {
+    year,
+    month,
+    period_start: periodStart,
+    period_end: periodEnd,
+    branch_id: branchId ?? null,
+    employee_count: Number(row.employee_count ?? 0),
+    payslip_count: Number(row.payslip_count ?? 0),
+    total_gross: Math.round(Number(row.total_gross ?? 0) * 100) / 100,
+    agencies: [
+      {
+        agency: 'sss',
+        label: 'SSS',
+        employee_share: Math.round(sssEmp * 100) / 100,
+        employer_share_est: Math.round(sssEmp * (0.095 / 0.045) * 100) / 100,
+        total_est: Math.round((sssEmp + sssEmp * (0.095 / 0.045)) * 100) / 100,
+      },
+      {
+        agency: 'philhealth',
+        label: 'PhilHealth',
+        employee_share: Math.round(philEmp * 100) / 100,
+        employer_share_est: Math.round(philEmp * 100) / 100,
+        total_est: Math.round(philEmp * 2 * 100) / 100,
+      },
+      {
+        agency: 'pagibig',
+        label: 'Pag-IBIG',
+        employee_share: Math.round(pagEmp * 100) / 100,
+        employer_share_est: Math.round(pagEmp * 100) / 100,
+        total_est: Math.round(pagEmp * 2 * 100) / 100,
+      },
+    ],
+    tax_withheld: Math.round(Number(row.tax_withheld ?? 0) * 100) / 100,
+    status: 'draft',
+    note: 'Employer shares are estimated from employee deductions using current statutory rates. Mark as submitted after filing.',
   }
 }

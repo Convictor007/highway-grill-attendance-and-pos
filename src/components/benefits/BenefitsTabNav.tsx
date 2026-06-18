@@ -1,12 +1,15 @@
 import type { BenefitsTab } from '../../types/hrms'
 import { BENEFITS_TABS } from '../../lib/benefitsUi'
 
+type TabDef = { id: BenefitsTab; label: string; description: string }
+
 type Props = {
   active: BenefitsTab
   onChange: (tab: BenefitsTab) => void
+  tabs?: TabDef[]
 }
 
-export function BenefitsTabNav({ active, onChange }: Props) {
+export function BenefitsTabNav({ active, onChange, tabs = BENEFITS_TABS }: Props) {
   return (
     <>
       <div className="benefits-tab-select-wrap desktop-hidden">
@@ -19,7 +22,7 @@ export function BenefitsTabNav({ active, onChange }: Props) {
           value={active}
           onChange={(e) => onChange(e.target.value as BenefitsTab)}
         >
-          {BENEFITS_TABS.map((tab) => (
+          {tabs.map((tab) => (
             <option key={tab.id} value={tab.id}>
               {tab.label}
             </option>
@@ -27,7 +30,7 @@ export function BenefitsTabNav({ active, onChange }: Props) {
         </select>
       </div>
       <div className="tabs tabs--benefits mobile-hidden" role="tablist" aria-label="Benefits sections">
-        {BENEFITS_TABS.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"

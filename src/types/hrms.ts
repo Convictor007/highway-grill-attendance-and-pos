@@ -181,7 +181,18 @@ export interface BenefitEnrollment {
 
 export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
 
-export type BenefitsTab = 'overview' | GovernmentAgency | 'allowances' | 'tax'
+export type BenefitsTab = 'overview' | GovernmentAgency | 'allowances' | 'tax' | 'compliance' | 'remittance'
+
+export type ComplianceIssueCode =
+  | 'missing_sss_id'
+  | 'missing_philhealth_id'
+  | 'missing_pagibig_id'
+  | 'missing_tin'
+  | 'invalid_sss_id'
+  | 'invalid_philhealth_id'
+  | 'invalid_pagibig_id'
+  | 'invalid_tin'
+  | 'no_profile'
 
 export interface GovernmentProfile {
   employee_id: string
@@ -224,6 +235,7 @@ export interface BenefitsOverview {
     emp_number: string
   } | null
   profile: GovernmentProfile
+  compliance_issues?: ComplianceIssueCode[]
   monthly_compensation: number
   agencies: BenefitsAgencySummary[]
   withholding_tax: {
@@ -249,6 +261,46 @@ export interface BenefitsOverview {
     gross_pay: number
     net_pay: number
   } | null
+}
+
+export interface BenefitsComplianceEmployee {
+  employee_id: string
+  emp_number: string
+  first_name: string
+  last_name: string
+  branch_id: string
+  branch_name: string
+  issues: ComplianceIssueCode[]
+}
+
+export interface BenefitsComplianceReport {
+  total_active: number
+  compliant: number
+  with_issues: number
+  employees: BenefitsComplianceEmployee[]
+}
+
+export interface BenefitsRemittanceAgency {
+  agency: string
+  label: string
+  employee_share: number
+  employer_share_est: number
+  total_est: number
+}
+
+export interface BenefitsRemittanceSummary {
+  year: number
+  month: number
+  period_start: string
+  period_end: string
+  branch_id: string | null
+  employee_count: number
+  payslip_count: number
+  total_gross: number
+  agencies: BenefitsRemittanceAgency[]
+  tax_withheld: number
+  status: string
+  note: string
 }
 
 export interface OrgMasterlistEntry {

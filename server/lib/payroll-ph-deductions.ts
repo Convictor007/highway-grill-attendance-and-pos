@@ -1,15 +1,3 @@
-export function forPayPeriod(periodGross: number, payFrequency = 'semi_monthly') {
-  const monthlyEquiv = payFrequency === 'monthly' ? periodGross : periodGross * 2
-  const monthly = monthlyEmployeeShares(monthlyEquiv)
-  const divisor = payFrequency === 'monthly' ? 1 : 2
-  return {
-    sss: Math.round((monthly.sss / divisor) * 100) / 100,
-    philhealth: Math.round((monthly.philhealth / divisor) * 100) / 100,
-    pagibig: Math.round((monthly.pagibig / divisor) * 100) / 100,
-    tax: Math.round((monthly.tax / divisor) * 100) / 100,
-  }
-}
-
 export function monthlyEmployeeShares(monthlyCompensation: number) {
   const taxable = Math.max(0, monthlyCompensation)
   return {
@@ -18,6 +6,54 @@ export function monthlyEmployeeShares(monthlyCompensation: number) {
     pagibig: pagibigEmployeeShare(taxable),
     tax: birMonthlyWithholding(taxable),
   }
+}
+
+export function monthlyEmployerShares(monthlyCompensation: number) {
+  const taxable = Math.max(0, monthlyCompensation)
+  return {
+    sss: sssEmployerShare(taxable),
+    philhealth: philhealthEmployerShare(taxable),
+    pagibig: pagibigEmployerShare(taxable),
+  }
+}
+
+export type EnrollmentFlags = {
+  sss_enrolled?: boolean
+  philhealth_enrolled?: boolean
+  pagibig_enrolled?: boolean
+}
+
+export function forPayPeriod(
+  periodGross: number,
+  payFrequency = 'semi_monthly',
+  enrollment: EnrollmentFlags = {},
+) {
+  const monthlyEquiv = payFrequency === 'monthly' ? periodGross : periodGross * 2
+  const monthly = monthlyEmployeeShares(monthlyEquiv)
+  const divisor = payFrequency === 'monthly' ? 1 : 2
+  const sssOn = enrollment.sss_enrolled !== false
+  const philOn = enrollment.philhealth_enrolled !== false
+  const pagOn = enrollment.pagibig_enrolled !== false
+  return {
+    sss: sssOn ? Math.round((monthly.sss / divisor) * 100) / 100 : 0,
+    philhealth: philOn ? Math.round((monthly.philhealth / divisor) * 100) / 100 : 0,
+    pagibig: pagOn ? Math.round((monthly.pagibig / divisor) * 100) / 100 : 0,
+    tax: Math.round((monthly.tax / divisor) * 100) / 100,
+  }
+}
+
+export function sssEmployerShare(monthlySalary: number) {
+  if (monthlySalary < 1000) return 0
+  const msc = Math.min(30000, Math.max(4000, Math.ceil(monthlySalary / 500) * 500))
+  return Math.round(msc * 0.095 * 100) / 100
+}
+
+export function philhealthEmployerShare(monthlySalary: number) {
+  return philhealthEmployeeShare(monthlySalary)
+}
+
+export function pagibigEmployerShare(monthlySalary: number) {
+  return pagibigEmployeeShare(monthlySalary)
 }
 
 export function sssEmployeeShare(monthlySalary: number) {

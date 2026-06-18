@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/auth-guard'
 import { hasPermission } from '@/lib/permissions'
 import { jsonError, jsonOk } from '@/lib/api-response'
 import { create, list } from '@/lib/benefits'
+import { writeAuditLog } from '@/lib/audit-log'
 import { ForbiddenError } from '@/lib/errors'
 import { handleRoute } from '@/lib/route-handler'
 
@@ -31,6 +32,8 @@ export async function POST(request: Request) {
     if (!body.employee_id || !body.benefit_name) {
       return jsonError('employee_id and benefit_name required', 422)
     }
-    return jsonOk(await create(body), 201)
+    const row = await create(body)
+    await writeAuditLog(user.id, 'create', 'employee_benefit_enrollments', row.id, null, row as Record<string, unknown>)
+    return jsonOk(row, 201)
   })
 }

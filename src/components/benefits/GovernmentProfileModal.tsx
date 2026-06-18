@@ -118,6 +118,10 @@ export function GovernmentProfileModal({ open, employeeId, profile, saving, onCl
           <label>Notes</label>
           <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} />
         </div>
+        <p className="form-hint">
+          SSS: 10 digits · PhilHealth / Pag-IBIG: 12 digits · TIN: 9 or 12 digits. Uncheck enrollment to skip payroll
+          deductions for that agency.
+        </p>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
