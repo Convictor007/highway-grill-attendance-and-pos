@@ -155,21 +155,18 @@ export function UsersPage({ fullAdmin = false }: Props) {
 
   return (
     <div>
-      <PageHeader
-        title={isFullAdmin ? 'Staff logins' : 'Crew approvals'}
-        subtitle={
-          isFullAdmin
-            ? 'Manage HR and crew accounts, roles, and permissions. Your system admin login is not shown here.'
-            : 'Review self-registrations — approve sign-in, then activate for time clock and schedules'
-        }
-        actions={
-          isFullAdmin ? (
-            <button type="button" className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-              {showForm ? 'Cancel' : 'Add staff login'}
-            </button>
-          ) : undefined
-        }
-      />
+      {isFullAdmin ? (
+        <div className="users-page-toolbar">
+          <button type="button" className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Cancel' : 'Add staff login'}
+          </button>
+        </div>
+      ) : (
+        <PageHeader
+          title="Crew approvals"
+          subtitle="Review self-registrations — approve sign-in, then activate for time clock and schedules"
+        />
+      )}
 
       {!isFullAdmin && pending.length === 0 && (
         <EmptyState title="No pending registrations" description="New crew sign-ups will appear here for approval." />
@@ -179,9 +176,10 @@ export function UsersPage({ fullAdmin = false }: Props) {
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <h3 className="section-title">Pending registrations</h3>
           <p className="muted-block pending-reg-help" style={{ marginBottom: '1rem' }}>
-            <strong>Approve</strong> — applicant can sign in only (status: pending). No time clock, schedules, loans, or payroll yet.
+            <strong>Approve</strong> — they <em>can sign in</em> (pending). Time clock, schedules, loans, and payroll stay off until you click{' '}
+            <strong>Activate</strong>.
             {' '}
-            <strong>Activate</strong> — full crew access in one step (status: active). Use this when you are ready for them to start work.
+            <strong>Activate</strong> — full crew access in one step (active).
           </p>
           <div className="table-wrap">
             <table>

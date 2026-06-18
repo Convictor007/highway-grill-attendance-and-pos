@@ -1778,6 +1778,12 @@ th {
   flex-shrink: 0;
 }
 
+.users-page-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
