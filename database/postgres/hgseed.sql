@@ -66,15 +66,36 @@ INSERT INTO branches (id, name, address, phone, timezone, is_active, default_lat
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO departments (id, branch_id, name, cost_center) VALUES
-(1, 1, 'Management', 'MGMT'),
-(2, 1, 'Kitchen',    'KIT'),
-(3, 1, 'Service',    'SVC')
+(1, 1, 'Management',     'MGMT'),
+(2, 1, 'Kitchen',        'KIT'),
+(3, 1, 'Service',        'SVC'),
+(4, 1, 'Front of House', 'FOH'),
+(5, 1, 'Bar',            'BAR'),
+(6, 1, 'Cafe',           'CAFE')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped) VALUES
-(1, 1, 'HR Manager',   'M1',  80.00, 120.00, false),
-(2, 2, 'Line Cook',    'K2',  70.00,  95.00, false),
-(3, 3, 'Service Crew', 'S1',  65.00,  85.00, true)
+( 1, 1, 'HR Manager',         'M1',  80.00, 120.00, false),
+( 2, 2, 'Line Cook',          'K3',  80.00, 120.00, false),
+( 3, 3, 'Service Crew',       'S1',  65.00,  85.00, true),
+( 4, 1, 'Restaurant Manager', 'M2', 120.00, 180.00, false),
+( 5, 2, 'Head Cook',          'K4',  95.00, 130.00, false),
+( 6, 2, 'Back Kitchen',       'K2',  72.00, 100.00, false),
+( 7, 2, 'Grill Cook',         'K3',  80.00, 115.00, false),
+( 8, 2, 'Prep Cook',          'K2',  72.00, 100.00, false),
+( 9, 2, 'Dishwasher',         'K1',  65.00,  85.00, false),
+(10, 2, 'Kitchen Helper',     'K1',  65.00,  88.00, false),
+(11, 2, 'Sous Chef',          'K4',  90.00, 125.00, false),
+(12, 2, 'Pastry Chef',        'K3',  82.00, 118.00, false),
+(13, 4, 'Server',             'S2',  70.00, 100.00, true),
+(14, 4, 'Cashier',            'S2',  72.00,  95.00, false),
+(15, 4, 'Host',               'S2',  68.00,  92.00, false),
+(16, 4, 'Busser',             'S1',  62.00,  82.00, false),
+(17, 4, 'Food Runner',        'S1',  65.00,  85.00, false),
+(18, 5, 'Bartender',          'B3',  75.00, 110.00, true),
+(19, 6, 'Barista',            'C2',  70.00,  98.00, false),
+(20, 6, 'Cafe Server',        'C2',  68.00,  95.00, true),
+(21, 6, 'Cafe Cashier',       'C2',  70.00,  92.00, false)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO employees (

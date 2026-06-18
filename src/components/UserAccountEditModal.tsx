@@ -37,6 +37,7 @@ export function UserAccountEditModal({
       onClose={onClose}
       size="large"
       panelClassName="staff-edit-modal-panel"
+      closeOnBackdropClick={false}
       footer={
         <>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>
