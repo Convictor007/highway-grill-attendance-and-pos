@@ -159,3 +159,5 @@ SELECT setval(pg_get_serial_sequence('field_work_sites', 'id'), (SELECT COALESCE
 SELECT 'seed complete' AS status,
   (SELECT COUNT(*)::int FROM employees) AS employees,
   (SELECT COUNT(*)::int FROM users) AS users;
+
+-- Optional: run database/postgres/seed_benefits.sql after patches for sample government profiles.
