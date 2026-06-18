@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { useNotification } from '../../hooks/useNotification'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -72,12 +73,14 @@ export function CompliancePage() {
     setAudit(await api<AuditEntry[]>('/compliance/audit?limit=150'))
   }
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       await Promise.all([loadLogs(), loadAudit()])
     } finally {
       setLoading(false)
+      finish()
     }
   }
 

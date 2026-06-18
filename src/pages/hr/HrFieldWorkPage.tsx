@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { preserveScroll } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
@@ -82,7 +83,7 @@ export function HrFieldWorkPage() {
     try {
       await api(`/field-work/sites/${id}`, { method: 'DELETE' })
       success('Work zone removed')
-      await load()
+      await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not remove work zone')
     } finally {
@@ -151,7 +152,7 @@ export function HrFieldWorkPage() {
         <GeofenceZoneModal
           open={modalOpen}
           onClose={closeModal}
-          onSaved={load}
+          onSaved={() => preserveScroll(load)}
           branches={branches}
           sites={sites}
           editingSite={editingSite}

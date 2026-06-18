@@ -48,12 +48,13 @@ function kvRows(rows: [string, string, boolean?, string?][]): string {
 
 function watermarkImgTag(): string {
   const candidates = [
-    path.join(process.cwd(), '..', 'src', 'assets', 'HGlogo_whitebg.png'),
-    path.join(process.cwd(), 'assets', 'HGlogo_whitebg.png'),
+    path.join(process.cwd(), '..', 'src', 'assets', 'HG_logo.png'),
+    path.join(process.cwd(), 'assets', 'HG_logo.png'),
+    path.join(process.cwd(), 'public', 'HG_logo.png'),
   ]
   const assetsDir = path.join(process.cwd(), 'public', 'assets')
   if (existsSync(assetsDir)) {
-    const match = readdirSync(assetsDir).find((f) => f.startsWith('HGlogo'))
+    const match = readdirSync(assetsDir).find((f) => f.includes('HG_logo') || f.startsWith('HGlogo'))
     if (match) candidates.unshift(path.join(assetsDir, match))
   }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
@@ -33,13 +34,15 @@ export function HrTipsPage() {
     shift_type: 'all_day',
   })
 
-  const loadPools = async (branchId?: string) => {
-    setLoading(true)
+  const loadPools = async (branchId?: string, options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const q = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ''
       setPools(await api<TipsPool[]>(`/tips/pools${q}`))
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -80,7 +83,7 @@ export function HrTipsPage() {
       success('Tips pool created')
       setShowForm(false)
       setForm((f) => ({ ...f, pool_date: '', total_tips: '' }))
-      await loadPools(branchFilter)
+      await loadPools(branchFilter, { silent: true })
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not create tips pool')
     }
@@ -95,7 +98,7 @@ export function HrTipsPage() {
         body: JSON.stringify({ equal: true }),
       })
       success('Tips distributed')
-      await loadPools(branchFilter)
+      await loadPools(branchFilter, { silent: true })
       if (detailId === poolId) {
         const d = await api<TipsPool>(`/tips/pools/${poolId}`)
         setDetail(d)

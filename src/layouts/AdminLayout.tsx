@@ -2,6 +2,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { SidebarNav } from '../components/SidebarNav'
 import { SidebarUserMenu } from '../components/SidebarUserMenu'
+import { BrandLogo } from '../components/BrandLogo'
 import { staffMenuSections } from '../config/navigation'
 import { isSystemAdmin } from '../lib/roles'
 import { NotificationBell } from '../components/NotificationBell'
@@ -21,7 +22,7 @@ export function AdminLayout() {
     <div className="dash admin-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">HG</span>
+          <BrandLogo size="md" />
           <div>
             <strong>Highway Grill</strong>
             <small>{portalLabel}</small>

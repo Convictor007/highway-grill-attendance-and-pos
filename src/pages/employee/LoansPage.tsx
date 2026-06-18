@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
@@ -58,13 +59,15 @@ export function LoansPage() {
     return deductionPerPeriod(principalNum, form.repayment_schedule, durationNum)
   }, [principalNum, form.repayment_schedule, durationNum])
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const data = await api<Loan[]>('/loans')
       setRows(data)
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -98,7 +101,7 @@ export function LoansPage() {
         term_duration: '2',
         purpose: '',
       })
-      load()
+      load({ silent: true })
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not submit application')
     } finally {

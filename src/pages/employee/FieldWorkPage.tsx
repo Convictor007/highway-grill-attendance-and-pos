@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { MapCenterPin } from '../../components/MapCenterPin'
 import type { MapMarker } from '../../components/LeafletMap'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -57,8 +58,9 @@ export function FieldWorkPage() {
   const gpsSet = useRef(false)
   const runGeocode = useMemo(() => useDebouncedGeocode(400), [])
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const [s, c] = await Promise.all([
         api<FieldSite[]>('/field-work/sites'),
@@ -68,6 +70,7 @@ export function FieldWorkPage() {
       setCheckins(c)
     } finally {
       setLoading(false)
+      finish()
     }
   }, [])
 
@@ -197,7 +200,7 @@ export function FieldWorkPage() {
       } else {
         setSuccess(`Checked in at ${siteLabel}.`)
       }
-      await load()
+      await load({ silent: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Check-in failed')
     } finally {

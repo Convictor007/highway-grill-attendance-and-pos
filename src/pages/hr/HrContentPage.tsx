@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, apiUpload } from '../../lib/api'
+import { preserveScroll } from '../../lib/scroll'
 import { useNotification } from '../../hooks/useNotification'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -432,7 +433,7 @@ export function HrContentPage() {
         announcement={editingMemo}
         branches={branches}
         onClose={() => setEditingMemo(null)}
-        onSaved={loadAnnouncements}
+        onSaved={() => preserveScroll(loadAnnouncements)}
       />
     </div>
   )

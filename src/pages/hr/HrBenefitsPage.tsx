@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
@@ -54,13 +55,14 @@ export function HrBenefitsPage() {
     if (!employeeId && emps[0]) setEmployeeId(emps[0].id)
   }
 
-  const loadEmployeeBenefits = async (eid: string) => {
+  const loadEmployeeBenefits = async (eid: string, options?: LoadOptions) => {
     if (!eid) {
       setSetup(null)
       setEnrollments([])
       return
     }
-    setLoading(true)
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const [setupRow, enrollmentRows] = await Promise.all([
         api<BenefitsDeductionSetup>(`/benefits/deduction-setup?employee_id=${encodeURIComponent(eid)}`).catch(
@@ -75,6 +77,7 @@ export function HrBenefitsPage() {
       setEnrollments([])
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -129,7 +132,7 @@ export function HrBenefitsPage() {
     try {
       await api('/benefits/government-profile', { method: 'PUT', body: JSON.stringify(payload) })
       success('Deductions saved')
-      await loadEmployeeBenefits(employeeId)
+      await loadEmployeeBenefits(employeeId, { silent: true })
       if (tab === 'compliance') await loadCompliance(complianceBranch)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not save deductions')
@@ -160,7 +163,7 @@ export function HrBenefitsPage() {
       }
       setEnrollmentOpen(false)
       setEditingEnrollment(null)
-      await loadEmployeeBenefits(employeeId)
+      await loadEmployeeBenefits(employeeId, { silent: true })
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not save allowance')
     } finally {
@@ -178,7 +181,7 @@ export function HrBenefitsPage() {
     try {
       await api(`/benefits/${enrollment.id}`, { method: 'DELETE' })
       success('Allowance deleted')
-      await loadEmployeeBenefits(employeeId)
+      await loadEmployeeBenefits(employeeId, { silent: true })
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not delete allowance')
     }

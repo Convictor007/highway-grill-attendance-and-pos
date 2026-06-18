@@ -35,3 +35,6 @@ api/uploads/documents/*
 !api/uploads/documents/.gitkeep
 api/uploads/photos/*
 !api/uploads/photos/.gitkeep
+
+.vercel
+.env*

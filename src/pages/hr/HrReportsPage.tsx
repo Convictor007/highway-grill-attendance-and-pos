@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
@@ -15,8 +16,9 @@ export function HrReportsPage() {
   const [masterlist, setMasterlist] = useState<OrgMasterlistEntry[]>([])
   const [loading, setLoading] = useState(true)
 
-  const load = async (bid?: string) => {
-    setLoading(true)
+  const load = async (bid?: string, options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const q = bid ? `?branch_id=${encodeURIComponent(bid)}` : ''
       const [s, m] = await Promise.all([
@@ -27,6 +29,7 @@ export function HrReportsPage() {
       setMasterlist(m)
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -40,7 +43,7 @@ export function HrReportsPage() {
   }, [])
 
   useEffect(() => {
-    load(branchId || undefined)
+    load(branchId || undefined, { silent: Boolean(branchId) })
   }, [branchId])
 
   const cards = [

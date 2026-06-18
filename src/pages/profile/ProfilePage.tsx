@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { api, apiUpload } from '../../lib/api'
+import { preserveScroll } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -113,20 +114,22 @@ export function ProfilePage() {
     e?.preventDefault()
     setSaving(true)
     try {
-      await api('/employees/me', {
-        method: 'PUT',
-        body: JSON.stringify({
-          ...form,
-          gender: form.gender || null,
-          date_of_birth: form.date_of_birth || null,
-          nationality: form.nationality || DEFAULT_NATIONALITY,
-        }),
+      await preserveScroll(async () => {
+        await api('/employees/me', {
+          method: 'PUT',
+          body: JSON.stringify({
+            ...form,
+            gender: form.gender || null,
+            date_of_birth: form.date_of_birth || null,
+            nationality: form.nationality || DEFAULT_NATIONALITY,
+          }),
+        })
+        setSaved(true)
+        setEditing(false)
+        await load()
+        await refresh()
+        setTimeout(() => setSaved(false), 2000)
       })
-      setSaved(true)
-      setEditing(false)
-      await load()
-      await refresh()
-      setTimeout(() => setSaved(false), 2000)
     } finally {
       setSaving(false)
     }
@@ -136,11 +139,13 @@ export function ProfilePage() {
     if (!file) return
     setPhotoBusy(true)
     try {
-      const fd = new FormData()
-      fd.append('photo', file)
-      await apiUpload<Employee>('/employees/me/photo', fd)
-      await load()
-      await refresh()
+      await preserveScroll(async () => {
+        const fd = new FormData()
+        fd.append('photo', file)
+        await apiUpload<Employee>('/employees/me/photo', fd)
+        await load()
+        await refresh()
+      })
     } finally {
       setPhotoBusy(false)
       if (fileRef.current) fileRef.current.value = ''

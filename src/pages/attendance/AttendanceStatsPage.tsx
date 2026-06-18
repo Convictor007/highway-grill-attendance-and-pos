@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import type { Branch } from '../../types/hrms'
@@ -36,14 +37,16 @@ export function AttendanceStatsPage() {
   const [stats, setStats] = useState<AttendanceStats | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const load = async (bid?: string, f?: string, t?: string) => {
-    setLoading(true)
+  const load = async (bid?: string, f?: string, t?: string, options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const q = new URLSearchParams({ from: f ?? from, to: t ?? to })
       if (bid) q.set('branch_id', bid)
       setStats(await api<AttendanceStats>(`/attendance/statistics?${q}`))
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -60,7 +63,7 @@ export function AttendanceStatsPage() {
 
   const onFilter = (e: FormEvent) => {
     e.preventDefault()
-    load(branchId || undefined, from, to)
+    load(branchId || undefined, from, to, { silent: true })
   }
 
   return (

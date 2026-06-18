@@ -197,11 +197,18 @@ final class PayslipRenderer
     private static function watermarkImgTag(): string
     {
         $root = dirname(__DIR__, 3);
-        $pngPath = $root . '/src/assets/HGlogo_whitebg.png';
+        $pngPath = $root . '/src/assets/HG_logo.png';
+        $legacyPngPath = $root . '/src/assets/HGlogo_whitebg.png';
         $jpgPath = $root . '/api/assets/HGlogo_whitebg.jpg';
 
         if (extension_loaded('gd') && is_readable($pngPath)) {
             $data = base64_encode((string) file_get_contents($pngPath));
+
+            return '<img class="watermark-img" src="data:image/png;base64,' . $data . '" alt="" width="280" height="280" />';
+        }
+
+        if (extension_loaded('gd') && is_readable($legacyPngPath)) {
+            $data = base64_encode((string) file_get_contents($legacyPngPath));
 
             return '<img class="watermark-img" src="data:image/png;base64,' . $data . '" alt="" width="280" height="280" />';
         }
@@ -214,6 +221,12 @@ final class PayslipRenderer
 
         if (is_readable($pngPath)) {
             $data = base64_encode((string) file_get_contents($pngPath));
+
+            return '<img class="watermark-img" src="data:image/png;base64,' . $data . '" alt="" width="280" height="280" />';
+        }
+
+        if (is_readable($legacyPngPath)) {
+            $data = base64_encode((string) file_get_contents($legacyPngPath));
 
             return '<img class="watermark-img" src="data:image/png;base64,' . $data . '" alt="" width="280" height="280" />';
         }

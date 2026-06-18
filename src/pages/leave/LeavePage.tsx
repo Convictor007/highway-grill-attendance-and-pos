@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { preserveScroll } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
@@ -52,7 +53,7 @@ export function LeavePage() {
       await api('/leave/requests', { method: 'POST', body: JSON.stringify(form) })
       success('Leave request submitted')
       setForm({ leave_type_id: types[0]?.id ?? '', start_date: '', end_date: '', reason: '' })
-      load()
+      await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not submit leave request')
     }
@@ -63,7 +64,7 @@ export function LeavePage() {
     try {
       await api(`/leave/${id}/cancel`, { method: 'PUT', body: '{}' })
       success('Leave request cancelled')
-      load()
+      await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not cancel leave request')
     }
@@ -76,7 +77,7 @@ export function LeavePage() {
         body: JSON.stringify({ status }),
       })
       success(status === 'approved' ? 'Leave approved' : 'Leave rejected')
-      load()
+      await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not update leave request')
     }
@@ -163,7 +164,7 @@ export function LeavePage() {
             setTypeModalOpen(false)
             setEditingType(null)
           }}
-          onSaved={load}
+          onSaved={() => preserveScroll(load)}
         />
       )}
 

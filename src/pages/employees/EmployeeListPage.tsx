@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
@@ -93,8 +94,9 @@ export function EmployeeListPage() {
     setPositions(await api<Position[]>(`/positions?branch_id=${branchId}`))
   }
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const [emps, br] = await Promise.all([
         api<Employee[]>('/employees'),
@@ -109,6 +111,7 @@ export function EmployeeListPage() {
       }
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -172,7 +175,7 @@ export function EmployeeListPage() {
         success('Employee updated')
       }
       setEditingId(null)
-      load()
+      load({ silent: true })
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not save employee')
     }
@@ -183,7 +186,7 @@ export function EmployeeListPage() {
     try {
       await api(`/employees/${id}`, { method: 'DELETE' })
       success('Employee marked as terminated')
-      load()
+      load({ silent: true })
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not terminate employee')
     }

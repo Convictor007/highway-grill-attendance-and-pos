@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
@@ -34,12 +35,14 @@ export function HrLoansPage() {
   const [paymentsLoanId, setPaymentsLoanId] = useState<string | null>(null)
   const [paymentsLabel, setPaymentsLabel] = useState<string | null>(null)
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       setRows(await api<Loan[]>('/loans'))
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -54,7 +57,7 @@ export function HrLoansPage() {
         body: JSON.stringify({ status }),
       })
       success(status === 'approved' ? 'Loan approved' : 'Loan rejected')
-      load()
+      load({ silent: true })
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not update loan')
     }

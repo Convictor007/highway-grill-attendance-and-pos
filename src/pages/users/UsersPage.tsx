@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { preserveScroll } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
@@ -87,7 +88,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
       })
       success('User account created')
       setShowForm(false)
-      load()
+      await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not create user')
     }
@@ -118,7 +119,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
 
       success('Staff account updated')
       setEditingUser(null)
-      await load()
+      await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not update user')
     } finally {
@@ -145,7 +146,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
         await api(`/users/${id}/${action}`, { method: 'POST' })
         success(action === 'approve' ? 'Applicant approved' : 'Employee activated')
       }
-      await load()
+      await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Action failed')
     } finally {

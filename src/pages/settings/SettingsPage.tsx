@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
@@ -79,8 +80,9 @@ export function SettingsPage() {
     setHolidays(await api<Holiday[]>(`/holidays?year=${year}`))
   }
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const [b, d] = await Promise.all([
         api<SettingsBranch[]>('/settings/branches'),
@@ -92,6 +94,7 @@ export function SettingsPage() {
       await Promise.all([loadPositions(positionBranchFilter || undefined), loadHolidays(holidayYear)])
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -104,7 +107,7 @@ export function SettingsPage() {
     await api('/settings/branches', { method: 'POST', body: JSON.stringify(branchForm) })
     setBranchForm({ name: '', address: '', phone: '' })
     setShowBranchForm(false)
-    load()
+    load({ silent: true })
   }
 
   const onCreateDept = async (e: FormEvent) => {
@@ -119,7 +122,7 @@ export function SettingsPage() {
     })
     setDeptForm({ branch_id: branches[0]?.id ?? '', name: '', cost_center: '' })
     setShowDeptForm(false)
-    load()
+    load({ silent: true })
   }
 
   return (
@@ -238,7 +241,7 @@ export function SettingsPage() {
           open={editingBranch !== null}
           branch={editingBranch}
           onClose={() => setEditingBranch(null)}
-          onSaved={load}
+          onSaved={() => load({ silent: true })}
         />
       )}
 
@@ -307,7 +310,7 @@ export function SettingsPage() {
           department={editingDepartment}
           branches={branches}
           onClose={() => setEditingDepartment(null)}
-          onSaved={load}
+          onSaved={() => load({ silent: true })}
         />
       )}
 

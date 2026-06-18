@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { NavIcon } from '../components/NavIcon'
+import { BrandLogo } from '../components/BrandLogo'
 import { SidebarUserMenu } from '../components/SidebarUserMenu'
 import { employeeMenuItems, filterNav } from '../config/navigation'
 import { NotificationBell } from '../components/NotificationBell'
@@ -31,7 +32,7 @@ export function EmployeeLayout() {
     <div className="employee-shell">
       <header className="app-header">
         <div className="app-header-brand">
-          <span className="brand-mark">HG</span>
+          <BrandLogo size="sm" />
           <div>
             <strong>Highway Grill</strong>
             <span className="app-header-date">{today}</span>

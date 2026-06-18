@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../lib/scroll'
 import { useNotification } from '../hooks/useNotification'
 import { LoadingBlock } from './LoadingBlock'
 import { Modal } from './Modal'
@@ -94,9 +95,10 @@ export function PayrollEmployeePrepare({
   }
 
   const load = useCallback(
-    async (dates?: string[]) => {
+    async (dates?: string[], options?: LoadOptions) => {
       if (!runId || !employeeId) return
-      setLoading(true)
+      const { showLoading, finish } = resolveLoadBehavior(options)
+      if (showLoading) setLoading(true)
       setLoadFailed(false)
       try {
         const attendanceEdit = dates !== undefined
@@ -115,6 +117,7 @@ export function PayrollEmployeePrepare({
         notifyError(err instanceof Error ? err.message : 'Could not load employee payroll data')
       } finally {
         setLoading(false)
+        finish()
       }
     },
     [runId, employeeId, notifyError]
@@ -135,7 +138,7 @@ export function PayrollEmployeePrepare({
     if (checked) next.add(date)
     else next.delete(date)
     setIncluded(next)
-    load([...next])
+    load([...next], { silent: true })
   }
 
   const onGenerate = async () => {
@@ -158,7 +161,7 @@ export function PayrollEmployeePrepare({
         }),
       })
       onSaved()
-      await load()
+      await load(undefined, { silent: true })
       success(
         data?.payslip?.id
           ? 'Payslip regenerated from attendance. Totals updated below.'
@@ -189,7 +192,7 @@ export function PayrollEmployeePrepare({
         }),
       })
       onSaved()
-      await load()
+      await load(undefined, { silent: true })
       success(`Deductions saved. Net pay is now ${money(updated.net_pay)}.`)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not save payslip')

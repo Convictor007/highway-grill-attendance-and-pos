@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import {
   clockIn as doClockIn,
   clockOut as doClockOut,
@@ -59,8 +60,9 @@ export function DtrPage() {
   const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
   const showEndShift = open && !!shiftCtx?.show_end_shift
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       const to = new Date().toISOString().slice(0, 10)
       const fromDate = new Date()
@@ -88,6 +90,7 @@ export function DtrPage() {
       setRecords(history)
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -99,7 +102,7 @@ export function DtrPage() {
     enabled: open && canClock,
     geofenceRequired,
     onAutoClockOut: () => {
-      load()
+      load({ silent: true })
     },
     onLocationPing: (coords) => {
       void geofence.updateFromCoords(coords)
@@ -113,7 +116,7 @@ export function DtrPage() {
     try {
       await doClockIn(geofenceRequired)
       await geofence.refresh()
-      await load()
+      await load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
     } finally {
@@ -127,7 +130,7 @@ export function DtrPage() {
     setClockError(null)
     try {
       await doClockOut()
-      await load()
+      await load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
     } finally {
@@ -141,7 +144,7 @@ export function DtrPage() {
     setClockError(null)
     try {
       await api('/attendance/break-start', { method: 'POST', body: '{}' })
-      await load()
+      await load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
     } finally {
@@ -155,7 +158,7 @@ export function DtrPage() {
     setClockError(null)
     try {
       await api('/attendance/break-end', { method: 'POST', body: '{}' })
-      await load()
+      await load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
     } finally {

@@ -8,9 +8,7 @@ CREATE DATABASE highway_grill_hrms
   CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE highway_grill_hrms;
-
 SET FOREIGN_KEY_CHECKS = 0;
-
 -- =============================================================================
 -- RBAC — roles seeded in seed.sql (admin, hr, employee)
 -- =============================================================================

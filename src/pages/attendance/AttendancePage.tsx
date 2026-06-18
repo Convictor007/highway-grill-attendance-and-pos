@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
+import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { clockIn as doClockIn, clockOut as doClockOut, clockErrorMessage } from '../../lib/clock'
 import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
@@ -32,7 +33,7 @@ export function AttendancePage() {
     enabled: open && canSelf && Boolean(user?.employee_id),
     geofenceRequired,
     onAutoClockOut: () => {
-      load()
+      load({ silent: true })
     },
     onLocationPing: (coords) => {
       void geofence.updateFromCoords(coords)
@@ -40,8 +41,9 @@ export function AttendancePage() {
   })
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null)
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (options?: LoadOptions) => {
+    const { showLoading, finish } = resolveLoadBehavior(options)
+    if (showLoading) setLoading(true)
     try {
       if (canView || canSelf) {
         const data = await api<AttendanceRecord[]>(`/attendance?date=${date}`)
@@ -58,6 +60,7 @@ export function AttendancePage() {
       }
     } finally {
       setLoading(false)
+      finish()
     }
   }
 
@@ -70,7 +73,7 @@ export function AttendancePage() {
     try {
       await doClockIn(geofenceRequired)
       await geofence.refresh()
-      load()
+      load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
     }
@@ -80,7 +83,7 @@ export function AttendancePage() {
     setClockError(null)
     try {
       await doClockOut()
-      load()
+      load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
     }
@@ -88,12 +91,12 @@ export function AttendancePage() {
 
   const breakStart = async () => {
     await api('/attendance/break-start', { method: 'POST', body: '{}' })
-    load()
+    load({ silent: true })
   }
 
   const breakEnd = async () => {
     await api('/attendance/break-end', { method: 'POST', body: '{}' })
-    load()
+    load({ silent: true })
   }
 
   const title = canView ? 'Attendance register' : 'My attendance'
@@ -237,7 +240,7 @@ export function AttendancePage() {
           open={editingRecord !== null}
           record={editingRecord}
           onClose={() => setEditingRecord(null)}
-          onSaved={load}
+          onSaved={() => load({ silent: true })}
         />
       )}
     </div>

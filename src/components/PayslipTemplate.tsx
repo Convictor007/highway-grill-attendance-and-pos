@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import hgLogo from '../assets/HGlogo_whitebg.png'
+import hgLogo from '../assets/HG_logo.png'
 import { buildPayslipTemplateData, formatMoney } from '../lib/payslipTemplate'
 import type { Payslip } from '../types/hrms'
 

@@ -346,6 +346,41 @@ th {
   color: #fff;
 }
 
+.brand-logo {
+  display: block;
+  flex-shrink: 0;
+  object-fit: contain;
+  background: transparent;
+}
+
+.brand-logo--sm {
+  width: 36px;
+  height: 36px;
+}
+
+.brand-logo--md {
+  width: 44px;
+  height: 44px;
+}
+
+.brand-logo--lg {
+  width: 80px;
+  height: 80px;
+}
+
+.auth-layout-inner {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.auth-layout-logo {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.35));
+}
+
 .brand small {
   display: block;
   color: var(--muted);

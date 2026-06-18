@@ -1,14 +1,5 @@
--- =============================================================================
--- patch_admin_refactor.sql — decouple system admin from crew records
--- Run once on live DB after deploying admin user-management changes.
---
--- Result:
---   admin@highwaygrill.com — login-only (no employee row, hidden from Users)
---   hr@highwaygrill.com    — linked to HG-HR employee record
--- =============================================================================
 
 BEGIN;
-
 UPDATE users u
 SET employee_id = NULL
 FROM roles r
