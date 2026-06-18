@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import { ageFromDateOfBirth } from '../lib/age'
 import { toDateInputValue } from '../lib/date'
 import { RolePermissionsEditor } from './RolePermissionsEditor'
+import { DatePicker } from './DatePicker'
 import type { AppUser, Branch, Department, Employee, Gender, Position, Role } from '../types/hrms'
 
 export type UserAccountDraft = {
@@ -26,6 +27,9 @@ export type UserAccountDraft = {
   branch_id: string
   department_id: string
   position_id: string
+  hire_date: string
+  is_stay_in: boolean
+  housing_deduction: string
 }
 
 type Tab = 'profile' | 'position' | 'permissions'
@@ -69,6 +73,10 @@ function draftFromUser(user: AppUser, roles: Role[]): UserAccountDraft {
     branch_id: user.branch_id ?? '',
     department_id: user.department_id ?? '',
     position_id: user.position_id ?? '',
+    hire_date: toDateInputValue(user.hire_date) || new Date().toISOString().slice(0, 10),
+    is_stay_in: Boolean(user.is_stay_in),
+    housing_deduction:
+      user.housing_deduction != null && user.housing_deduction !== '' ? String(user.housing_deduction) : '',
   }
 }
 
@@ -103,6 +111,10 @@ function mergeEmployeeIntoDraft(base: UserAccountDraft, emp: Employee): UserAcco
     branch_id: emp.branch_id ?? '',
     department_id: emp.department_id ?? '',
     position_id: emp.position_id ?? '',
+    hire_date: toDateInputValue(emp.hire_date) || new Date().toISOString().slice(0, 10),
+    is_stay_in: Boolean(emp.is_stay_in),
+    housing_deduction:
+      emp.housing_deduction != null && emp.housing_deduction !== '' ? String(emp.housing_deduction) : '',
   }
 }
 
@@ -483,6 +495,49 @@ export function UserAccountEditPanel({
                   </select>
                 </div>
               </div>
+              <div className="form-row">
+                <DatePicker
+                  label="Date hired"
+                  value={draft.hire_date}
+                  onChange={(hire_date) => patch('hire_date', hire_date)}
+                  max={new Date().toISOString().slice(0, 10)}
+                  required
+                />
+              </div>
+            </div>
+          )}
+
+          {draft.employee_id && !loadingEmployee && (
+            <div className="staff-edit-section">
+              <h4 className="staff-edit-section-title">Stay-in housing</h4>
+              <p className="field-hint" style={{ marginTop: 0 }}>
+                Monthly amount deducted on payroll (shown on payslip as <strong>HSNG</strong>). Half is taken each semi-monthly run.
+              </p>
+              <label className="staff-edit-toggle">
+                <input
+                  type="checkbox"
+                  checked={draft.is_stay_in}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    patch('is_stay_in', checked)
+                    if (!checked) patch('housing_deduction', '')
+                  }}
+                />
+                <span>Employee uses company stay-in housing</span>
+              </label>
+              {draft.is_stay_in && (
+                <div className="form-group" style={{ marginTop: '0.75rem' }}>
+                  <label>Housing deduction per month (₱)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="e.g. 1000"
+                    value={draft.housing_deduction}
+                    onChange={(e) => patch('housing_deduction', e.target.value)}
+                  />
+                </div>
+              )}
             </div>
           )}
 

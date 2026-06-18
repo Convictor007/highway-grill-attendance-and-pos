@@ -16,6 +16,10 @@ export function buildEmployeeUpdateBody(draft: UserAccountDraft): Record<string,
     address: draft.address || null,
     emergency_name: draft.emergency_name || null,
     emergency_phone: draft.emergency_phone || null,
+    hire_date: toDateInputValue(draft.hire_date) || new Date().toISOString().slice(0, 10),
+    is_stay_in: draft.is_stay_in,
+    housing_deduction:
+      draft.is_stay_in && draft.housing_deduction !== '' ? Number(draft.housing_deduction) : 0,
   }
 
   if (draft.branch_id) {

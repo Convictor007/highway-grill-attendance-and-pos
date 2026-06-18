@@ -117,6 +117,10 @@ export async function updateEmployee(id: string, data: Record<string, unknown>) 
     if (!(f in data)) continue
     let val = data[f]
     if (f === 'date_of_birth') val = nullableDate(val)
+    else if (f === 'hire_date') {
+      val = nullableDate(val)
+      if (!val) throw new ValidationError('hire_date must be YYYY-MM-DD')
+    }
     else if (f === 'gender') val = normalizeGender(val)
     else if (f === 'employment_type') val = normalizeEmploymentType(String(val))
     else if (f === 'pay_basis') val = normalizePayBasis(String(val))

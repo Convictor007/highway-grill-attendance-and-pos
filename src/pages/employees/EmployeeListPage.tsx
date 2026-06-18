@@ -328,6 +328,13 @@ export function EmployeeListPage() {
               <option value="seasonal">Seasonal</option>
             </select>
           </div>
+          <DatePicker
+            label="Date hired"
+            value={form.hire_date}
+            onChange={(hire_date) => setForm({ ...form, hire_date })}
+            max={new Date().toISOString().slice(0, 10)}
+            required
+          />
           <fieldset className="form-fieldset">
             <legend>Payroll compensation</legend>
             <p className="form-hint" style={{ marginTop: 0 }}>
