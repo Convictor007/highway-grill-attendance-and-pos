@@ -14,28 +14,28 @@ export function BenefitsAgencyPanel({ agency, history, canEdit, onEdit }: Props)
 
   return (
     <div className="stack">
-      <div className="benefits-stat-grid benefits-stat-grid--5">
+      <div className="benefits-stat-grid">
         <div className="card benefits-stat-card">
           <span className="benefits-stat-label">Member ID</span>
-          <span className="benefits-stat-value">{agency.member_id || 'Not on file'}</span>
+          <strong>{agency.member_id || 'Not on file'}</strong>
         </div>
         <div className="card benefits-stat-card">
           <span className="benefits-stat-label">Status</span>
-          <span className={`benefits-stat-value${agency.enrolled ? ' text-success' : ' text-muted'}`}>
+          <strong className={agency.enrolled ? 'text-success' : 'text-muted'}>
             {agency.enrolled ? 'Enrolled' : 'Not enrolled'}
-          </span>
+          </strong>
         </div>
         <div className="card benefits-stat-card">
           <span className="benefits-stat-label">Per payroll (est.)</span>
-          <span className="benefits-stat-value">{formatBenefitMoney(agency.per_payroll_share)}</span>
+          <strong>{formatBenefitMoney(agency.per_payroll_share)}</strong>
         </div>
         <div className="card benefits-stat-card">
           <span className="benefits-stat-label">Monthly (est.)</span>
-          <span className="benefits-stat-value">{formatBenefitMoney(agency.monthly_employee_share)}</span>
+          <strong>{formatBenefitMoney(agency.monthly_employee_share)}</strong>
         </div>
         <div className="card benefits-stat-card">
           <span className="benefits-stat-label">YTD deducted</span>
-          <span className="benefits-stat-value">{formatBenefitMoney(agency.ytd)}</span>
+          <strong>{formatBenefitMoney(agency.ytd)}</strong>
         </div>
       </div>
 

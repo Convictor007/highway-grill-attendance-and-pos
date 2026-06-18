@@ -590,123 +590,28 @@ th {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1rem;
-  align-items: stretch;
 }
 
-.stat-grid--4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-@media (max-width: 900px) {
-  .stat-grid--4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.benefits-stat-grid {
-  display: grid;
-  gap: 0.6rem;
-  align-items: stretch;
-  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-}
-
-.benefits-stat-grid--5 {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
-.benefits-stat-grid--4 {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.benefits-stat-grid--3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-@media (max-width: 900px) {
-  .benefits-stat-grid--5 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .benefits-stat-grid--4 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 520px) {
-  .benefits-stat-grid--5,
-  .benefits-stat-grid--4,
-  .benefits-stat-grid--3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.card.stat-card,
-a.card.stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  height: 100%;
-  min-height: 6.25rem;
-  padding: 1rem 1.15rem;
-  box-sizing: border-box;
+.stat-card {
   text-decoration: none;
   color: inherit;
 }
 
-.card.benefits-stat-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  gap: 0.2rem;
-  min-width: 0;
-  height: 100%;
-  min-height: 4.5rem;
-  padding: 0.6rem 0.75rem;
-  box-sizing: border-box;
-  text-decoration: none;
-  color: inherit;
-}
-
-.stat-card:hover,
-a.stat-card:hover {
+.stat-card:hover {
   border-color: var(--accent);
 }
 
 .stat-num {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: 600;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
 }
 
-.benefits-stat-value {
-  font-size: 0.95rem;
-  font-weight: 600;
-  line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stat-label,
-.benefits-stat-label {
+.stat-label {
   color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.benefits-stat-grid .benefits-stat-label {
-  font-size: 0.72rem;
-}
-
-.benefits-stat-sub {
-  font-size: 0.75rem;
-  color: var(--muted);
-  line-height: 1.35;
-  margin-top: auto;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
 }
 
 .quick-actions {
@@ -3788,6 +3693,29 @@ a.stat-card:hover {
   gap: 0.35rem;
 }
 
+.benefits-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.75rem;
+}
+
+.benefits-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.benefits-stat-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.benefits-stat-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .benefits-panel-head {
   display: flex;
   justify-content: space-between;
@@ -5744,7 +5672,6 @@ tr.row-clickable:hover td {
   flex-direction: column;
   gap: 0.5rem;
   min-height: 7rem;
-  height: 100%;
 }
 
 .admin-tool-title {

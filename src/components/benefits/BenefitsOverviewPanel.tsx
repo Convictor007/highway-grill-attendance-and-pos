@@ -10,17 +10,17 @@ export function BenefitsOverviewPanel({ data }: Props) {
 
   return (
     <div className="stack">
-      <div className="benefits-stat-grid benefits-stat-grid--4">
+      <div className="benefits-stat-grid">
         {data.agencies.map((agency) => (
           <div key={agency.agency} className="card benefits-stat-card">
             <span className="benefits-stat-label">{agency.label}</span>
-            <span className="benefits-stat-value">{formatBenefitMoney(agency.per_payroll_share)}</span>
+            <strong>{formatBenefitMoney(agency.per_payroll_share)}</strong>
             <span className="benefits-stat-sub">per payroll · YTD {formatBenefitMoney(agency.ytd)}</span>
           </div>
         ))}
         <div className="card benefits-stat-card">
           <span className="benefits-stat-label">Withholding tax</span>
-          <span className="benefits-stat-value">{formatBenefitMoney(data.withholding_tax.per_payroll)}</span>
+          <strong>{formatBenefitMoney(data.withholding_tax.per_payroll)}</strong>
           <span className="benefits-stat-sub">per payroll · YTD {formatBenefitMoney(data.withholding_tax.ytd)}</span>
         </div>
       </div>

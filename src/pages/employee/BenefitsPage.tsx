@@ -61,18 +61,18 @@ export function BenefitsPage() {
 
           {tab === 'tax' && (
             <div className="stack">
-              <div className="benefits-stat-grid benefits-stat-grid--3">
+              <div className="benefits-stat-grid">
                 <div className="card benefits-stat-card">
                   <span className="benefits-stat-label">Per payroll (est.)</span>
-                  <span className="benefits-stat-value">{formatBenefitMoney(data.withholding_tax.per_payroll)}</span>
+                  <strong>{formatBenefitMoney(data.withholding_tax.per_payroll)}</strong>
                 </div>
                 <div className="card benefits-stat-card">
                   <span className="benefits-stat-label">Monthly (est.)</span>
-                  <span className="benefits-stat-value">{formatBenefitMoney(data.withholding_tax.monthly)}</span>
+                  <strong>{formatBenefitMoney(data.withholding_tax.monthly)}</strong>
                 </div>
                 <div className="card benefits-stat-card">
                   <span className="benefits-stat-label">YTD withheld</span>
-                  <span className="benefits-stat-value">{formatBenefitMoney(data.withholding_tax.ytd)}</span>
+                  <strong>{formatBenefitMoney(data.withholding_tax.ytd)}</strong>
                 </div>
               </div>
               <div className="card table-wrap">
