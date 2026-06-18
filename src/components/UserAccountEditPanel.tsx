@@ -4,6 +4,7 @@ import { ageFromDateOfBirth } from '../lib/age'
 import { toDateInputValue } from '../lib/date'
 import { RolePermissionsEditor } from './RolePermissionsEditor'
 import { DatePicker } from './DatePicker'
+import { NationalityField } from './NationalityField'
 import type { AppUser, Branch, Department, Employee, Gender, Position, Role } from '../types/hrms'
 
 export type UserAccountDraft = {
@@ -390,14 +391,21 @@ export function UserAccountEditPanel({
                   </div>
                 </div>
                 <div className="form-row">
-                  <div className="form-group">
-                    <label>Nationality</label>
-                    <input value={draft.nationality} onChange={(e) => patch('nationality', e.target.value)} />
-                  </div>
-                  <div className="form-group">
-                    <label>Government ID</label>
-                    <input value={draft.national_id} onChange={(e) => patch('national_id', e.target.value)} />
-                  </div>
+                  <NationalityField
+                    value={draft.nationality}
+                    onChange={(nationality) => patch('nationality', nationality)}
+                  />
+                  <DatePicker
+                    label="Date hired"
+                    value={draft.hire_date}
+                    onChange={(hire_date) => patch('hire_date', hire_date)}
+                    max={new Date().toISOString().slice(0, 10)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Government ID</label>
+                  <input value={draft.national_id} onChange={(e) => patch('national_id', e.target.value)} />
                 </div>
                 <div className="form-group">
                   <label>Address</label>

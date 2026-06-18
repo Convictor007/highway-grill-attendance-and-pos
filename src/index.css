@@ -253,6 +253,12 @@ th {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+  align-items: start;
+}
+
+.form-row .nationality-field,
+.form-row .picker-field {
+  min-width: 0;
 }
 
 @media (max-width: 640px) {

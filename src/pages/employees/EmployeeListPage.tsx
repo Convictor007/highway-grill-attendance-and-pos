@@ -307,7 +307,16 @@ export function EmployeeListPage() {
               </select>
             </div>
           </div>
-          <NationalityField value={form.nationality} onChange={(nationality) => setForm({ ...form, nationality })} />
+          <div className="form-row">
+            <NationalityField value={form.nationality} onChange={(nationality) => setForm({ ...form, nationality })} />
+            <DatePicker
+              label="Date hired"
+              value={form.hire_date}
+              onChange={(hire_date) => setForm({ ...form, hire_date })}
+              max={new Date().toISOString().slice(0, 10)}
+              required
+            />
+          </div>
           <AddressField value={form.address} onChange={(address) => setForm({ ...form, address })} compact />
           <div className="form-row">
             <div className="form-group">
@@ -328,13 +337,6 @@ export function EmployeeListPage() {
               <option value="seasonal">Seasonal</option>
             </select>
           </div>
-          <DatePicker
-            label="Date hired"
-            value={form.hire_date}
-            onChange={(hire_date) => setForm({ ...form, hire_date })}
-            max={new Date().toISOString().slice(0, 10)}
-            required
-          />
           <fieldset className="form-fieldset">
             <legend>Payroll compensation</legend>
             <p className="form-hint" style={{ marginTop: 0 }}>
