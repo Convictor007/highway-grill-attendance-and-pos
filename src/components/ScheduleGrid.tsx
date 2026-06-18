@@ -17,6 +17,8 @@ type Props = {
   editable?: boolean
   /** Employee roster: unassigned days show as Day off, not + */
   employeeView?: boolean
+  /** On small screens, show only the highlighted employee row (full week width) */
+  mobileSelfOnly?: boolean
   /** When false, hide Swap links in the grid (employee swap mode toggle) */
   showSwapButtons?: boolean
   emptyMessage?: string
@@ -46,6 +48,7 @@ export function ScheduleGrid({
   highlightEmployeeId,
   editable,
   employeeView = false,
+  mobileSelfOnly = false,
   showSwapButtons = false,
   emptyMessage = 'No active employees for this branch.',
   onEditCell,
@@ -74,6 +77,22 @@ export function ScheduleGrid({
     return <p style={{ color: 'var(--muted)' }}>{emptyMessage}</p>
   }
 
+  const rows =
+    mobileSelfOnly && highlightEmployeeId
+      ? data.rows.filter((row) => row.employee_id === highlightEmployeeId)
+      : data.rows
+
+  if (rows.length === 0) {
+    return <p style={{ color: 'var(--muted)' }}>No schedule on file for you this week.</p>
+  }
+
+  const gridClass = [
+    'schedule-grid-wrap',
+    mobileSelfOnly ? 'schedule-grid-wrap--self-mobile' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   const todayIndex = data.days.findIndex((d) => d.is_today)
   const canEdit = editable && data.editable !== false
 
@@ -89,12 +108,12 @@ export function ScheduleGrid({
   }
 
   return (
-    <div className="schedule-grid-wrap">
+    <div className={gridClass}>
       <div className="schedule-grid-scroll" ref={scrollRef}>
         <table className="schedule-grid">
           <thead>
             <tr>
-              <th className="schedule-grid-name-col">Employee</th>
+              {!mobileSelfOnly && <th className="schedule-grid-name-col">Employee</th>}
               {data.days.map((d, idx) => (
                 <th
                   key={d.date}
@@ -117,17 +136,19 @@ export function ScheduleGrid({
             </tr>
           </thead>
           <tbody>
-            {data.rows.map((row) => (
+            {rows.map((row) => (
               <tr
                 key={row.employee_id}
                 className={highlightEmployeeId === row.employee_id ? 'schedule-grid-row--self' : undefined}
               >
-                <th scope="row" className="schedule-grid-name">
-                  {row.display_name}
-                  {highlightEmployeeId === row.employee_id && (
-                    <span className="schedule-grid-you">You</span>
-                  )}
-                </th>
+                {!mobileSelfOnly && (
+                  <th scope="row" className="schedule-grid-name">
+                    {row.display_name}
+                    {highlightEmployeeId === row.employee_id && (
+                      <span className="schedule-grid-you">You</span>
+                    )}
+                  </th>
+                )}
                 {row.cells.map((cell, idx) => {
                   const day = data.days[idx]
                   const status = displayStatus(cell, employeeView)

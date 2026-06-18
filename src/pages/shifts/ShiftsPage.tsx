@@ -4,10 +4,9 @@ import { EmptyState } from '../../components/EmptyState'
 import { ShiftTemplateModal, type ShiftTemplateRecord } from '../../components/ShiftTemplateModal'
 import { ScheduleGrid, type ScheduleCellEditPayload } from '../../components/ScheduleGrid'
 import { ScheduleCellEditModal, type ScheduleCellEditTarget } from '../../components/ScheduleCellEditModal'
-import { sundayOfWeek, shiftWeek } from '../../lib/scheduleWeek'
-import { DatePicker } from '../../components/DatePicker'
+import { ScheduleWeekNav } from '../../components/ScheduleWeekNav'
+import { sundayOfWeek } from '../../lib/scheduleWeek'
 import { useNotification } from '../../hooks/useNotification'
-import { formatDateDisplay } from '../../lib/datetime'
 import type { Branch, RosterGrid } from '../../types/hrms'
 
 import { normalizeTimeInput } from '../../lib/datetime'
@@ -171,7 +170,6 @@ export function ShiftsPage() {
   }
 
   const weekStatus = rosterGrid?.schedule_status
-  const weekLabel = formatDateDisplay(rosterWeekStart)
 
   return (
     <div>
@@ -274,7 +272,26 @@ export function ShiftsPage() {
 
       {tab === 'roster' && (
         <>
-          <div className="schedule-week-toolbar card" style={{ marginBottom: '1rem' }}>
+          <ScheduleWeekNav
+            weekStart={rosterWeekStart}
+            onWeekStartChange={setRosterWeekStart}
+            showDatePicker
+            trailing={
+              <div className="schedule-toolbar-status">
+                {weekStatus && <span className={`badge badge-${weekStatus}`}>{weekStatus}</span>}
+                {weekStatus === 'draft' && rosterGrid?.schedule_id && (
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={publishing}
+                    onClick={publishWeek}
+                  >
+                    {publishing ? 'Publishing…' : 'Publish week'}
+                  </button>
+                )}
+              </div>
+            }
+          >
             <div className="form-group schedule-toolbar-branch" style={{ margin: 0 }}>
               <label>Branch</label>
               <select
@@ -302,48 +319,7 @@ export function ShiftsPage() {
                 ))}
               </select>
             </div>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setRosterWeekStart((w) => shiftWeek(w, -1))}
-            >
-              ← Prev
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRosterWeekStart(sundayOfWeek())}>
-              This week
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setRosterWeekStart((w) => shiftWeek(w, 1))}
-            >
-              Next →
-            </button>
-            <div className="schedule-week-picker-wrap">
-              <DatePicker value={rosterWeekStart} onChange={(v) => v && setRosterWeekStart(v)} />
-            </div>
-            <div className="schedule-toolbar-status">
-              <span className="muted-block" style={{ margin: 0 }}>
-                Week of {weekLabel}
-              </span>
-              {weekStatus && (
-                <span className={`badge badge-${weekStatus}`} style={{ marginLeft: '0.5rem' }}>
-                  {weekStatus}
-                </span>
-              )}
-              {weekStatus === 'draft' && rosterGrid?.schedule_id && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  style={{ marginLeft: '0.5rem' }}
-                  disabled={publishing}
-                  onClick={publishWeek}
-                >
-                  {publishing ? 'Publishing…' : 'Publish week'}
-                </button>
-              )}
-            </div>
-          </div>
+          </ScheduleWeekNav>
 
           <div className="card schedule-grid-card" style={{ marginBottom: '1.5rem' }}>
             <ScheduleGrid

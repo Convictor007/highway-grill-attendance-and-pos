@@ -4786,16 +4786,91 @@ tr.row-clickable:hover td {
   margin-bottom: 1rem;
 }
 
-.schedule-toolbar-branch,
-.schedule-toolbar-department {
-  min-width: 160px;
+.schedule-week-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.schedule-week-nav-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  flex: 1 1 100%;
+}
+
+.schedule-week-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.schedule-week-nav-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+
+.schedule-week-nav-arrow:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+}
+
+.schedule-week-nav-range {
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0 0.35rem;
+  white-space: nowrap;
+  min-width: 8.5rem;
+  text-align: center;
+}
+
+.schedule-week-nav-today {
+  margin-left: 0.35rem;
+  flex-shrink: 0;
+}
+
+.schedule-week-nav-extra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.schedule-week-nav-trailing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .schedule-toolbar-status {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  margin-left: auto;
+  gap: 0.5rem;
+}
+
+.schedule-toolbar-branch,
+.schedule-toolbar-department {
+  min-width: 160px;
 }
 
 .schedule-swap-toggle {
@@ -5573,6 +5648,70 @@ tr.row-clickable:hover td {
 
 .schedule-week-picker-wrap .picker-trigger {
   min-width: 200px;
+}
+
+@media (max-width: 768px) {
+  .schedule-week-nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+    padding: 0.65rem 0.75rem;
+  }
+
+  .schedule-week-nav-filters {
+    order: 1;
+  }
+
+  .schedule-week-nav-controls {
+    order: 0;
+    justify-content: center;
+  }
+
+  .schedule-week-nav-extra {
+    order: 2;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .schedule-week-nav-trailing {
+    width: 100%;
+  }
+
+  .schedule-week-nav-trailing .schedule-swap-toggle,
+  .schedule-week-nav-trailing > .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .schedule-toolbar-branch,
+  .schedule-toolbar-department {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .schedule-grid-wrap--self-mobile .schedule-grid {
+    min-width: 0;
+  }
+
+  .schedule-grid-wrap--self-mobile .schedule-grid-day-head {
+    min-width: 2.5rem;
+  }
+
+  .schedule-grid-wrap--self-mobile .schedule-grid th,
+  .schedule-grid-wrap--self-mobile .schedule-grid td {
+    padding: 0.65rem 0.35rem;
+    font-size: 0.85rem;
+  }
+
+  .schedule-grid-wrap--self-mobile .schedule-swap-btn {
+    min-height: 44px;
+    padding: 0.5rem 0.35rem;
+    font-size: 0.8rem;
+  }
+
+  .schedule-grid-card {
+    padding: 0.5rem;
+  }
 }
 
 /* Staff account edit modal */

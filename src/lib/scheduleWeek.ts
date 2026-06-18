@@ -14,8 +14,27 @@ export function shiftWeek(start: string, deltaWeeks: number): string {
   return toLocalIsoDate(d)
 }
 
-export function tomorrowWeekStart(): string {
-  const t = new Date()
-  t.setDate(t.getDate() + 1)
-  return sundayOfWeek(t)
+export function weekEndSundayStart(weekStart: string): string {
+  const d = new Date(weekStart + 'T12:00:00')
+  d.setDate(d.getDate() + 6)
+  return toLocalIsoDate(d)
+}
+
+export function isCurrentWeek(weekStart: string): boolean {
+  return weekStart === sundayOfWeek()
+}
+
+/** e.g. "Jun 14 – Jun 20, 2026" */
+export function weekRangeLabel(weekStart: string): string {
+  const start = new Date(weekStart + 'T12:00:00')
+  const end = new Date(weekEndSundayStart(weekStart) + 'T12:00:00')
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return weekStart
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const startFmt = start.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
+  const endFmt = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  return `${startFmt} – ${endFmt}`
 }

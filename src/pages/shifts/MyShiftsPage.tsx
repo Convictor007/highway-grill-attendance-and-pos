@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { PageHeader } from '../../components/PageHeader'
 import { ScheduleGrid } from '../../components/ScheduleGrid'
+import { ScheduleWeekNav } from '../../components/ScheduleWeekNav'
 import { ShiftSwapModal } from '../../components/ShiftSwapModal'
-import { sundayOfWeek, shiftWeek, tomorrowWeekStart } from '../../lib/scheduleWeek'
-import { DatePicker } from '../../components/DatePicker'
+import { sundayOfWeek } from '../../lib/scheduleWeek'
 import type { Employee, RosterGrid, RosterGridCell } from '../../types/hrms'
 
 type ShiftSwap = {
@@ -26,6 +27,7 @@ type ShiftSwap = {
 
 export function MyShiftsPage() {
   const { user, loading: authLoading } = useAuth()
+  const isMobile = useIsMobile()
   const [weekStart, setWeekStart] = useState(() => sundayOfWeek())
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [filtersReady, setFiltersReady] = useState(false)
@@ -97,7 +99,10 @@ export function MyShiftsPage() {
 
   return (
     <div>
-      <PageHeader title="Scheduling" subtitle="See who is scheduled and request shift swaps" />
+      <PageHeader
+        title="Scheduling"
+        subtitle={isMobile ? undefined : 'See who is scheduled and request shift swaps'}
+      />
 
       {(incoming.length > 0 || outgoing.length > 0) && (
         <div className="card" style={{ marginBottom: '1rem' }}>
@@ -134,7 +139,20 @@ export function MyShiftsPage() {
         </div>
       )}
 
-      <div className="schedule-week-toolbar card">
+      <ScheduleWeekNav
+        weekStart={weekStart}
+        onWeekStartChange={setWeekStart}
+        trailing={
+          <button
+            type="button"
+            className={`btn schedule-swap-toggle${swapMode ? ' btn-primary' : ' btn-ghost'}`}
+            onClick={() => setSwapMode((on) => !on)}
+            aria-pressed={swapMode}
+          >
+            {swapMode ? 'Swap mode on' : 'Swap shifts'}
+          </button>
+        }
+      >
         <div className="form-group schedule-toolbar-department" style={{ margin: 0 }}>
           <label>Department</label>
           <select
@@ -153,39 +171,16 @@ export function MyShiftsPage() {
             ))}
           </select>
         </div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setWeekStart((w) => shiftWeek(w, -1))}>
-          ← Prev week
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setWeekStart(sundayOfWeek())}>
-          This week
-        </button>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => setWeekStart(tomorrowWeekStart())}>
-          Tomorrow&apos;s week
-        </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setWeekStart((w) => shiftWeek(w, 1))}>
-          Next week →
-        </button>
-        <div className="schedule-week-picker-wrap">
-          <DatePicker value={weekStart} onChange={(v) => v && setWeekStart(v)} />
-        </div>
-        <button
-          type="button"
-          className={`btn btn-sm schedule-swap-toggle${swapMode ? ' btn-primary' : ' btn-ghost'}`}
-          onClick={() => setSwapMode((on) => !on)}
-          aria-pressed={swapMode}
-        >
-          {swapMode ? 'Swap mode on' : 'Swap shifts'}
-        </button>
-      </div>
+      </ScheduleWeekNav>
 
-      {departmentFilter !== '' && (
-        <p className="muted-block" style={{ margin: '0 0 1rem' }}>
+      {!isMobile && departmentFilter !== '' && (
+        <p className="muted-block schedule-context-line">
           Showing <strong>{departmentLabel}</strong> schedule for this week.
         </p>
       )}
 
       {swapMode && (
-        <p className="schedule-swap-hint muted-block" style={{ margin: '0 0 1rem' }}>
+        <p className="schedule-swap-hint muted-block">
           Swap links appear on your shifts. Exchanges must be on the <strong>same day</strong>.
         </p>
       )}
@@ -195,6 +190,7 @@ export function MyShiftsPage() {
           data={roster}
           loading={loading || !filtersReady}
           employeeView
+          mobileSelfOnly={isMobile}
           showSwapButtons={swapMode}
           highlightEmployeeId={user?.employee_id ?? null}
           onSwapRequest={setSwapCell}
