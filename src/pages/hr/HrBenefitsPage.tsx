@@ -5,21 +5,20 @@ import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
 import { useNotification } from '../../hooks/useNotification'
 import { BenefitsTabNav } from '../../components/benefits/BenefitsTabNav'
-import { BenefitsOverviewPanel } from '../../components/benefits/BenefitsOverviewPanel'
 import { BenefitsAllowancesPanel } from '../../components/benefits/BenefitsAllowancesPanel'
 import { BenefitsCompliancePanel } from '../../components/benefits/BenefitsCompliancePanel'
 import { BenefitsRemittancePanel } from '../../components/benefits/BenefitsRemittancePanel'
 import { GovernmentProfileForm } from '../../components/benefits/GovernmentProfileForm'
 import { BenefitEnrollmentModal } from '../../components/benefits/BenefitEnrollmentModal'
-import { COMPLIANCE_ISSUE_LABELS, HR_BENEFITS_TABS } from '../../lib/benefitsUi'
+import { HR_BENEFITS_TABS } from '../../lib/benefitsUi'
 import type {
   BenefitEnrollment,
   BenefitsComplianceReport,
-  BenefitsOverview,
   BenefitsRemittanceSummary,
   BenefitsTab,
   Branch,
   Employee,
+  GovernmentProfile,
 } from '../../types/hrms'
 
 export function HrBenefitsPage() {
@@ -27,8 +26,9 @@ export function HrBenefitsPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
   const [employeeId, setEmployeeId] = useState('')
-  const [tab, setTab] = useState<BenefitsTab>('overview')
-  const [data, setData] = useState<BenefitsOverview | null>(null)
+  const [tab, setTab] = useState<BenefitsTab>('government')
+  const [profile, setProfile] = useState<GovernmentProfile | null>(null)
+  const [enrollments, setEnrollments] = useState<BenefitEnrollment[]>([])
   const [loading, setLoading] = useState(true)
   const [savingProfile, setSavingProfile] = useState(false)
   const [enrollmentOpen, setEnrollmentOpen] = useState(false)
@@ -53,16 +53,25 @@ export function HrBenefitsPage() {
     if (!employeeId && emps[0]) setEmployeeId(emps[0].id)
   }
 
-  const loadOverview = async (eid: string) => {
+  const loadEmployeeBenefits = async (eid: string) => {
     if (!eid) {
-      setData(null)
+      setProfile(null)
+      setEnrollments([])
       return
     }
     setLoading(true)
     try {
-      setData(await api<BenefitsOverview>(`/benefits/overview?employee_id=${encodeURIComponent(eid)}`))
+      const [profileRow, enrollmentRows] = await Promise.all([
+        api<GovernmentProfile | null>(`/benefits/government-profile?employee_id=${encodeURIComponent(eid)}`).catch(
+          () => null,
+        ),
+        api<BenefitEnrollment[]>(`/benefits?employee_id=${encodeURIComponent(eid)}`).catch(() => []),
+      ])
+      setProfile(profileRow)
+      setEnrollments(enrollmentRows)
     } catch {
-      setData(null)
+      setProfile(null)
+      setEnrollments([])
     } finally {
       setLoading(false)
     }
@@ -98,7 +107,7 @@ export function HrBenefitsPage() {
   }, [])
 
   useEffect(() => {
-    if (employeeId) loadOverview(employeeId)
+    if (employeeId) loadEmployeeBenefits(employeeId)
   }, [employeeId])
 
   useEffect(() => {
@@ -119,7 +128,7 @@ export function HrBenefitsPage() {
     try {
       await api('/benefits/government-profile', { method: 'PUT', body: JSON.stringify(payload) })
       success('Saved')
-      await loadOverview(employeeId)
+      await loadEmployeeBenefits(employeeId)
       if (tab === 'compliance') await loadCompliance(complianceBranch)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not save')
@@ -151,7 +160,7 @@ export function HrBenefitsPage() {
       }
       setEnrollmentOpen(false)
       setEditingEnrollment(null)
-      await loadOverview(employeeId)
+      await loadEmployeeBenefits(employeeId)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not save allowance')
     } finally {
@@ -169,7 +178,7 @@ export function HrBenefitsPage() {
     try {
       await api(`/benefits/${enrollment.id}`, { method: 'DELETE' })
       success('Allowance deleted')
-      await loadOverview(employeeId)
+      await loadEmployeeBenefits(employeeId)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not delete allowance')
     }
@@ -238,27 +247,12 @@ export function HrBenefitsPage() {
       ) : showEmployeePanels ? (
         loading ? (
           <LoadingBlock />
-        ) : !data ? (
-          <EmptyState title="Could not load benefits" description="Try again or check the API connection." />
         ) : (
           <div className="stack" style={{ marginTop: '0.5rem' }}>
-            {data.compliance_issues && data.compliance_issues.length > 0 && tab !== 'government' && (
-              <div className="benefits-compliance-alert" role="status">
-                <strong>Missing info:</strong>{' '}
-                {data.compliance_issues.map((issue) => COMPLIANCE_ISSUE_LABELS[issue] ?? issue).join(' · ')}
-                {' — '}
-                <button type="button" className="text-link" onClick={() => setTab('government')}>
-                  Open Government IDs
-                </button>
-              </div>
-            )}
-
-            {tab === 'overview' && <BenefitsOverviewPanel data={data} />}
-
             {tab === 'government' && (
               <GovernmentProfileForm
                 employeeId={employeeId}
-                profile={data.profile}
+                profile={profile}
                 saving={savingProfile}
                 onSave={saveProfile}
               />
@@ -266,7 +260,7 @@ export function HrBenefitsPage() {
 
             {tab === 'allowances' && (
               <BenefitsAllowancesPanel
-                enrollments={data.enrollments}
+                enrollments={enrollments}
                 canManage
                 onAdd={openAddAllowance}
                 onEdit={openEditAllowance}
