@@ -20,6 +20,10 @@ export function monthlyEmployerShares(monthlyCompensation: number) {
 export type DeductionMode = 'auto' | 'manual'
 
 export type StatutoryDeductionConfig = {
+  sss_number?: string | null
+  philhealth_number?: string | null
+  pagibig_number?: string | null
+  tin?: string | null
   sss_enrolled?: boolean
   philhealth_enrolled?: boolean
   pagibig_enrolled?: boolean
@@ -41,15 +45,21 @@ function roundMoney(n: number) {
   return Math.round(n * 100) / 100
 }
 
+function hasMemberId(value: string | null | undefined) {
+  return Boolean(value?.trim())
+}
+
 function resolveDeduction(
+  hasId: boolean,
   enrolled: boolean,
   mode: DeductionMode | undefined,
   manualMonthly: number | null | undefined,
   autoMonthly: number,
   divisor: number,
 ) {
-  if (!enrolled) return 0
-  if (mode === 'manual' && manualMonthly != null && Number.isFinite(manualMonthly)) {
+  if (!hasId || !enrolled) return 0
+  if (mode === 'manual') {
+    if (manualMonthly == null || !Number.isFinite(manualMonthly) || manualMonthly <= 0) return 0
     return roundMoney(manualMonthly / divisor)
   }
   return roundMoney(autoMonthly / divisor)
@@ -64,6 +74,7 @@ export function effectiveDeductionsFromMonthly(
   const divisor = payFrequency === 'monthly' ? 1 : 2
   return {
     sss: resolveDeduction(
+      hasMemberId(config.sss_number),
       config.sss_enrolled !== false,
       config.sss_deduction_mode,
       config.sss_monthly_amount,
@@ -71,6 +82,7 @@ export function effectiveDeductionsFromMonthly(
       divisor,
     ),
     philhealth: resolveDeduction(
+      hasMemberId(config.philhealth_number),
       config.philhealth_enrolled !== false,
       config.philhealth_deduction_mode,
       config.philhealth_monthly_amount,
@@ -78,6 +90,7 @@ export function effectiveDeductionsFromMonthly(
       divisor,
     ),
     pagibig: resolveDeduction(
+      hasMemberId(config.pagibig_number),
       config.pagibig_enrolled !== false,
       config.pagibig_deduction_mode,
       config.pagibig_monthly_amount,
@@ -85,6 +98,7 @@ export function effectiveDeductionsFromMonthly(
       divisor,
     ),
     tax: resolveDeduction(
+      hasMemberId(config.tin),
       config.tax_enrolled !== false,
       config.tax_deduction_mode,
       config.tax_monthly_amount,
@@ -160,6 +174,10 @@ export function profileToDeductionConfig(profile: Record<string, unknown>): Stat
     return Number.isFinite(n) ? n : null
   }
   return {
+    sss_number: profile.sss_number ? String(profile.sss_number) : null,
+    philhealth_number: profile.philhealth_number ? String(profile.philhealth_number) : null,
+    pagibig_number: profile.pagibig_number ? String(profile.pagibig_number) : null,
+    tin: profile.tin ? String(profile.tin) : null,
     sss_enrolled: profile.sss_enrolled !== false,
     philhealth_enrolled: profile.philhealth_enrolled !== false,
     pagibig_enrolled: profile.pagibig_enrolled !== false,

@@ -179,7 +179,7 @@ export interface BenefitEnrollment {
   last_name?: string
 }
 
-export type BenefitsTab = 'manage' | 'compliance' | 'remittance'
+export type BenefitsTab = 'manage' | 'bulk' | 'compliance' | 'remittance'
 
 export type DeductionMode = 'auto' | 'manual'
 
@@ -187,15 +187,10 @@ export type DeductionMode = 'auto' | 'manual'
 export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
 
 export type ComplianceIssueCode =
-  | 'missing_sss_id'
-  | 'missing_philhealth_id'
-  | 'missing_pagibig_id'
-  | 'missing_tin'
   | 'invalid_sss_id'
   | 'invalid_philhealth_id'
   | 'invalid_pagibig_id'
   | 'invalid_tin'
-  | 'no_profile'
 
 export interface GovernmentProfile {
   employee_id: string

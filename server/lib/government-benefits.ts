@@ -7,9 +7,44 @@ import {
   profileComplianceIssues,
   validateGovernmentProfileInput,
 } from './government-id-validation'
-import { unsafe } from './sql'
+import { unsafe, unsafeExec } from './sql'
 
 export type GovernmentAgency = 'sss' | 'philhealth' | 'pagibig'
+export type BulkDeductionAgency = GovernmentAgency | 'tax'
+
+const BULK_AGENCY_COLUMNS: Record<
+  BulkDeductionAgency,
+  { idCol: string; amtCol: string; modeCol: string; enrolledCol: string; label: string }
+> = {
+  sss: {
+    idCol: 'sss_number',
+    amtCol: 'sss_monthly_amount',
+    modeCol: 'sss_deduction_mode',
+    enrolledCol: 'sss_enrolled',
+    label: 'SSS',
+  },
+  philhealth: {
+    idCol: 'philhealth_number',
+    amtCol: 'philhealth_monthly_amount',
+    modeCol: 'philhealth_deduction_mode',
+    enrolledCol: 'philhealth_enrolled',
+    label: 'PhilHealth',
+  },
+  pagibig: {
+    idCol: 'pagibig_number',
+    amtCol: 'pagibig_monthly_amount',
+    modeCol: 'pagibig_deduction_mode',
+    enrolledCol: 'pagibig_enrolled',
+    label: 'Pag-IBIG',
+  },
+  tax: {
+    idCol: 'tin',
+    amtCol: 'tax_monthly_amount',
+    modeCol: 'tax_deduction_mode',
+    enrolledCol: 'tax_enrolled',
+    label: 'Withholding tax',
+  },
+}
 
 const WORKING_DAYS_PER_MONTH = 26
 const HOURS_PER_DAY = 8
@@ -60,24 +95,32 @@ export async function getGovernmentProfile(employeeId: string) {
     philhealth_number: null,
     pagibig_number: null,
     tin: null,
-    sss_enrolled: true,
-    philhealth_enrolled: true,
-    pagibig_enrolled: true,
-    sss_deduction_mode: 'auto',
+    sss_enrolled: false,
+    philhealth_enrolled: false,
+    pagibig_enrolled: false,
+    sss_deduction_mode: 'manual',
     sss_monthly_amount: null,
-    philhealth_deduction_mode: 'auto',
+    philhealth_deduction_mode: 'manual',
     philhealth_monthly_amount: null,
-    pagibig_deduction_mode: 'auto',
+    pagibig_deduction_mode: 'manual',
     pagibig_monthly_amount: null,
-    tax_deduction_mode: 'auto',
+    tax_deduction_mode: 'manual',
     tax_monthly_amount: null,
-    tax_enrolled: true,
+    tax_enrolled: false,
     notes: null,
   }
 }
 
 function parseDeductionMode(v: unknown, fallback: string) {
-  return v === 'manual' ? 'manual' : fallback === 'manual' ? 'manual' : 'auto'
+  return v === 'auto' ? 'auto' : fallback === 'auto' ? 'auto' : 'manual'
+}
+
+function syncEnrolledFlags(merged: Record<string, unknown>) {
+  const has = (v: unknown) => Boolean(v && String(v).trim())
+  if (!has(merged.sss_number)) merged.sss_enrolled = false
+  if (!has(merged.philhealth_number)) merged.philhealth_enrolled = false
+  if (!has(merged.pagibig_number)) merged.pagibig_enrolled = false
+  if (!has(merged.tin)) merged.tax_enrolled = false
 }
 
 function parseMonthlyAmountField(v: unknown): number | null {
@@ -106,10 +149,10 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
       'philhealth_enrolled' in data ? Boolean(data.philhealth_enrolled) : Boolean(existing.philhealth_enrolled),
     pagibig_enrolled:
       'pagibig_enrolled' in data ? Boolean(data.pagibig_enrolled) : Boolean(existing.pagibig_enrolled),
-    tax_enrolled: 'tax_enrolled' in data ? Boolean(data.tax_enrolled) : Boolean(existing.tax_enrolled ?? true),
+    tax_enrolled: 'tax_enrolled' in data ? Boolean(data.tax_enrolled) : Boolean(existing.tax_enrolled ?? false),
     sss_deduction_mode: parseDeductionMode(
       data.sss_deduction_mode,
-      String(existing.sss_deduction_mode ?? 'auto'),
+      String(existing.sss_deduction_mode ?? 'manual'),
     ),
     sss_monthly_amount:
       'sss_monthly_amount' in data
@@ -119,7 +162,7 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
           : null,
     philhealth_deduction_mode: parseDeductionMode(
       data.philhealth_deduction_mode,
-      String(existing.philhealth_deduction_mode ?? 'auto'),
+      String(existing.philhealth_deduction_mode ?? 'manual'),
     ),
     philhealth_monthly_amount:
       'philhealth_monthly_amount' in data
@@ -129,7 +172,7 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
           : null,
     pagibig_deduction_mode: parseDeductionMode(
       data.pagibig_deduction_mode,
-      String(existing.pagibig_deduction_mode ?? 'auto'),
+      String(existing.pagibig_deduction_mode ?? 'manual'),
     ),
     pagibig_monthly_amount:
       'pagibig_monthly_amount' in data
@@ -137,7 +180,7 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
         : existing.pagibig_monthly_amount != null
           ? Number(existing.pagibig_monthly_amount)
           : null,
-    tax_deduction_mode: parseDeductionMode(data.tax_deduction_mode, String(existing.tax_deduction_mode ?? 'auto')),
+    tax_deduction_mode: parseDeductionMode(data.tax_deduction_mode, String(existing.tax_deduction_mode ?? 'manual')),
     tax_monthly_amount:
       'tax_monthly_amount' in data
         ? parseMonthlyAmountField(data.tax_monthly_amount)
@@ -149,6 +192,8 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
 
   validateGovernmentProfileInput(merged)
   const normalized = normalizeGovernmentProfileFields(merged)
+  const row = { ...merged, ...normalized }
+  syncEnrolledFlags(row)
 
   await db`
     INSERT INTO employee_government_profiles (
@@ -161,12 +206,12 @@ export async function upsertGovernmentProfile(employeeId: string, data: Record<s
       notes
     ) VALUES (
       ${employeeId}, ${normalized.sss_number}, ${normalized.philhealth_number}, ${normalized.pagibig_number}, ${normalized.tin},
-      ${merged.sss_enrolled}, ${merged.philhealth_enrolled}, ${merged.pagibig_enrolled},
-      ${merged.sss_deduction_mode}, ${merged.sss_monthly_amount},
-      ${merged.philhealth_deduction_mode}, ${merged.philhealth_monthly_amount},
-      ${merged.pagibig_deduction_mode}, ${merged.pagibig_monthly_amount},
-      ${merged.tax_deduction_mode}, ${merged.tax_monthly_amount}, ${merged.tax_enrolled},
-      ${merged.notes}
+      ${row.sss_enrolled}, ${row.philhealth_enrolled}, ${row.pagibig_enrolled},
+      ${row.sss_deduction_mode}, ${row.sss_monthly_amount},
+      ${row.philhealth_deduction_mode}, ${row.philhealth_monthly_amount},
+      ${row.pagibig_deduction_mode}, ${row.pagibig_monthly_amount},
+      ${row.tax_deduction_mode}, ${row.tax_monthly_amount}, ${row.tax_enrolled},
+      ${row.notes}
     )
     ON CONFLICT (employee_id) DO UPDATE SET
       sss_number = EXCLUDED.sss_number,
@@ -479,4 +524,60 @@ export async function remittanceSummary(year: number, month: number, branchId?: 
     status: 'draft',
     note: 'Employer shares are estimated from employee deductions using current statutory rates. Mark as submitted after filing.',
   }
+}
+
+export async function bulkDeductionEligible(agency: BulkDeductionAgency, branchId?: string | null) {
+  const { idCol, label } = BULK_AGENCY_COLUMNS[agency]
+  const params: (string | number)[] = []
+  let sql = `
+    SELECT COUNT(*)::int AS eligible
+    FROM employees e
+    INNER JOIN employee_government_profiles gp ON gp.employee_id = e.id
+    WHERE e.status = 'active'
+      AND gp.${idCol} IS NOT NULL AND TRIM(gp.${idCol}) <> ''
+      AND NOT EXISTS (
+        SELECT 1 FROM users u
+        INNER JOIN roles r ON r.role_id = u.role_id
+        WHERE u.employee_id = e.id AND r.role_slug = 'admin'
+      )`
+  if (branchId) {
+    params.push(branchId)
+    sql += ` AND e.branch_id = $${params.length}`
+  }
+  const rows = await unsafe<{ eligible: number }>(sql, params)
+  return { agency, label, eligible: Number(rows[0]?.eligible ?? 0) }
+}
+
+export async function bulkApplyMonthlyDeduction(
+  agency: BulkDeductionAgency,
+  monthlyAmount: number,
+  branchId?: string | null,
+) {
+  if (!Number.isFinite(monthlyAmount) || monthlyAmount < 0) {
+    throw new ValidationError('Monthly amount must be zero or positive')
+  }
+  const amt = Math.round(monthlyAmount * 100) / 100
+  const { idCol, amtCol, modeCol, enrolledCol, label } = BULK_AGENCY_COLUMNS[agency]
+  const params: (string | number)[] = [amt]
+  let branchClause = ''
+  if (branchId) {
+    params.push(branchId)
+    branchClause = ` AND e.branch_id = $${params.length}`
+  }
+  const updated = await unsafeExec(
+    `UPDATE employee_government_profiles gp
+     SET ${modeCol} = 'manual', ${amtCol} = $1, ${enrolledCol} = true, updated_at = NOW()
+     FROM employees e
+     WHERE gp.employee_id = e.id
+       AND e.status = 'active'
+       AND gp.${idCol} IS NOT NULL AND TRIM(gp.${idCol}) <> ''
+       AND NOT EXISTS (
+         SELECT 1 FROM users u
+         INNER JOIN roles r ON r.role_id = u.role_id
+         WHERE u.employee_id = e.id AND r.role_slug = 'admin'
+       )
+       ${branchClause}`,
+    params,
+  )
+  return { agency, label, updated, monthly_amount: amt }
 }

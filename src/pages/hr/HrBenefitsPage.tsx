@@ -10,6 +10,7 @@ import { BenefitsCompliancePanel } from '../../components/benefits/BenefitsCompl
 import { BenefitsRemittancePanel } from '../../components/benefits/BenefitsRemittancePanel'
 import { StatutoryDeductionsForm } from '../../components/benefits/StatutoryDeductionsForm'
 import { BenefitEnrollmentModal } from '../../components/benefits/BenefitEnrollmentModal'
+import { BenefitsBulkDeductionsPanel } from '../../components/benefits/BenefitsBulkDeductionsPanel'
 import { HR_BENEFITS_TABS } from '../../lib/benefitsUi'
 import type {
   BenefitEnrollment,
@@ -192,10 +193,16 @@ export function HrBenefitsPage() {
     <div>
       <PageHeader
         title="Benefits"
-        subtitle="Assign statutory deductions and allowances — applied automatically on payroll"
+        subtitle="Optional statutory deductions and allowances — only applied when member IDs and amounts are set"
       />
 
       <BenefitsTabNav active={tab} onChange={setTab} tabs={HR_BENEFITS_TABS} />
+
+      {tab === 'bulk' && (
+        <div style={{ marginTop: '1rem' }}>
+          <BenefitsBulkDeductionsPanel branches={branches} />
+        </div>
+      )}
 
       {tab === 'compliance' && (
         <div style={{ marginTop: '1rem' }}>

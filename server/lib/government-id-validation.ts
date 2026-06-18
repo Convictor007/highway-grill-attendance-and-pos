@@ -8,18 +8,14 @@ export type GovernmentProfileInput = {
   sss_enrolled?: boolean
   philhealth_enrolled?: boolean
   pagibig_enrolled?: boolean
+  tax_enrolled?: boolean
 }
 
 export type ComplianceIssueCode =
-  | 'missing_sss_id'
-  | 'missing_philhealth_id'
-  | 'missing_pagibig_id'
-  | 'missing_tin'
   | 'invalid_sss_id'
   | 'invalid_philhealth_id'
   | 'invalid_pagibig_id'
   | 'invalid_tin'
-  | 'no_profile'
 
 function digitsOnly(value: string) {
   return value.replace(/\D/g, '')
@@ -51,70 +47,55 @@ export function normalizeTin(value: string) {
 }
 
 function isValidSss(value: string | null | undefined) {
-  if (!value?.trim()) return false
+  if (!value?.trim()) return true
   return digitsOnly(value).length === 10
 }
 
 function isValidPhilhealth(value: string | null | undefined) {
-  if (!value?.trim()) return false
+  if (!value?.trim()) return true
   return digitsOnly(value).length === 12
 }
 
 function isValidPagibig(value: string | null | undefined) {
-  if (!value?.trim()) return false
+  if (!value?.trim()) return true
   return digitsOnly(value).length === 12
 }
 
 function isValidTin(value: string | null | undefined) {
-  if (!value?.trim()) return false
+  if (!value?.trim()) return true
   const len = digitsOnly(value).length
   return len === 9 || len === 12
 }
 
+/** Only flags invalid ID formats when a value was entered — benefits are all optional. */
 export function profileComplianceIssues(profile: GovernmentProfileInput & { has_row?: boolean }) {
   const issues: ComplianceIssueCode[] = []
-  if (!profile.has_row) issues.push('no_profile')
 
-  if (profile.sss_enrolled !== false) {
-    if (!profile.sss_number?.trim()) issues.push('missing_sss_id')
-    else if (!isValidSss(profile.sss_number)) issues.push('invalid_sss_id')
+  if (profile.sss_number?.trim() && !isValidSss(profile.sss_number)) issues.push('invalid_sss_id')
+  if (profile.philhealth_number?.trim() && !isValidPhilhealth(profile.philhealth_number)) {
+    issues.push('invalid_philhealth_id')
   }
-  if (profile.philhealth_enrolled !== false) {
-    if (!profile.philhealth_number?.trim()) issues.push('missing_philhealth_id')
-    else if (!isValidPhilhealth(profile.philhealth_number)) issues.push('invalid_philhealth_id')
+  if (profile.pagibig_number?.trim() && !isValidPagibig(profile.pagibig_number)) {
+    issues.push('invalid_pagibig_id')
   }
-  if (profile.pagibig_enrolled !== false) {
-    if (!profile.pagibig_number?.trim()) issues.push('missing_pagibig_id')
-    else if (!isValidPagibig(profile.pagibig_number)) issues.push('invalid_pagibig_id')
-  }
-  if (!profile.tin?.trim()) issues.push('missing_tin')
-  else if (!isValidTin(profile.tin)) issues.push('invalid_tin')
+  if (profile.tin?.trim() && !isValidTin(profile.tin)) issues.push('invalid_tin')
 
   return issues
 }
 
 export function validateGovernmentProfileInput(data: GovernmentProfileInput) {
   const errors: string[] = []
-  if (data.sss_enrolled !== false && data.sss_number?.trim() && !isValidSss(data.sss_number)) {
+  if (data.sss_number?.trim() && !isValidSss(data.sss_number)) {
     errors.push('SSS number must be 10 digits (e.g. 34-1234567-8)')
   }
-  if (data.philhealth_enrolled !== false && data.philhealth_number?.trim() && !isValidPhilhealth(data.philhealth_number)) {
+  if (data.philhealth_number?.trim() && !isValidPhilhealth(data.philhealth_number)) {
     errors.push('PhilHealth number must be 12 digits')
   }
-  if (data.pagibig_enrolled !== false && data.pagibig_number?.trim() && !isValidPagibig(data.pagibig_number)) {
+  if (data.pagibig_number?.trim() && !isValidPagibig(data.pagibig_number)) {
     errors.push('Pag-IBIG number must be 12 digits')
   }
   if (data.tin?.trim() && !isValidTin(data.tin)) {
     errors.push('TIN must be 9 or 12 digits')
-  }
-  if (data.sss_enrolled !== false && !data.sss_number?.trim()) {
-    errors.push('SSS number is required when SSS enrollment is enabled')
-  }
-  if (data.philhealth_enrolled !== false && !data.philhealth_number?.trim()) {
-    errors.push('PhilHealth number is required when PhilHealth enrollment is enabled')
-  }
-  if (data.pagibig_enrolled !== false && !data.pagibig_number?.trim()) {
-    errors.push('Pag-IBIG number is required when Pag-IBIG enrollment is enabled')
   }
   if (errors.length) throw new ValidationError(errors.join(' '))
 }

@@ -26,7 +26,8 @@ export function BenefitsCompliancePanel({
           <div>
             <h3 className="section-title">Statutory compliance</h3>
             <p className="form-hint" style={{ marginTop: 0 }}>
-              Active employees missing government IDs, TIN, or with invalid number formats.
+              Employees with government ID numbers in an invalid format. Missing IDs are not flagged — benefits are
+              optional per employee.
             </p>
           </div>
           <div className="form-group" style={{ margin: 0, minWidth: 180 }}>
@@ -56,7 +57,7 @@ export function BenefitsCompliancePanel({
       </div>
 
       {!loading && report && report.employees.length === 0 ? (
-        <EmptyState title="All clear" description="Every active employee has complete government benefit profiles." />
+        <EmptyState title="All clear" description="No invalid government ID formats on file." />
       ) : (
         report && (
           <div className="card table-wrap">
