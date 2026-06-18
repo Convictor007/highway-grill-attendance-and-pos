@@ -1,6 +1,6 @@
 import { jsonError } from './api-response'
 import { UnauthorizedError } from './auth'
-import { ForbiddenError, NotFoundError, ValidationError } from './errors'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from './errors'
 
 export async function handleRoute(fn: () => Promise<Response>): Promise<Response> {
   try {
@@ -10,6 +10,7 @@ export async function handleRoute(fn: () => Promise<Response>): Promise<Response
     if (e instanceof ForbiddenError) return jsonError(e.message, 403)
     if (e instanceof NotFoundError) return jsonError(e.message, 404)
     if (e instanceof ValidationError) return jsonError(e.message, 422)
+    if (e instanceof ConflictError) return jsonError(e.message, 409)
     if (e instanceof Response) return e
     const message = e instanceof Error ? e.message : 'Server error'
     const status =

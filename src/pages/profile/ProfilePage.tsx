@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { api, apiUpload } from '../../lib/api'
+import { PROFILE_PHOTO_ACCEPT, validateProfilePhoto } from '../../lib/fileValidation'
 import { preserveScroll } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmployeeAvatar } from '../../components/EmployeeAvatar'
@@ -64,6 +66,7 @@ function SectionCard({
 
 export function ProfilePage() {
   const { user, refresh } = useAuth()
+  const { error: notifyError } = useNotification()
   const canEdit = hasPermission(user, 'profile.edit.self')
   const fileRef = useRef<HTMLInputElement>(null)
   const [profile, setProfile] = useState<Employee | null>(null)
@@ -137,6 +140,12 @@ export function ProfilePage() {
 
   const onPhoto = async (file: File | undefined) => {
     if (!file) return
+    const check = validateProfilePhoto(file)
+    if (!check.ok) {
+      notifyError(check.message)
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
     setPhotoBusy(true)
     try {
       await preserveScroll(async () => {
@@ -146,6 +155,8 @@ export function ProfilePage() {
         await load()
         await refresh()
       })
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not upload photo')
     } finally {
       setPhotoBusy(false)
       if (fileRef.current) fileRef.current.value = ''
@@ -182,7 +193,7 @@ export function ProfilePage() {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept={PROFILE_PHOTO_ACCEPT}
                 hidden
                 onChange={(e) => onPhoto(e.target.files?.[0])}
               />

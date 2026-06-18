@@ -145,6 +145,28 @@ final class SettingsController
             Response::json(['success' => true, 'data' => $row]);
             return;
         }
+        if ($method === 'DELETE' && $id !== null) {
+            Auth::requirePermission($user, 'settings.departments.manage');
+            $before = $this->service->getPosition($id);
+            if (!$before) {
+                Response::error('Position not found', 404);
+                return;
+            }
+            $assigned = $this->service->countEmployeesForPosition($id);
+            if ($assigned > 0) {
+                Response::error(
+                    $assigned === 1
+                        ? '1 employee uses this position — reassign them first.'
+                        : "{$assigned} employees use this position — reassign them first.",
+                    409
+                );
+                return;
+            }
+            $this->service->deletePosition($id);
+            AuditLog::write($user['id'], 'delete', 'positions', $id, $before, null);
+            Response::json(['success' => true, 'data' => null]);
+            return;
+        }
         Response::error('Method not allowed', 405);
     }
 

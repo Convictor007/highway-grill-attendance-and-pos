@@ -1,4 +1,5 @@
 import { getDb, nullableInt } from './db'
+import { ConflictError } from './errors'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
 
 const BRANCH_COLS = 'id, name, address, phone, timezone, is_active, manager_id, created_at, default_latitude, default_longitude'
@@ -155,6 +156,24 @@ export async function updatePosition(id: string, data: Record<string, unknown>) 
   const params: SqlValue[] = [id, ...(Object.values(updates) as SqlValue[])]
   await unsafeExec(`UPDATE positions SET ${sets} WHERE id = $1`, params)
   return getPosition(id)
+}
+
+export async function deletePosition(id: string) {
+  const existing = await getPosition(id)
+  if (!existing) return null
+
+  const db = getDb()
+  const rows = await db`
+    SELECT COUNT(*)::int AS count FROM employees WHERE position_id = ${id}
+  `
+  const count = Number(rows[0]?.count ?? 0)
+  if (count > 0) {
+    const label = count === 1 ? '1 employee uses' : `${count} employees use`
+    throw new ConflictError(`${label} this position — reassign them first.`)
+  }
+
+  await db`DELETE FROM positions WHERE id = ${id}`
+  return existing
 }
 
 function nullableStr(value: unknown): string | null {

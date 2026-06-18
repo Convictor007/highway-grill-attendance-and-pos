@@ -196,9 +196,14 @@ final class EmployeeService
         }
 
         $ext = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
-        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        $allowed = ['jpg', 'jpeg', 'png'];
         if (!in_array($ext, $allowed, true)) {
-            throw new \InvalidArgumentException('Photo must be JPG, PNG, WebP, or GIF');
+            throw new \InvalidArgumentException('Profile photo must be JPG or PNG');
+        }
+
+        $mime = strtolower((string) ($file['type'] ?? ''));
+        if ($mime !== '' && !in_array($mime, ['image/jpeg', 'image/png'], true)) {
+            throw new \InvalidArgumentException('Profile photo must be JPG or PNG');
         }
 
         $dir = dirname(__DIR__, 2) . '/uploads/photos';

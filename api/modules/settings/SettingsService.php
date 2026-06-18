@@ -218,6 +218,24 @@ final class SettingsService
         return $this->getPosition($id);
     }
 
+    public function countEmployeesForPosition(string $id): int
+    {
+        $stmt = Database::connection()->prepare(
+            'SELECT COUNT(*) FROM employees WHERE position_id = :id'
+        );
+        $stmt->execute(['id' => $id]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function deletePosition(string $id): bool
+    {
+        $stmt = Database::connection()->prepare('DELETE FROM positions WHERE id = :id');
+        $stmt->execute(['id' => $id]);
+
+        return $stmt->rowCount() > 0;
+    }
+
     private function branchSelectColumns(): string
     {
         $cols = 'id, name, address, phone, timezone, is_active, manager_id, created_at';

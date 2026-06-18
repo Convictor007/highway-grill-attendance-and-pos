@@ -125,6 +125,23 @@ export function SettingsPage() {
     load({ silent: true })
   }
 
+  const deletePosition = async (p: SettingsPosition) => {
+    const label = p.department_name ? `${p.title} (${p.department_name})` : p.title
+    const ok = await confirm(`Delete position "${label}"? This cannot be undone.`, {
+      title: 'Delete position',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
+    try {
+      await api(`/settings/positions/${p.id}`, { method: 'DELETE' })
+      success('Position deleted')
+      load({ silent: true })
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not delete position')
+    }
+  }
+
   return (
     <div>
       <PageHeader
@@ -370,6 +387,14 @@ export function SettingsPage() {
                             }}
                           >
                             Edit
+                          </button>
+                          {' · '}
+                          <button
+                            type="button"
+                            className="text-link text-link--danger"
+                            onClick={() => deletePosition(p)}
+                          >
+                            Delete
                           </button>
                         </td>
                       )}
