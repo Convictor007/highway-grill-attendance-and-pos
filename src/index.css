@@ -1749,6 +1749,35 @@ th {
   font-size: 0.85rem;
 }
 
+.btn-xs {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.pending-reg-help {
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.pending-reg-actions-col {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.pending-reg-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.pending-reg-actions .btn {
+  flex-shrink: 0;
+}
+
 .sidebar-backdrop {
   position: fixed;
   inset: 0;

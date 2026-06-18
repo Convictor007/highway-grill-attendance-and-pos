@@ -178,9 +178,10 @@ export function UsersPage({ fullAdmin = false }: Props) {
       {pending.length > 0 && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
           <h3 className="section-title">Pending registrations</h3>
-          <p className="muted-block" style={{ marginBottom: '1rem' }}>
-            <strong>Approve</strong> lets the applicant sign in (pending). <strong>Activate</strong> enables time in/out,
-            schedules, loans, and payroll. You can approve and activate in one step by clicking Activate on a new applicant.
+          <p className="muted-block pending-reg-help" style={{ marginBottom: '1rem' }}>
+            <strong>Approve</strong> — applicant can sign in only (status: pending). No time clock, schedules, loans, or payroll yet.
+            {' '}
+            <strong>Activate</strong> — full crew access in one step (status: active). Use this when you are ready for them to start work.
           </p>
           <div className="table-wrap">
             <table>
@@ -192,7 +193,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
                   <th>Position</th>
                   <th>Stay-in</th>
                   <th>Status</th>
-                  <th></th>
+                  <th className="pending-reg-actions-col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -204,33 +205,36 @@ export function UsersPage({ fullAdmin = false }: Props) {
                     <td>{u.position_title ?? '—'}</td>
                     <td>{u.is_stay_in ? 'Yes' : '—'}</td>
                     <td>{statusLabel(u.account_status)}</td>
-                    <td>
-                      <div className="quick-actions" style={{ margin: 0 }}>
+                    <td className="pending-reg-actions-col">
+                      <div className="pending-reg-actions">
                         {u.account_status === 'awaiting_hr' && (
                           <>
                             <button
                               type="button"
-                              className="btn btn-primary btn-sm"
+                              className="btn btn-primary btn-xs"
                               disabled={busyId === u.id}
+                              title="Sign-in only — pending until activated"
                               onClick={() => runAction(u.id, 'approve')}
                             >
                               Approve
                             </button>
                             <button
                               type="button"
-                              className="btn btn-ghost btn-sm"
+                              className="btn btn-ghost btn-xs"
                               disabled={busyId === u.id}
+                              title="Approve and activate in one step — time clock and payroll enabled"
                               onClick={() => runAction(u.id, 'activate')}
                             >
-                              Approve & activate
+                              Activate
                             </button>
                           </>
                         )}
                         {u.account_status === 'pending' && (
                           <button
                             type="button"
-                            className="btn btn-primary btn-sm"
+                            className="btn btn-primary btn-xs"
                             disabled={busyId === u.id}
+                            title="Enable time clock, schedules, loans, and payroll"
                             onClick={() => runAction(u.id, 'activate')}
                           >
                             Activate
@@ -238,7 +242,7 @@ export function UsersPage({ fullAdmin = false }: Props) {
                         )}
                         <button
                           type="button"
-                          className="btn btn-ghost btn-sm"
+                          className="btn btn-ghost btn-xs"
                           disabled={busyId === u.id}
                           onClick={() => runAction(u.id, 'reject')}
                         >
