@@ -96,7 +96,7 @@ export function AttendanceStatsPage() {
 
       {!loading && stats && (
         <>
-          <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
+          <div className="stat-grid stat-grid--4" style={{ marginBottom: '1.5rem' }}>
             <div className="card stat-card" style={{ cursor: 'default' }}>
               <div className="stat-num">{stats.total_hours.toFixed(1)}</div>
               <div className="stat-label">Total hours</div>

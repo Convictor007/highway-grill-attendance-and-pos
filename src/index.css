@@ -595,38 +595,50 @@ th {
   align-items: stretch;
 }
 
+.stat-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .stat-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .benefits-stat-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 0.6rem;
   align-items: stretch;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
 }
 
-.benefits-stat-grid .benefits-stat-card {
-  flex: 1 1 7rem;
-  min-width: 0;
-  max-width: 100%;
+.benefits-stat-grid--5 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
-@media (min-width: 768px) {
-  .benefits-stat-grid .benefits-stat-card {
-    flex: 1 1 calc(20% - 0.6rem);
+.benefits-stat-grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.benefits-stat-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .benefits-stat-grid--5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .benefits-stat-grid--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 1024px) {
-  .benefits-stat-grid {
-    flex-wrap: nowrap;
-  }
-
-  .benefits-stat-grid .benefits-stat-card {
-    flex: 1 1 0;
-  }
-}
-
-@media (max-width: 480px) {
-  .benefits-stat-grid .benefits-stat-card {
-    flex: 1 1 calc(50% - 0.6rem);
+@media (max-width: 520px) {
+  .benefits-stat-grid--5,
+  .benefits-stat-grid--4,
+  .benefits-stat-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -646,10 +658,12 @@ a.card.stat-card {
 .card.benefits-stat-card {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  justify-content: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
   height: 100%;
-  min-height: 0;
-  padding: 0.65rem 0.8rem;
+  min-height: 4.5rem;
+  padding: 0.6rem 0.75rem;
   box-sizing: border-box;
   text-decoration: none;
   color: inherit;
@@ -660,18 +674,18 @@ a.stat-card:hover {
   border-color: var(--accent);
 }
 
-.stat-num,
-.benefits-stat-card > strong {
+.stat-num {
   font-size: 1.75rem;
   font-weight: 600;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
-.benefits-stat-grid .benefits-stat-card > strong {
+.benefits-stat-value {
   font-size: 0.95rem;
-  line-height: 1.25;
   font-weight: 600;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
