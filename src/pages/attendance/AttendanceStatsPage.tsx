@@ -67,8 +67,8 @@ export function AttendanceStatsPage() {
     <div>
       <PageHeader title="Attendance statistics" subtitle="Hours, presence rate, holiday and overtime totals" />
 
-      <form className="card form-row" style={{ marginBottom: '1rem', flexWrap: 'wrap' }} onSubmit={onFilter}>
-        <div className="form-group" style={{ minWidth: 180 }}>
+      <form className="card filter-bar" onSubmit={onFilter}>
+        <div className="filter-bar__field filter-bar__field--branch form-group">
           <label>Branch</label>
           <select value={branchId} onChange={(e) => setBranchId(e.target.value)}>
             <option value="">All branches</option>
@@ -79,9 +79,13 @@ export function AttendanceStatsPage() {
             ))}
           </select>
         </div>
-        <DatePicker label="From" value={from} onChange={setFrom} required />
-        <DatePicker label="To" value={to} onChange={setTo} min={from || undefined} required />
-        <div className="form-group" style={{ alignSelf: 'flex-end' }}>
+        <div className="filter-bar__field filter-bar__field--date">
+          <DatePicker label="From" value={from} onChange={setFrom} required />
+        </div>
+        <div className="filter-bar__field filter-bar__field--date">
+          <DatePicker label="To" value={to} onChange={setTo} min={from || undefined} required />
+        </div>
+        <div className="filter-bar__action">
           <button type="submit" className="btn btn-primary">
             Apply
           </button>

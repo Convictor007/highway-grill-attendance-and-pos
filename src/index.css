@@ -1784,6 +1784,89 @@ th {
   margin-bottom: 1rem;
 }
 
+.filter-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.85rem;
+}
+
+.filter-bar .form-group,
+.filter-bar .picker-field {
+  margin: 0;
+  min-width: 0;
+}
+
+.filter-bar .form-group label,
+.filter-bar .picker-label {
+  font-size: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+.filter-bar .form-group select,
+.filter-bar .picker-trigger {
+  padding: 0.4rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+.filter-bar__field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter-bar__field--branch {
+  flex: 1 1 130px;
+  max-width: 170px;
+}
+
+.filter-bar__field--date {
+  flex: 1 1 140px;
+  max-width: 175px;
+}
+
+.filter-bar__field--date .picker-field {
+  width: 100%;
+}
+
+.filter-bar__action {
+  flex: 0 0 auto;
+}
+
+.filter-bar__action .btn {
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .filter-bar__field--branch,
+  .filter-bar__field--date {
+    flex: 1 1 calc(50% - 0.5rem);
+    max-width: none;
+  }
+
+  .filter-bar__action {
+    flex: 1 1 100%;
+  }
+
+  .filter-bar__action .btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-bar__field--branch,
+  .filter-bar__field--date {
+    flex: 1 1 100%;
+  }
+}
+
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
