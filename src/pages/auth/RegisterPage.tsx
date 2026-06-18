@@ -217,7 +217,6 @@ export function RegisterPage() {
               value={form.date_of_birth}
               onChange={(date_of_birth) => setForm({ ...form, date_of_birth })}
               max={new Date().toISOString().slice(0, 10)}
-              birthDate
             />
             <div className="form-group">
               <label>Gender</label>

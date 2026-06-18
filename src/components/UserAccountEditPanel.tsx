@@ -363,19 +363,17 @@ export function UserAccountEditPanel({
                     <input value={draft.phone} onChange={(e) => patch('phone', e.target.value)} />
                   </div>
                   <div className="form-group">
-                    <label>Date of birth</label>
-                    <input
-                      type="date"
-                      value={draft.date_of_birth}
-                      onChange={(e) => patch('date_of_birth', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
                     <label>Age</label>
                     <input value={age != null ? String(age) : '—'} readOnly disabled className="readonly-field" />
                   </div>
+                </div>
+                <div className="form-row">
+                  <DatePicker
+                    label="Date of birth"
+                    value={draft.date_of_birth}
+                    onChange={(date_of_birth) => patch('date_of_birth', date_of_birth)}
+                    max={new Date().toISOString().slice(0, 10)}
+                  />
                   <div className="form-group">
                     <label>Gender</label>
                     <select
@@ -502,15 +500,6 @@ export function UserAccountEditPanel({
                     ))}
                   </select>
                 </div>
-              </div>
-              <div className="form-row">
-                <DatePicker
-                  label="Date hired"
-                  value={draft.hire_date}
-                  onChange={(hire_date) => patch('hire_date', hire_date)}
-                  max={new Date().toISOString().slice(0, 10)}
-                  required
-                />
               </div>
             </div>
           )}

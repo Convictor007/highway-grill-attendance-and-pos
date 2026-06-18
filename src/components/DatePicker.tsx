@@ -10,7 +10,7 @@ type Props = {
   min?: string
   max?: string
   id?: string
-  /** Month + year dropdowns — best for birthdays and dates far from today */
+  /** @deprecated All pickers use month/year dropdowns. Kept for compatibility. */
   birthDate?: boolean
 }
 
@@ -27,7 +27,19 @@ function parseYear(iso?: string, fallback?: number): number {
   return Number.isFinite(y) ? y : (fallback ?? new Date().getFullYear())
 }
 
-export function DatePicker({ label, value, onChange, required, min, max, id, birthDate }: Props) {
+function yearRange(min?: string, max?: string): { minYear: number; maxYear: number } {
+  const current = new Date().getFullYear()
+  let maxYear = max ? parseYear(max, current) : current + 2
+  let minYear = min ? parseYear(min, maxYear - 100) : maxYear - 100
+
+  if (min) minYear = parseYear(min, minYear)
+  if (max) maxYear = parseYear(max, maxYear)
+
+  if (minYear > maxYear) [minYear, maxYear] = [maxYear, minYear]
+  return { minYear, maxYear }
+}
+
+export function DatePicker({ label, value, onChange, required, min, max, id }: Props) {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -37,14 +49,16 @@ export function DatePicker({ label, value, onChange, required, min, max, id, bir
   const [viewYear, setViewYear] = useState(base.getFullYear())
   const [viewMonth, setViewMonth] = useState(base.getMonth())
 
-  const maxYear = parseYear(max, new Date().getFullYear())
-  const minYear = parseYear(min, maxYear - 100)
+  const { minYear, maxYear } = useMemo(() => yearRange(min, max), [min, max])
 
   const yearOptions = useMemo(() => {
     const years: number[] = []
     for (let y = maxYear; y >= minYear; y--) years.push(y)
     return years
   }, [maxYear, minYear])
+
+  const today = todayLocalIsoDate()
+  const showToday = !max || max >= today
 
   useEffect(() => {
     if (!value) return
@@ -54,6 +68,10 @@ export function DatePicker({ label, value, onChange, required, min, max, id, bir
       setViewMonth(d.getMonth())
     }
   }, [value])
+
+  useEffect(() => {
+    setViewYear((y) => Math.min(maxYear, Math.max(minYear, y)))
+  }, [minYear, maxYear])
 
   useEffect(() => {
     if (!open) return
@@ -78,25 +96,6 @@ export function DatePicker({ label, value, onChange, required, min, max, id, bir
     setOpen(false)
   }
 
-  const prevMonth = () => {
-    if (viewMonth === 0) {
-      setViewMonth(11)
-      setViewYear((y) => Math.max(minYear, y - 1))
-    } else setViewMonth((m) => m - 1)
-  }
-
-  const nextMonth = () => {
-    if (viewMonth === 11) {
-      setViewMonth(0)
-      setViewYear((y) => Math.min(maxYear, y + 1))
-    } else setViewMonth((m) => m + 1)
-  }
-
-  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(undefined, {
-    month: 'long',
-    year: 'numeric',
-  })
-
   return (
     <div className="picker-field" ref={wrapRef}>
       {label && (
@@ -119,7 +118,7 @@ export function DatePicker({ label, value, onChange, required, min, max, id, bir
       {open && (
         <div
           ref={popoverRef}
-          className={`picker-popover picker-popover--fixed calendar-popover${birthDate ? ' calendar-popover--birth' : ''}`}
+          className="picker-popover picker-popover--fixed calendar-popover"
           role="dialog"
           style={{
             top: popoverPos?.top ?? 0,
@@ -128,40 +127,28 @@ export function DatePicker({ label, value, onChange, required, min, max, id, bir
             visibility: popoverPos ? 'visible' : 'hidden',
           }}
         >
-          {birthDate ? (
-            <div className="calendar-head calendar-head--pickers">
-              <select
-                className="calendar-select"
-                value={viewMonth}
-                aria-label="Month"
-                onChange={(e) => setViewMonth(Number(e.target.value))}
-              >
-                {MONTH_NAMES.map((name, idx) => (
-                  <option key={name} value={idx}>{name}</option>
-                ))}
-              </select>
-              <select
-                className="calendar-select calendar-select--year"
-                value={viewYear}
-                aria-label="Year"
-                onChange={(e) => setViewYear(Number(e.target.value))}
-              >
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="calendar-head">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={prevMonth} aria-label="Previous month">
-                ‹
-              </button>
-              <strong>{monthLabel}</strong>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={nextMonth} aria-label="Next month">
-                ›
-              </button>
-            </div>
-          )}
+          <div className="calendar-head calendar-head--pickers">
+            <select
+              className="calendar-select"
+              value={viewMonth}
+              aria-label="Month"
+              onChange={(e) => setViewMonth(Number(e.target.value))}
+            >
+              {MONTH_NAMES.map((name, idx) => (
+                <option key={name} value={idx}>{name}</option>
+              ))}
+            </select>
+            <select
+              className="calendar-select calendar-select--year"
+              value={viewYear}
+              aria-label="Year"
+              onChange={(e) => setViewYear(Number(e.target.value))}
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
           <div className="calendar-weekdays">
             {WEEKDAYS.map((w) => (
               <span key={w}>{w}</span>
@@ -173,12 +160,12 @@ export function DatePicker({ label, value, onChange, required, min, max, id, bir
               const iso = `${viewYear}-${pad2(viewMonth + 1)}-${pad2(day)}`
               const disabled = (min && iso < min) || (max && iso > max)
               const selected = value === iso
-              const today = iso === todayLocalIsoDate()
+              const isToday = iso === today
               return (
                 <button
                   key={iso}
                   type="button"
-                  className={`calendar-cell calendar-day${selected ? ' calendar-day--selected' : ''}${today ? ' calendar-day--today' : ''}`}
+                  className={`calendar-cell calendar-day${selected ? ' calendar-day--selected' : ''}${isToday ? ' calendar-day--today' : ''}`}
                   disabled={!!disabled}
                   onClick={() => pick(day)}
                 >
@@ -187,12 +174,14 @@ export function DatePicker({ label, value, onChange, required, min, max, id, bir
               )
             })}
           </div>
-          {!birthDate && (
+          {showToday && (
             <button
               type="button"
               className="btn btn-ghost btn-sm calendar-today-btn"
               onClick={() => {
-                onChange(todayLocalIsoDate())
+                if (min && today < min) return
+                if (max && today > max) return
+                onChange(today)
                 setOpen(false)
               }}
             >

@@ -309,7 +309,6 @@ export function ProfilePage() {
                     value={form.date_of_birth}
                     onChange={(date_of_birth) => setForm({ ...form, date_of_birth })}
                     max={new Date().toISOString().slice(0, 10)}
-                    birthDate
                   />
                 </div>
                 {form.date_of_birth && (

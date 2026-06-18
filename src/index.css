@@ -5341,15 +5341,24 @@ tr.row-clickable:hover td {
   gap: 0.5rem;
 }
 
+.calendar-popover {
+  min-width: 280px;
+}
+
 .calendar-select {
   width: 100%;
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface, #fff);
-  color: inherit;
+  background: var(--surface-2, var(--surface));
+  color: var(--text, inherit);
   font-size: 0.9rem;
   cursor: pointer;
+}
+
+.calendar-select:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-color: var(--accent);
 }
 
 .calendar-select--year {
@@ -5357,8 +5366,9 @@ tr.row-clickable:hover td {
   max-width: 6.5rem;
 }
 
-.calendar-popover--birth {
-  min-width: 280px;
+.calendar-select option {
+  background: var(--surface);
+  color: var(--text);
 }
 
 .calendar-weekdays {

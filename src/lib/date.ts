@@ -1,4 +1,4 @@
-/** Normalize API/DB dates for `<input type="date">` (YYYY-MM-DD). */
+/** Normalize API/DB dates for date pickers (YYYY-MM-DD). */
 export function toDateInputValue(value: string | null | undefined): string {
   if (value == null || value === '') return ''
   const s = String(value).trim()
