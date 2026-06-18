@@ -588,30 +588,53 @@ th {
   margin-bottom: 0.75rem;
 }
 
-.stat-grid {
+.stat-grid,
+.benefits-stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
   gap: 1rem;
+  align-items: stretch;
 }
 
-.stat-card {
+.card.stat-card,
+a.card.stat-card,
+.card.benefits-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  height: 100%;
+  min-height: 6.25rem;
+  padding: 1rem 1.15rem;
+  box-sizing: border-box;
   text-decoration: none;
   color: inherit;
 }
 
-.stat-card:hover {
+.stat-card:hover,
+a.stat-card:hover {
   border-color: var(--accent);
 }
 
-.stat-num {
-  font-size: 2rem;
+.stat-num,
+.benefits-stat-card > strong {
+  font-size: 1.75rem;
   font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
-.stat-label {
+.stat-label,
+.benefits-stat-label {
   color: var(--muted);
-  font-size: 0.85rem;
-  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.benefits-stat-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.35;
+  margin-top: auto;
 }
 
 .quick-actions {
@@ -3694,26 +3717,7 @@ th {
 }
 
 .benefits-stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 0.75rem;
-}
-
-.benefits-stat-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 1rem;
-}
-
-.benefits-stat-label {
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.benefits-stat-sub {
-  font-size: 0.75rem;
-  color: var(--muted);
 }
 
 .benefits-panel-head {
