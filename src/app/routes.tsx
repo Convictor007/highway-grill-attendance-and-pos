@@ -33,6 +33,7 @@ import { AttendanceStatsPage } from '../pages/attendance/AttendanceStatsPage'
 import { HrFieldWorkPage } from '../pages/hr/HrFieldWorkPage'
 import { HrTipsPage } from '../pages/hr/HrTipsPage'
 import { HrReportsPage } from '../pages/hr/HrReportsPage'
+import { HrBenefitsPage } from '../pages/hr/HrBenefitsPage'
 import { DtrExportPage } from '../pages/attendance/DtrExportPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
