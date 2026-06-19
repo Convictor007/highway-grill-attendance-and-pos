@@ -18,6 +18,7 @@ import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import type { AttendanceRecord } from '../../types/hrms'
 import { resolveClockOpenState } from '../../lib/clockState'
+import { DtrExportForm } from '../../components/DtrExportForm'
 import { CLOCK_GEOFENCE_POLICY } from '../../lib/clockPolicy'
 
 interface HoursSummary {
@@ -255,6 +256,11 @@ export function DtrPage() {
           </p>
         )}
         {clockError && <p className="error-msg" style={{ marginTop: '0.5rem' }}>{clockError}</p>}
+      </div>
+
+      <div className="card" style={{ marginBottom: '1rem' }}>
+        <h3 className="card-section-title" style={{ marginTop: 0 }}>Export</h3>
+        <DtrExportForm selfMode compact />
       </div>
 
       <div className="card table-wrap">

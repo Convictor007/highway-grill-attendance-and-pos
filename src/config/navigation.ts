@@ -57,7 +57,7 @@ export const hrMenuEntries: NavEntry[] = [
     ],
   },
   { to: '/shifts', label: 'Shifts', icon: 'schedule', perm: 'shifts.manage' },
-  {
+    {
     type: 'group',
     id: 'attendance',
     label: 'Attendance',
@@ -65,6 +65,7 @@ export const hrMenuEntries: NavEntry[] = [
     items: [
       { to: '/attendance', label: 'Attendance register', icon: 'clock', perm: 'attendance.view' },
       { to: '/hr/attendance-stats', label: 'Attendance stats', icon: 'overtime', perm: 'attendance.view' },
+      { to: '/hr/dtr-export', label: 'Export DTR', icon: 'folder', perm: 'attendance.view' },
     ],
   },
   { to: '/hr/field-work', label: 'Field work', icon: 'map', perm: 'attendance.view' },

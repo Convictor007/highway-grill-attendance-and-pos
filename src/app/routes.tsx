@@ -33,7 +33,7 @@ import { AttendanceStatsPage } from '../pages/attendance/AttendanceStatsPage'
 import { HrFieldWorkPage } from '../pages/hr/HrFieldWorkPage'
 import { HrTipsPage } from '../pages/hr/HrTipsPage'
 import { HrReportsPage } from '../pages/hr/HrReportsPage'
-import { HrBenefitsPage } from '../pages/hr/HrBenefitsPage'
+import { DtrExportPage } from '../pages/attendance/DtrExportPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -157,6 +157,16 @@ export function AppRoutes() {
           }
         />
         <Route path="hr/overtime" element={<Navigate to="/hr/attendance-stats" replace />} />
+        <Route
+          path="hr/dtr-export"
+          element={
+            <RequireHr>
+              <RequirePermission permission="attendance.view">
+                <DtrExportPage />
+              </RequirePermission>
+            </RequireHr>
+          }
+        />
         <Route
           path="hr/field-work"
           element={
