@@ -224,6 +224,6 @@ export function timingToDbColumns(timing: ShiftTiming) {
     early_in_minutes: timing.early_in_minutes,
     late_in_minutes: timing.late_in_minutes,
     early_out_minutes: timing.early_out_minutes,
-    late_out_minutes: timing.late_out_minutes,
+    late_out_minutes: null,
   }
 }

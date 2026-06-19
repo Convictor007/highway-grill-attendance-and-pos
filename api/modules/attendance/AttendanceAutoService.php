@@ -690,7 +690,7 @@ final class AttendanceAutoService
             'ei' => $hasShift ? ($timing['early_in_minutes'] ?? $timing['early_minutes'] ?? 0) : $null,
             'li' => $hasShift ? ($timing['late_in_minutes'] ?? $timing['late_minutes'] ?? 0) : $null,
             'eo' => $hasShift ? ($timing['early_out_minutes'] ?? 0) : $null,
-            'lo' => $hasShift ? ($timing['late_out_minutes'] ?? 0) : $null,
+            'lo' => $null,
             'id' => $attendanceId,
         ]);
     }
