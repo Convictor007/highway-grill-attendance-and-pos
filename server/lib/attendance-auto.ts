@@ -1,4 +1,4 @@
-import { getDb } from './db'
+import { todayInBranchTz } from './branch-time'
 import * as fieldWork from './field-work'
 import {
   computeHourSplit,
@@ -97,7 +97,7 @@ function isPastMidnight(clockIn: string, clockOut: string): boolean {
 }
 
 export async function linkShiftOnClockIn(attendanceId: string, employeeId: string) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayInBranchTz()
   const db = getDb()
   const shifts = await db`
     SELECT sa.id FROM shift_assignments sa

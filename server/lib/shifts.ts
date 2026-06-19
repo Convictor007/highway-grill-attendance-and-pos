@@ -188,7 +188,7 @@ export async function myShifts(employeeId: string, from?: string | null, to?: st
     INNER JOIN schedules sch ON sch.id = sa.schedule_id
     LEFT JOIN shift_templates st ON st.id = sa.shift_template_id
     WHERE sa.employee_id = ${employeeId} AND sa.shift_date BETWEEN ${f} AND ${t}
-      AND sch.status IN ('published', 'locked')
+      AND sch.status IN ('published', 'locked', 'draft')
     ORDER BY sa.shift_date, sa.start_time
   `
 }

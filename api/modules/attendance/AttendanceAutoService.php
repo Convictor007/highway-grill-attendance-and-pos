@@ -739,20 +739,28 @@ final class AttendanceAutoService
 
     private function shiftTimestamp(string $date, string $time): int|false
     {
-        return strtotime($date . ' ' . $time);
+        $tz = new \DateTimeZone('Asia/Manila');
+        $dt = \DateTimeImmutable::createFromFormat(
+            'Y-m-d H:i:s',
+            substr($date, 0, 10) . ' ' . substr($time, 0, 8),
+            $tz
+        );
+
+        return $dt ? $dt->getTimestamp() : false;
     }
 
     /** Handles overnight shifts (e.g. 15:00–00:00 ends next calendar day). */
     private function shiftEndTimestamp(string $date, string $startTime, string $endTime): int|false
     {
-        $startTs = strtotime($date . ' ' . $startTime);
-        $endTs = strtotime($date . ' ' . $endTime);
+        $startTs = $this->shiftTimestamp($date, $startTime);
+        $endTs = $this->shiftTimestamp($date, $endTime);
         if ($startTs === false || $endTs === false) {
             return false;
         }
         if ($endTs <= $startTs) {
-            $endTs = strtotime($date . ' ' . $endTime . ' +1 day');
+            $endTs += 86400;
         }
+
         return $endTs;
     }
 

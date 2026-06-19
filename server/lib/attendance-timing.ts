@@ -1,3 +1,9 @@
+import {
+  normalizeCalendarDate,
+  parseClockInstant,
+  shiftWallClockToUtcMs,
+} from './branch-time'
+
 export const MAX_REGULAR_HOURS = 9
 const GRACE_MS = 60_000
 
@@ -26,17 +32,11 @@ export type HourSplit = {
 }
 
 function parseTs(value: unknown): number {
-  if (value instanceof Date) return value.getTime()
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  const s = String(value ?? '').trim()
-  if (!s) return NaN
-  const normalized = s.includes('T') ? s : s.replace(' ', 'T')
-  return new Date(normalized).getTime()
+  return parseClockInstant(value)
 }
 
 function normalizeDate(value: unknown): string {
-  if (value instanceof Date) return value.toISOString().slice(0, 10)
-  return String(value ?? '').slice(0, 10)
+  return normalizeCalendarDate(value)
 }
 
 function normalizeTime(value: unknown): string {
@@ -44,7 +44,7 @@ function normalizeTime(value: unknown): string {
 }
 
 function shiftTimestamp(date: string, time: string): number {
-  return parseTs(`${date}T${time.slice(0, 8)}`)
+  return shiftWallClockToUtcMs(normalizeDate(date), normalizeTime(time))
 }
 
 function tsToDbString(ts: number): string {

@@ -11,6 +11,20 @@ export function todayLocalIsoDate(): string {
   return toLocalIsoDate()
 }
 
+/** Normalize shift_date from API (DATE string or ISO datetime) to YYYY-MM-DD. */
+export function normalizeShiftDate(value: unknown): string {
+  if (value == null || value === '') return ''
+  if (typeof value === 'string') {
+    const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})/)
+    return match ? match[1] : ''
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${value.getUTCFullYear()}-${pad2(value.getUTCMonth() + 1)}-${pad2(value.getUTCDate())}`
+  }
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ''
+}
+
 export function formatDateDisplay(iso: string): string {
   if (!iso) return 'Select date'
   const [y, m, d] = iso.split('-').map(Number)

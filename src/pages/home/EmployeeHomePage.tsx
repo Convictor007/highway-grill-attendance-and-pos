@@ -12,6 +12,7 @@ import {
 import { resolveClockOpenState } from '../../lib/clockState'
 import { CLOCK_GEOFENCE_POLICY } from '../../lib/clockPolicy'
 import { formatClockTime } from '../../lib/timeFormat'
+import { todayLocalIsoDate, toLocalIsoDate, normalizeShiftDate } from '../../lib/datetime'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
 import { reverseGeocode } from '../../lib/geocode'
 import { useAuth } from '../../context/AuthContext'
@@ -73,13 +74,13 @@ export function EmployeeHomePage() {
   const canClock = canUseEmployeeFeatures(user) && Boolean(user?.employee_id)
   const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
   const showEndShift = open && !!shiftCtx?.show_end_shift
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalIsoDate()
 
   const refresh = async () => {
-    const to = new Date().toISOString().slice(0, 10)
+    const to = todayLocalIsoDate()
     const fromDate = new Date()
     fromDate.setDate(fromDate.getDate() - 6)
-    const from = fromDate.toISOString().slice(0, 10)
+    const from = toLocalIsoDate(fromDate)
     const [status, summary, shifts, history] = await Promise.all([
       fetchClockStatus().catch((): ClockStatus => ({ open: false, on_break: false })),
       api<HoursSummary>('/attendance/summary').catch(() => null),
@@ -95,7 +96,8 @@ export function EmployeeHomePage() {
     setPositionLabel(status.position_label ?? null)
     setShiftCtx(status.shift ?? null)
     setWeekHours(summary)
-    const shiftToday = shifts.find((s) => s.shift_date === today) ?? null
+    const shiftToday =
+      shifts.find((s) => normalizeShiftDate(s.shift_date) === today) ?? null
     setTodayShift(shiftToday)
     setRecent(history)
     setWeekOtHours(
@@ -195,6 +197,17 @@ export function EmployeeHomePage() {
 
   const statusLabel = onBreak ? 'On break' : open ? 'Clocked in' : 'Clocked out'
   const statusClass = onBreak ? 'status-break' : open ? 'status-in' : 'status-out'
+  const scheduleShift =
+    todayShift ??
+    (shiftCtx?.has_shift && shiftCtx.shift_start && shiftCtx.shift_end
+      ? {
+          id: 'status',
+          shift_date: today,
+          start_time: shiftCtx.shift_start,
+          end_time: shiftCtx.shift_end,
+          shift_name: shiftCtx.shift_label ?? 'Scheduled',
+        }
+      : null)
 
   return (
     <div className="employee-home">
@@ -317,23 +330,23 @@ export function EmployeeHomePage() {
           <h2>Today&apos;s schedule</h2>
           <Link to="/scheduling" className="text-link">View all</Link>
         </div>
-        {todayShift ? (
+        {scheduleShift ? (
           <dl className="schedule-dl">
             <div>
               <dt>Date</dt>
-              <dd>{formatDate(todayShift.shift_date)}</dd>
+              <dd>{formatDate(normalizeShiftDate(scheduleShift.shift_date))}</dd>
             </div>
             <div>
               <dt>Shift</dt>
-              <dd>{todayShift.shift_name ?? 'Scheduled'}</dd>
+              <dd>{scheduleShift.shift_name ?? 'Scheduled'}</dd>
             </div>
             <div>
               <dt>Time in</dt>
-              <dd>{formatClockTime(todayShift.start_time)}</dd>
+              <dd>{formatClockTime(scheduleShift.start_time)}</dd>
             </div>
             <div>
               <dt>Time out</dt>
-              <dd>{formatClockTime(todayShift.end_time)}</dd>
+              <dd>{formatClockTime(scheduleShift.end_time)}</dd>
             </div>
           </dl>
         ) : (
