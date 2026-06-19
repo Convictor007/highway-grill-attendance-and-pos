@@ -1,5 +1,6 @@
 import { getDb, nullableInt } from './db'
-import { addDays, mondayThisWeek, normalizeWeekStartSunday, todayIso, toIsoDateString } from './date-utils'
+import { addDays, normalizeWeekStartSunday, todayIso, toIsoDateString } from './date-utils'
+import { normalizeCalendarDate, todayInBranchTz } from './branch-time'
 import { ValidationError } from './errors'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
 
@@ -179,18 +180,23 @@ export async function deleteAssignment(id: string) {
 }
 
 export async function myShifts(employeeId: string, from?: string | null, to?: string | null) {
-  const f = from ?? mondayThisWeek()
+  const f = from ?? normalizeWeekStartSunday(todayInBranchTz())
   const t = to ?? addDays(f, 6)
   const db = getDb()
-  return db`
+  const rows = await db`
     SELECT sa.*, st.name AS shift_name, st.color_hex, sch.status AS schedule_status
     FROM shift_assignments sa
     INNER JOIN schedules sch ON sch.id = sa.schedule_id
     LEFT JOIN shift_templates st ON st.id = sa.shift_template_id
     WHERE sa.employee_id = ${employeeId} AND sa.shift_date BETWEEN ${f} AND ${t}
+      AND (sa.notes IS NULL OR sa.notes != 'REST_DAY')
       AND sch.status IN ('published', 'locked', 'draft')
     ORDER BY sa.shift_date, sa.start_time
   `
+  return rows.map((row) => ({
+    ...row,
+    shift_date: normalizeCalendarDate(row.shift_date),
+  }))
 }
 
 export async function coworkers(employeeId: string) {

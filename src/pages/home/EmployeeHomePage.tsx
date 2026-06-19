@@ -38,6 +38,15 @@ interface MyShift {
   shift_name: string | null
 }
 
+interface TodayScheduledShift {
+  assignment_id: string
+  shift_name: string | null
+  shift_date: string
+  start_time: string
+  end_time: string
+  off_day: boolean
+}
+
 function formatTime(iso: string | null) {
   if (!iso) return '—'
   const d = new Date(iso.replace(' ', 'T'))
@@ -81,10 +90,11 @@ export function EmployeeHomePage() {
     const fromDate = new Date()
     fromDate.setDate(fromDate.getDate() - 6)
     const from = toLocalIsoDate(fromDate)
-    const [status, summary, shifts, history] = await Promise.all([
+    const [status, summary, shifts, scheduledToday, history] = await Promise.all([
       fetchClockStatus().catch((): ClockStatus => ({ open: false, on_break: false })),
       api<HoursSummary>('/attendance/summary').catch(() => null),
-      api<MyShift[]>('/shifts/my').catch(() => [] as MyShift[]),
+      api<MyShift[]>(`/shifts/my?from=${today}&to=${today}`).catch(() => [] as MyShift[]),
+      api<TodayScheduledShift | null>(`/attendance/scheduled-shift?date=${today}`).catch(() => null),
       api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`).catch(() => [] as AttendanceRecord[]),
     ])
     const clock = resolveClockOpenState(status, history)
@@ -97,7 +107,16 @@ export function EmployeeHomePage() {
     setShiftCtx(status.shift ?? null)
     setWeekHours(summary)
     const shiftToday =
-      shifts.find((s) => normalizeShiftDate(s.shift_date) === today) ?? null
+      shifts.find((s) => normalizeShiftDate(s.shift_date) === today) ??
+      (scheduledToday && !scheduledToday.off_day
+        ? {
+            id: scheduledToday.assignment_id,
+            shift_date: normalizeShiftDate(scheduledToday.shift_date),
+            start_time: scheduledToday.start_time,
+            end_time: scheduledToday.end_time,
+            shift_name: scheduledToday.shift_name,
+          }
+        : null)
     setTodayShift(shiftToday)
     setRecent(history)
     setWeekOtHours(
