@@ -44,6 +44,7 @@ async function resolveShift(record: Record<string, unknown>, employeeId: string)
   const rows = await db`
     SELECT shift_date, start_time, end_time FROM shift_assignments
     WHERE employee_id = ${employeeId} AND shift_date = ${date}
+      AND (notes IS NULL OR notes != 'REST_DAY')
     ORDER BY start_time LIMIT 1
   `
   return (rows[0] as ShiftAssignment | undefined) ?? null
@@ -57,8 +58,7 @@ async function closeSession(
   longitude?: number | null,
   address?: string | null,
 ) {
-  const worked = workedHours(String(open.clock_in), clockOutAt, open)
-  const fullRecord = { ...open, clock_out: clockOutAt, actual_hours: worked }
+  const fullRecord = { ...open, clock_out: clockOutAt }
   const shift = await resolveShift(fullRecord, String(open.employee_id))
   const split = computeHourSplit(fullRecord, shift)
   const timingCols = timingToDbColumns(split.timing)
@@ -66,7 +66,7 @@ async function closeSession(
   await db`
     UPDATE attendance SET
       clock_out = ${clockOutAt},
-      actual_hours = ${worked},
+      actual_hours = ${split.worked},
       regular_hours = ${split.regular},
       overtime_hours = ${split.overtime},
       early_in_minutes = ${timingCols.early_in_minutes},

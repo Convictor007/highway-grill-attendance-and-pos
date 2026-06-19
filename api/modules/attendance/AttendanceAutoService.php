@@ -353,8 +353,7 @@ final class AttendanceAutoService
         ?string $address
     ): array {
         $pdo = Database::connection();
-        $worked = $this->workedHours((string) $open['clock_in'], $clockOutAt, $open);
-        $hourSplit = $this->computeHourSplit(array_merge($open, ['clock_out' => $clockOutAt, 'actual_hours' => $worked]));
+        $hourSplit = $this->computeHourSplit(array_merge($open, ['clock_out' => $clockOutAt]));
 
         $sets = [
             'clock_out = :cout',
@@ -363,7 +362,7 @@ final class AttendanceAutoService
         $params = [
             'id' => $open['id'],
             'cout' => $clockOutAt,
-            'hrs' => $worked,
+            'hrs' => $hourSplit['worked'],
         ];
 
         if (Schema::hasColumn('attendance', 'regular_hours')) {
@@ -395,7 +394,7 @@ final class AttendanceAutoService
 
         $pdo->prepare('UPDATE attendance SET ' . implode(', ', $sets) . ' WHERE id = :id')->execute($params);
 
-        $fullRecord = array_merge($open, ['clock_out' => $clockOutAt, 'actual_hours' => $worked]);
+        $fullRecord = array_merge($open, ['clock_out' => $clockOutAt, 'actual_hours' => $hourSplit['worked']]);
         $shift = $this->resolveShift($fullRecord, (string) $open['employee_id']);
         $timing = $this->resolveShiftTiming($fullRecord, $shift);
         $this->persistDtrTiming((string) $open['id'], $timing, $shift !== null);
@@ -440,51 +439,74 @@ final class AttendanceAutoService
             return ['worked' => 0.0, 'regular' => 0.0, 'overtime' => 0.0, 'reason' => ''];
         }
 
-        $worked = isset($record['actual_hours']) && $record['actual_hours'] !== null
-            ? (float) $record['actual_hours']
-            : $this->workedHours($clockIn, $clockOut, $record);
-
         $shift = $this->resolveShift($record, (string) $record['employee_id']);
         $timing = $this->resolveShiftTiming($record, $shift);
-        $earlyHours = round($timing['early_minutes'] / 60, 2);
-        $payableWorked = round(max(0.0, $worked - $earlyHours), 2);
-
         $clockInTs = strtotime($clockIn);
         $clockOutTs = strtotime($clockOut);
-        $expectedEndTs = $this->expectedRegularEndTimestamp($record);
 
-        if ($clockInTs === false || $clockOutTs === false || $expectedEndTs === false) {
-            $regular = round(min($payableWorked, self::MAX_REGULAR_HOURS), 2);
-            $overtime = round(max(0.0, $payableWorked - $regular), 2);
+        if (
+            $shift
+            && !empty($shift['shift_date'])
+            && !empty($shift['start_time'])
+            && !empty($shift['end_time'])
+            && $timing['scheduled_start_ts'] !== false
+            && $timing['scheduled_end_ts'] !== false
+            && $clockInTs !== false
+            && $clockOutTs !== false
+        ) {
+            $dutyStartTs = $this->effectiveDutyStartTs($timing, $clockInTs);
+            $scheduledEndTs = $timing['scheduled_end_ts'];
+            $regularEndTs = min($clockOutTs, $scheduledEndTs);
+
+            $regular = 0.0;
+            if ($regularEndTs > $dutyStartTs) {
+                $regular = $this->workedHours(
+                    date('Y-m-d H:i:s', $dutyStartTs),
+                    date('Y-m-d H:i:s', $regularEndTs),
+                    $record
+                );
+            }
+            $regular = round(min($regular, self::MAX_REGULAR_HOURS), 2);
+
+            $overtime = 0.0;
+            if ($clockOutTs > $scheduledEndTs + 60) {
+                $overtime = $this->workedHours(
+                    date('Y-m-d H:i:s', $scheduledEndTs),
+                    $clockOut,
+                    $record
+                );
+            }
+            $overtime = round($overtime, 2);
+            $worked = round($regular + $overtime, 2);
 
             return [
                 'worked' => $worked,
                 'regular' => $regular,
                 'overtime' => $overtime,
-                'reason' => $this->overtimeReasons($record, $clockIn, $clockOut, $payableWorked, $overtime, $timing),
+                'reason' => $this->overtimeReasons($record, $clockIn, $clockOut, $worked, $overtime, $timing),
             ];
         }
 
-        $dutyStart = $clockIn;
-        if ($timing['early_minutes'] > 0 && $timing['scheduled_start_ts'] !== false) {
-            $dutyStart = date('Y-m-d H:i:s', $timing['scheduled_start_ts']);
-        }
-
-        $regularEndTs = min($clockOutTs, $expectedEndTs);
-        $regularFromWindow = $this->workedHours(
-            $dutyStart,
-            date('Y-m-d H:i:s', $regularEndTs),
-            $record
-        );
-        $regular = round(min($regularFromWindow, self::MAX_REGULAR_HOURS, $payableWorked), 2);
-        $overtime = round(max(0.0, $payableWorked - $regular), 2);
+        $worked = $this->workedHours($clockIn, $clockOut, $record);
+        $regular = round(min($worked, self::MAX_REGULAR_HOURS), 2);
+        $overtime = round(max(0.0, $worked - $regular), 2);
 
         return [
             'worked' => $worked,
             'regular' => $regular,
             'overtime' => $overtime,
-            'reason' => $this->overtimeReasons($record, $clockIn, $clockOut, $payableWorked, $overtime, $timing),
+            'reason' => $this->overtimeReasons($record, $clockIn, $clockOut, $worked, $overtime, $timing),
         ];
+    }
+
+    /** Regular duty starts at scheduled shift start unless the employee was late. */
+    private function effectiveDutyStartTs(array $timing, int $clockInTs): int
+    {
+        if ($timing['scheduled_start_ts'] !== false && ($timing['late_minutes'] ?? 0) <= 0) {
+            return $timing['scheduled_start_ts'];
+        }
+
+        return $clockInTs;
     }
 
     /**
@@ -519,9 +541,7 @@ final class AttendanceAutoService
         }
 
         $expectedEndTs = $nineHourEndTs;
-        if ($scheduledEndTs !== false && $nineHourEndTs !== false) {
-            $expectedEndTs = max($scheduledEndTs, $nineHourEndTs);
-        } elseif ($scheduledEndTs !== false) {
+        if ($scheduledEndTs !== false) {
             $expectedEndTs = $scheduledEndTs;
         }
 
@@ -574,10 +594,9 @@ final class AttendanceAutoService
             return false;
         }
 
-        $nineHourEndTs = $clockInTs + (int) (self::MAX_REGULAR_HOURS * 3600);
         $shift = $this->resolveShift($record, (string) $record['employee_id']);
         if (!$shift || empty($shift['shift_date']) || empty($shift['end_time'])) {
-            return $nineHourEndTs;
+            return $clockInTs + (int) (self::MAX_REGULAR_HOURS * 3600);
         }
 
         $scheduledEndTs = $this->shiftEndTimestamp(
@@ -585,11 +604,8 @@ final class AttendanceAutoService
             (string) ($shift['start_time'] ?? '00:00:00'),
             (string) $shift['end_time']
         );
-        if ($scheduledEndTs === false) {
-            return $nineHourEndTs;
-        }
 
-        return max($scheduledEndTs, $nineHourEndTs);
+        return $scheduledEndTs !== false ? $scheduledEndTs : $clockInTs + (int) (self::MAX_REGULAR_HOURS * 3600);
     }
 
     private function overtimeReasons(
@@ -711,7 +727,10 @@ final class AttendanceAutoService
     private function shiftForDate(string $employeeId, string $date): ?array
     {
         $stmt = Database::connection()->prepare(
-            'SELECT * FROM shift_assignments WHERE employee_id = :eid AND shift_date = :d ORDER BY start_time LIMIT 1'
+            'SELECT * FROM shift_assignments
+             WHERE employee_id = :eid AND shift_date = :d
+               AND (notes IS NULL OR notes != \'REST_DAY\')
+             ORDER BY start_time LIMIT 1'
         );
         $stmt->execute(['eid' => $employeeId, 'd' => $date]);
         $row = $stmt->fetch();

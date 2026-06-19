@@ -47,6 +47,18 @@ function shiftTimestamp(date: string, time: string): number {
   return parseTs(`${date}T${time.slice(0, 8)}`)
 }
 
+function tsToDbString(ts: number): string {
+  return new Date(ts).toISOString().replace('T', ' ').slice(0, 19)
+}
+
+/** Regular duty starts at scheduled shift start unless the employee was late. */
+export function effectiveDutyStartTs(timing: ShiftTiming, clockInTs: number): number {
+  if (timing.scheduled_start_ts != null && (timing.late_in_minutes ?? 0) <= 0) {
+    return timing.scheduled_start_ts
+  }
+  return clockInTs
+}
+
 function shiftEndTimestamp(date: string, startTime: string, endTime: string): number {
   const startTs = shiftTimestamp(date, startTime)
   let endTs = shiftTimestamp(date, endTime)
@@ -86,7 +98,7 @@ export function resolveShiftTiming(record: Record<string, unknown>, shift: Shift
 
   let expectedEndTs: number | null = nineHourEndTs
   if (scheduledEndTs != null) {
-    expectedEndTs = Math.max(scheduledEndTs, nineHourEndTs)
+    expectedEndTs = scheduledEndTs
   }
 
   const hasShift = scheduledStartTs != null
@@ -130,14 +142,14 @@ export function resolveShiftTiming(record: Record<string, unknown>, shift: Shift
 
 function expectedRegularEndTimestamp(record: Record<string, unknown>, shift: ShiftAssignment | null): number | null {
   const clockInTs = parseTs(record.clock_in)
-  const nineHourEndTs = clockInTs + MAX_REGULAR_HOURS * 3_600_000
-  if (!shift?.shift_date || !shift.end_time) return nineHourEndTs
-  const scheduledEndTs = shiftEndTimestamp(
+  if (!shift?.shift_date || !shift.end_time) {
+    return clockInTs + MAX_REGULAR_HOURS * 3_600_000
+  }
+  return shiftEndTimestamp(
     normalizeDate(shift.shift_date),
     normalizeTime(shift.start_time ?? '00:00:00'),
     normalizeTime(shift.end_time),
   )
-  return Math.max(scheduledEndTs, nineHourEndTs)
 }
 
 function isPastMidnight(clockIn: string, clockOut: string): boolean {
@@ -188,47 +200,55 @@ export function computeHourSplit(record: Record<string, unknown>, shift: ShiftAs
     return { worked: 0, regular: 0, overtime: 0, reason: '', timing }
   }
 
-  const worked =
-    record.actual_hours != null ? Number(record.actual_hours) : workedHours(clockIn, clockOut, record)
-  const earlyIn = timing.early_in_minutes ?? 0
-  const earlyHours = Math.round((earlyIn / 60) * 100) / 100
-  const payableWorked = Math.round(Math.max(0, worked - earlyHours) * 100) / 100
-
   const clockInTs = parseTs(clockIn)
   const clockOutTs = parseTs(clockOut)
-  const expectedEndTs = expectedRegularEndTimestamp(record, shift)
 
-  if (expectedEndTs == null) {
-    const regular = Math.round(Math.min(payableWorked, MAX_REGULAR_HOURS) * 100) / 100
-    const overtime = Math.round(Math.max(0, payableWorked - regular) * 100) / 100
+  // Hours follow the registered schedule when a shift is assigned.
+  if (
+    shift?.shift_date &&
+    shift.start_time &&
+    shift.end_time &&
+    timing.scheduled_start_ts != null &&
+    timing.scheduled_end_ts != null
+  ) {
+    const dutyStartTs = effectiveDutyStartTs(timing, clockInTs)
+    const scheduledEndTs = timing.scheduled_end_ts
+    const regularEndTs = Math.min(clockOutTs, scheduledEndTs)
+
+    let regular = 0
+    if (regularEndTs > dutyStartTs) {
+      regular = workedHours(tsToDbString(dutyStartTs), tsToDbString(regularEndTs), record)
+    }
+    regular = Math.round(Math.min(regular, MAX_REGULAR_HOURS) * 100) / 100
+
+    let overtime = 0
+    if (clockOutTs > scheduledEndTs + GRACE_MS) {
+      overtime = workedHours(tsToDbString(scheduledEndTs), clockOut, record)
+    }
+    overtime = Math.round(overtime * 100) / 100
+
+    const worked = Math.round((regular + overtime) * 100) / 100
+
     return {
       worked,
       regular,
       overtime,
-      reason: overtimeReasons(record, clockIn, clockOut, payableWorked, overtime, timing, expectedEndTs),
+      reason: overtimeReasons(record, clockIn, clockOut, worked, overtime, timing, scheduledEndTs),
       timing,
     }
   }
 
-  let dutyStart = clockIn
-  if (earlyIn > 0 && timing.scheduled_start_ts != null) {
-    dutyStart = new Date(timing.scheduled_start_ts).toISOString().replace('T', ' ').slice(0, 19)
-  }
-
-  const regularEndTs = Math.min(clockOutTs, expectedEndTs)
-  const regularFromWindow = workedHours(
-    dutyStart,
-    new Date(regularEndTs).toISOString().replace('T', ' ').slice(0, 19),
-    record,
-  )
-  const regular = Math.round(Math.min(regularFromWindow, MAX_REGULAR_HOURS, payableWorked) * 100) / 100
-  const overtime = Math.round(Math.max(0, payableWorked - regular) * 100) / 100
+  // No schedule: use actual elapsed time capped at 9 regular hours.
+  const worked = workedHours(clockIn, clockOut, record)
+  const regular = Math.round(Math.min(worked, MAX_REGULAR_HOURS) * 100) / 100
+  const overtime = Math.round(Math.max(0, worked - regular) * 100) / 100
+  const expectedEndTs = clockInTs + MAX_REGULAR_HOURS * 3_600_000
 
   return {
     worked,
     regular,
     overtime,
-    reason: overtimeReasons(record, clockIn, clockOut, payableWorked, overtime, timing, expectedEndTs),
+    reason: overtimeReasons(record, clockIn, clockOut, worked, overtime, timing, expectedEndTs),
     timing,
   }
 }
