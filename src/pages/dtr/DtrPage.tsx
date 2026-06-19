@@ -18,6 +18,7 @@ import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import type { AttendanceRecord } from '../../types/hrms'
 import { resolveClockOpenState } from '../../lib/clockState'
+import { CLOCK_GEOFENCE_POLICY } from '../../lib/clockPolicy'
 
 interface HoursSummary {
   from: string
@@ -250,7 +251,7 @@ export function DtrPage() {
         <ShiftEndBanner shift={shiftCtx} open={open} />
         {open && geofenceRequired && (
           <p className="muted-block clock-policy-note" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-            Overtime is auto-detected on clock-out. After midnight, leaving the work zone for 5 minutes clocks you out.
+            {CLOCK_GEOFENCE_POLICY}
           </p>
         )}
         {clockError && <p className="error-msg" style={{ marginTop: '0.5rem' }}>{clockError}</p>}

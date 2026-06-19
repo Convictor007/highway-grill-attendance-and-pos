@@ -10,6 +10,8 @@ import {
   type ShiftClockContext,
 } from '../../lib/clock'
 import { resolveClockOpenState } from '../../lib/clockState'
+import { CLOCK_GEOFENCE_POLICY } from '../../lib/clockPolicy'
+import { formatClockTime } from '../../lib/timeFormat'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
 import { reverseGeocode } from '../../lib/geocode'
 import { useAuth } from '../../context/AuthContext'
@@ -241,11 +243,7 @@ export function EmployeeHomePage() {
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
         {open && geofenceRequired && (
-          <p className="muted-block clock-policy-note">
-            Clock in inside the work zone. Early clock-in does not shorten your shift — you still finish at scheduled end.
-            Overtime is auto-recorded when you work past shift end, 9 hours, or midnight. After midnight, leaving the
-            zone for 5 minutes clocks you out automatically.
-          </p>
+          <p className="muted-block clock-policy-note">{CLOCK_GEOFENCE_POLICY}</p>
         )}
         {clockError && <p className="error-msg">{clockError}</p>}
         <div className="clock-actions">
@@ -331,11 +329,11 @@ export function EmployeeHomePage() {
             </div>
             <div>
               <dt>Time in</dt>
-              <dd>{todayShift.start_time?.slice(0, 5)}</dd>
+              <dd>{formatClockTime(todayShift.start_time)}</dd>
             </div>
             <div>
               <dt>Time out</dt>
-              <dd>{todayShift.end_time?.slice(0, 5)}</dd>
+              <dd>{formatClockTime(todayShift.end_time)}</dd>
             </div>
           </dl>
         ) : (

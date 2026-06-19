@@ -1,12 +1,8 @@
 import type { AttendanceRecord } from '../types/hrms'
+import { formatDurationMinutes } from './timeFormat'
 
 export function formatTimingMinutes(minutes: number | string | null | undefined): string {
-  const n = Number(minutes ?? 0)
-  if (!Number.isFinite(n) || n <= 0) return ''
-  if (n < 60) return `${n}m`
-  const h = Math.floor(n / 60)
-  const m = n % 60
-  return m > 0 ? `${h}h ${m}m` : `${h}h`
+  return formatDurationMinutes(minutes)
 }
 
 export type DtrTimingFlags = {

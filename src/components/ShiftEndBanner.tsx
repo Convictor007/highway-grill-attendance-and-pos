@@ -1,4 +1,5 @@
 import type { ShiftClockContext } from '../lib/clock'
+import { formatClockTime, formatDurationMinutes, formatShiftTimeRange } from '../lib/timeFormat'
 
 type Props = {
   shift: ShiftClockContext | null | undefined
@@ -8,16 +9,17 @@ type Props = {
 export function ShiftEndBanner({ shift, open }: Props) {
   if (!open || !shift) return null
 
-  const earlyMins = shift.early_minutes ?? 0
-  const end = shift.expected_shift_end ?? shift.shift_end ?? 'end of shift'
-  const label = shift.shift_label
+  const earlyDuration = formatDurationMinutes(shift.early_minutes)
+  const lateDuration = formatDurationMinutes(shift.late_minutes)
+  const end = formatClockTime(shift.expected_shift_end ?? shift.shift_end) || 'end of shift'
+  const label = shift.shift_label ? formatShiftTimeRange(shift.shift_label) : null
 
-  if (earlyMins > 0 && !shift.show_end_shift) {
+  if (earlyDuration && !shift.show_end_shift) {
     return (
       <div className="shift-end-banner shift-end-banner--early" role="status">
         {label
-          ? `Clocked in ${earlyMins} min early for ${label}. Regular duty still ends at ${end} — overtime only after that.`
-          : `Clocked in ${earlyMins} min early. Regular duty still ends at ${end}.`}
+          ? `Clocked in ${earlyDuration} early for ${label}. Regular duty still ends at ${end} — overtime only after that.`
+          : `Clocked in ${earlyDuration} early. Regular duty still ends at ${end}.`}
       </div>
     )
   }
@@ -25,12 +27,8 @@ export function ShiftEndBanner({ shift, open }: Props) {
   if (!shift.show_end_shift) return null
 
   const phase = shift.phase ?? 'normal'
-  const lateNote =
-    (shift.late_minutes ?? 0) > 0
-      ? ` (9h duty extended due to ${shift.late_minutes} min late start)`
-      : ''
-  const earlyNote =
-    earlyMins > 0 ? ` (${earlyMins} min early start — finish at ${end} as scheduled)` : ''
+  const lateNote = lateDuration ? ` (9-hour duty extended due to ${lateDuration} late start)` : ''
+  const earlyNote = earlyDuration ? ` (${earlyDuration} early start — finish at ${end} as scheduled)` : ''
 
   let message: string
   let className = 'shift-end-banner'
@@ -42,10 +40,10 @@ export function ShiftEndBanner({ shift, open }: Props) {
       : `Your regular duty ended at ${end}${lateNote}${earlyNote}. Tap End shift when you finish.`
   } else {
     className += ' shift-end-banner--soon'
-    const mins = Math.max(1, shift.minutes_until_end ?? 30)
+    const untilEnd = formatDurationMinutes(Math.max(1, shift.minutes_until_end ?? 30))
     message = label
-      ? `Regular duty ends in ~${mins} min (${end})${lateNote}${earlyNote}. Tap End shift when you leave.`
-      : `Regular duty ends in ~${mins} minutes (${end})${earlyNote}. Tap End shift when you are done.`
+      ? `Regular duty ends in ~${untilEnd} (${end})${lateNote}${earlyNote}. Tap End shift when you leave.`
+      : `Regular duty ends in ~${untilEnd} (${end})${earlyNote}. Tap End shift when you are done.`
   }
 
   return (
