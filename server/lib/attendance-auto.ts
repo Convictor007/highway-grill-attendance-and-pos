@@ -2,6 +2,7 @@ import { getDb } from './db'
 import * as fieldWork from './field-work'
 import {
   computeHourSplit,
+  resolveShiftTiming,
   timingToDbColumns,
   workedHours,
   type ShiftAssignment,
@@ -14,6 +15,7 @@ const ATT_SELECT = `SELECT a.*, e.emp_number, e.first_name, e.last_name FROM att
 
 export { MAX_REGULAR_HOURS } from './attendance-timing'
 export const OUTSIDE_MINUTES = 5
+const ENDING_SOON_MINUTES = 30
 
 async function getRecord(id: string) {
   const rows = await unsafe(`${ATT_SELECT} WHERE a.id = $1 LIMIT 1`, [id])
@@ -173,29 +175,40 @@ export async function recalculateForRecord(attendanceId: string) {
 export async function shiftContextForEmployee(employeeId: string) {
   const open = await openSession(employeeId)
   if (!open) return null
-  const today = new Date().toISOString().slice(0, 10)
-  const db = getDb()
-  const shifts = await db`
-    SELECT sa.*, st.name AS shift_name FROM shift_assignments sa
-    LEFT JOIN shift_templates st ON st.id = sa.shift_template_id
-    WHERE sa.employee_id = ${employeeId} AND sa.shift_date = ${today}
-      AND (sa.notes IS NULL OR sa.notes != 'REST_DAY')
-    ORDER BY sa.start_time LIMIT 1
-  `
-  const shift = shifts[0]
-  const now = Date.now()
-  const worked = workedHours(String(open.clock_in), new Date().toISOString().replace('T', ' ').slice(0, 19), open)
-  let phase = 'normal'
-  if (shift?.end_time) {
-    const endTs = new Date(`${today}T${String(shift.end_time).slice(0, 8)}`).getTime()
-    const mins = Math.round((endTs - now) / 60000)
-    if (mins <= 0) phase = 'overdue'
-    else if (mins <= 30) phase = 'ending_soon'
+
+  const shift = await resolveShift(open, employeeId)
+  const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19)
+  const timing = resolveShiftTiming({ ...open, clock_out: nowStr }, shift)
+  const worked = workedHours(String(open.clock_in), nowStr, open)
+  const nowTs = Date.now()
+  const expectedEndTs = timing.expected_end_ts
+  const minutesUntilEnd =
+    expectedEndTs != null ? Math.round((expectedEndTs - nowTs) / 60_000) : null
+
+  let phase: 'normal' | 'ending_soon' | 'overdue' = 'normal'
+  if (minutesUntilEnd != null) {
+    if (minutesUntilEnd <= 0) phase = 'overdue'
+    else if (minutesUntilEnd <= ENDING_SOON_MINUTES) phase = 'ending_soon'
   }
+
+  const hasShift = Boolean(shift?.shift_date && shift.start_time && shift.end_time)
+  const startLabel = hasShift ? String(shift!.start_time).slice(0, 5) : null
+  const endLabel = hasShift ? String(shift!.end_time).slice(0, 5) : null
+  const expectedEndLabel =
+    expectedEndTs != null
+      ? new Date(expectedEndTs).toISOString().replace('T', ' ').slice(11, 16)
+      : null
+
   return {
-    has_shift: Boolean(shift),
-    shift_label: shift ? `${String(shift.start_time).slice(0, 5)}–${String(shift.end_time).slice(0, 5)}` : null,
-    shift_date: shift ? today : null,
+    has_shift: hasShift,
+    shift_label: hasShift && startLabel && endLabel ? `${startLabel}–${endLabel}` : null,
+    shift_date: hasShift ? String(shift!.shift_date).slice(0, 10) : null,
+    shift_start: startLabel,
+    shift_end: endLabel,
+    expected_shift_end: expectedEndLabel,
+    late_minutes: timing.late_in_minutes ?? 0,
+    early_minutes: timing.early_in_minutes ?? 0,
+    minutes_until_end: minutesUntilEnd,
     phase,
     show_end_shift: phase === 'ending_soon' || phase === 'overdue',
     hours_worked: worked,

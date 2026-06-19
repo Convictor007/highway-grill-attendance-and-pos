@@ -241,11 +241,6 @@ export function DtrPage() {
           requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
-        {open && geofenceRequired && (
-          <p className="muted-block clock-policy-note" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-            Overtime is auto-detected on clock-out. After midnight, leaving the work zone for 5 minutes clocks you out.
-          </p>
-        )}
         {clockError && <p className="error-msg" style={{ marginTop: '0.5rem' }}>{clockError}</p>}
       </div>
 

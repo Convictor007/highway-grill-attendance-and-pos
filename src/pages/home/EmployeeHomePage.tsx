@@ -232,13 +232,6 @@ export function EmployeeHomePage() {
           requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
-        {open && geofenceRequired && (
-          <p className="muted-block clock-policy-note">
-            Clock in inside the work zone. Early clock-in does not shorten your shift — you still finish at scheduled end.
-            Overtime is auto-recorded when you work past shift end, 9 hours, or midnight. After midnight, leaving the
-            zone for 5 minutes clocks you out automatically.
-          </p>
-        )}
         {clockError && <p className="error-msg">{clockError}</p>}
         <div className="clock-actions">
           {!open ? (
