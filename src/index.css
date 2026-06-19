@@ -2249,8 +2249,34 @@ th {
   font-weight: 600;
 }
 
+.dtr-timing-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.dtr-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.12rem 0.45rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.dtr-badge--early {
+  background: #e8f4ea;
+  color: #1a6b2e;
+}
+
+.dtr-badge--late {
+  background: #fdecea;
+  color: #b42318;
+}
+
 .dtr-row-times {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 

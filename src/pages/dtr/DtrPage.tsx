@@ -13,6 +13,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
 import { DtrLocationLink } from '../../components/DtrLocationLink'
+import { DtrTimingBadges, dtrTimingFlags } from '../../lib/dtrTiming'
 import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
@@ -260,6 +261,7 @@ export function DtrPage() {
                 <th>Date</th>
                 <th>Time in</th>
                 <th>Time out</th>
+                <th>Timing</th>
                 <th>Hours</th>
                 <th>OT</th>
                 <th>Location (in)</th>
@@ -271,6 +273,10 @@ export function DtrPage() {
                     <td>{formatDateLabel(workDateFromClockIn(r.clock_in))}</td>
                     <td>{formatTime(r.clock_in)}</td>
                     <td>{formatTime(r.clock_out)}</td>
+                    <td>
+                      <DtrTimingBadges record={r} />
+                      {!dtrTimingFlags(r).hasAny && '—'}
+                    </td>
                     <td>{r.actual_hours != null ? Number(r.actual_hours).toFixed(2) : '—'}</td>
                     <td>
                       {r.overtime_hours != null && Number(r.overtime_hours) > 0

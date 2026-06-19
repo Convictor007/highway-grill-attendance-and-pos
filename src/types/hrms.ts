@@ -377,6 +377,10 @@ export interface AttendanceRecord {
   actual_hours: string | null
   regular_hours?: string | null
   overtime_hours?: string | null
+  early_in_minutes?: number | string | null
+  late_in_minutes?: number | string | null
+  early_out_minutes?: number | string | null
+  late_out_minutes?: number | string | null
   clock_out_type?: string | null
   latitude?: string | number | null
   longitude?: string | number | null

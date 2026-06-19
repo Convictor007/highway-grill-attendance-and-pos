@@ -17,6 +17,7 @@ import { ClockLocationModal } from '../../components/ClockLocationModal'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import type { AttendanceRecord } from '../../types/hrms'
+import { DtrTimingBadges } from '../../lib/dtrTiming'
 
 interface HoursSummary {
   from: string
@@ -355,6 +356,7 @@ export function EmployeeHomePage() {
                     <span>
                       <small>Out</small> {formatTime(r.clock_out)}
                     </span>
+                    <DtrTimingBadges record={r} />
                   </div>
                   <div className="dtr-row-hours">
                     {r.actual_hours != null ? `${Number(r.actual_hours).toFixed(1)}h` : open && !r.clock_out ? '…' : '—'}

@@ -189,6 +189,9 @@ final class AttendanceAutoService
 
         $hours = $this->computeHourSplit($row);
         $this->persistHourSplit($attendanceId, $hours['regular'], $hours['overtime'], (float) $hours['worked']);
+        $shift = $this->resolveShift($row, (string) $row['employee_id']);
+        $timing = $this->resolveShiftTiming($row, $shift);
+        $this->persistDtrTiming($attendanceId, $timing, $shift !== null);
         $this->syncOvertimeRecord($attendanceId, $row['employee_id'], $row['clock_in'], $hours['overtime'], $hours['reason']);
 
         return $this->attendance->get($attendanceId);
@@ -392,6 +395,11 @@ final class AttendanceAutoService
 
         $pdo->prepare('UPDATE attendance SET ' . implode(', ', $sets) . ' WHERE id = :id')->execute($params);
 
+        $fullRecord = array_merge($open, ['clock_out' => $clockOutAt, 'actual_hours' => $worked]);
+        $shift = $this->resolveShift($fullRecord, (string) $open['employee_id']);
+        $timing = $this->resolveShiftTiming($fullRecord, $shift);
+        $this->persistDtrTiming((string) $open['id'], $timing, $shift !== null);
+
         $this->syncOvertimeRecord(
             $open['id'],
             $open['employee_id'],
@@ -519,6 +527,8 @@ final class AttendanceAutoService
 
         $lateMinutes = 0;
         $earlyMinutes = 0;
+        $earlyOutMinutes = 0;
+        $lateOutMinutes = 0;
         if ($scheduledStartTs !== false && $clockInTs !== false) {
             if ($clockInTs > $scheduledStartTs + 60) {
                 $lateMinutes = (int) round(($clockInTs - $scheduledStartTs) / 60);
@@ -526,6 +536,17 @@ final class AttendanceAutoService
                 $earlyMinutes = (int) round(($scheduledStartTs - $clockInTs) / 60);
             }
         }
+
+        $clockOutTs = !empty($open['clock_out']) ? strtotime((string) $open['clock_out']) : false;
+        if ($scheduledEndTs !== false && $clockOutTs !== false) {
+            if ($clockOutTs < $scheduledEndTs - 60) {
+                $earlyOutMinutes = (int) round(($scheduledEndTs - $clockOutTs) / 60);
+            } elseif ($clockOutTs > $scheduledEndTs + 60) {
+                $lateOutMinutes = (int) round(($clockOutTs - $scheduledEndTs) / 60);
+            }
+        }
+
+        $hasShift = $scheduledStartTs !== false;
 
         $hoursFromScheduledStart = 0.0;
         if ($scheduledStartTs !== false && $clockInTs !== false) {
@@ -538,6 +559,10 @@ final class AttendanceAutoService
             'scheduled_start_ts' => $scheduledStartTs,
             'late_minutes' => $lateMinutes,
             'early_minutes' => $earlyMinutes,
+            'early_out_minutes' => $hasShift ? $earlyOutMinutes : null,
+            'late_out_minutes' => $hasShift ? $lateOutMinutes : null,
+            'early_in_minutes' => $hasShift ? $earlyMinutes : null,
+            'late_in_minutes' => $hasShift ? $lateMinutes : null,
             'hours_from_scheduled_start' => $hoursFromScheduledStart,
         ];
     }
@@ -645,6 +670,29 @@ final class AttendanceAutoService
         Database::connection()->prepare(
             'UPDATE attendance SET actual_hours = :w, regular_hours = :r, overtime_hours = :o WHERE id = :id'
         )->execute(['w' => $worked, 'r' => $regular, 'o' => $overtime, 'id' => $attendanceId]);
+    }
+
+    private function persistDtrTiming(string $attendanceId, array $timing, bool $hasShift): void
+    {
+        if (!Schema::hasColumn('attendance', 'early_in_minutes')) {
+            return;
+        }
+
+        $null = null;
+        Database::connection()->prepare(
+            'UPDATE attendance SET
+                early_in_minutes = :ei,
+                late_in_minutes = :li,
+                early_out_minutes = :eo,
+                late_out_minutes = :lo
+             WHERE id = :id'
+        )->execute([
+            'ei' => $hasShift ? ($timing['early_in_minutes'] ?? $timing['early_minutes'] ?? 0) : $null,
+            'li' => $hasShift ? ($timing['late_in_minutes'] ?? $timing['late_minutes'] ?? 0) : $null,
+            'eo' => $hasShift ? ($timing['early_out_minutes'] ?? 0) : $null,
+            'lo' => $hasShift ? ($timing['late_out_minutes'] ?? 0) : $null,
+            'id' => $attendanceId,
+        ]);
     }
 
     private function resolveShift(array $record, string $employeeId): ?array

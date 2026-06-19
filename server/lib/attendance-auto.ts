@@ -1,13 +1,19 @@
 import { getDb } from './db'
 import * as fieldWork from './field-work'
+import {
+  computeHourSplit,
+  timingToDbColumns,
+  workedHours,
+  type ShiftAssignment,
+} from './attendance-timing'
 import { upsertAutoFromAttendance } from './overtime'
-import { unsafe, type SqlValue } from './sql'
-
-export const MAX_REGULAR_HOURS = 9
-export const OUTSIDE_MINUTES = 5
+import { unsafe } from './sql'
 
 const ATT_SELECT = `SELECT a.*, e.emp_number, e.first_name, e.last_name FROM attendance a
   INNER JOIN employees e ON e.id = a.employee_id`
+
+export { MAX_REGULAR_HOURS } from './attendance-timing'
+export const OUTSIDE_MINUTES = 5
 
 async function getRecord(id: string) {
   const rows = await unsafe(`${ATT_SELECT} WHERE a.id = $1 LIMIT 1`, [id])
@@ -23,27 +29,22 @@ async function openSession(employeeId: string) {
   return rows[0] ?? null
 }
 
-function workedHours(clockIn: string, clockOut: string, record: Record<string, unknown>): number {
-  let minutes = Math.round((new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 60000)
-  if (record.break_start && record.break_end) {
-    const breakMins = Math.round(
-      (new Date(String(record.break_end)).getTime() - new Date(String(record.break_start)).getTime()) / 60000,
-    )
-    minutes = Math.max(0, minutes - breakMins)
+async function resolveShift(record: Record<string, unknown>, employeeId: string): Promise<ShiftAssignment | null> {
+  const db = getDb()
+  if (record.shift_assignment_id) {
+    const rows = await db`
+      SELECT shift_date, start_time, end_time FROM shift_assignments
+      WHERE id = ${String(record.shift_assignment_id)} LIMIT 1
+    `
+    if (rows[0]) return rows[0] as ShiftAssignment
   }
-  return Math.round((minutes / 60) * 100) / 100
-}
-
-function computeHourSplit(record: Record<string, unknown>) {
-  const clockIn = String(record.clock_in)
-  const clockOut = String(record.clock_out ?? '')
-  if (!clockOut) return { worked: 0, regular: 0, overtime: 0, reason: '' }
-  const worked = record.actual_hours != null
-    ? Number(record.actual_hours)
-    : workedHours(clockIn, clockOut, record)
-  const regular = Math.round(Math.min(worked, MAX_REGULAR_HOURS) * 100) / 100
-  const overtime = Math.round(Math.max(0, worked - regular) * 100) / 100
-  return { worked, regular, overtime, reason: overtime > 0 ? 'Auto-detected from DTR' : '' }
+  const date = String(record.clock_in).slice(0, 10)
+  const rows = await db`
+    SELECT shift_date, start_time, end_time FROM shift_assignments
+    WHERE employee_id = ${employeeId} AND shift_date = ${date}
+    ORDER BY start_time LIMIT 1
+  `
+  return (rows[0] as ShiftAssignment | undefined) ?? null
 }
 
 async function closeSession(
@@ -55,7 +56,10 @@ async function closeSession(
   address?: string | null,
 ) {
   const worked = workedHours(String(open.clock_in), clockOutAt, open)
-  const split = computeHourSplit({ ...open, clock_out: clockOutAt, actual_hours: worked })
+  const fullRecord = { ...open, clock_out: clockOutAt, actual_hours: worked }
+  const shift = await resolveShift(fullRecord, String(open.employee_id))
+  const split = computeHourSplit(fullRecord, shift)
+  const timingCols = timingToDbColumns(split.timing)
   const db = getDb()
   await db`
     UPDATE attendance SET
@@ -63,6 +67,10 @@ async function closeSession(
       actual_hours = ${worked},
       regular_hours = ${split.regular},
       overtime_hours = ${split.overtime},
+      early_in_minutes = ${timingCols.early_in_minutes},
+      late_in_minutes = ${timingCols.late_in_minutes},
+      early_out_minutes = ${timingCols.early_out_minutes},
+      late_out_minutes = ${timingCols.late_out_minutes},
       clock_out_type = ${clockOutType},
       outside_since = NULL,
       latitude = COALESCE(${latitude ?? null}, latitude),
@@ -135,10 +143,19 @@ export async function manualClockOut(
 export async function recalculateForRecord(attendanceId: string) {
   const row = await getRecord(attendanceId)
   if (!row?.clock_out) return row
-  const split = computeHourSplit(row)
+  const shift = await resolveShift(row, String(row.employee_id))
+  const split = computeHourSplit(row, shift)
+  const timingCols = timingToDbColumns(split.timing)
   const db = getDb()
   await db`
-    UPDATE attendance SET actual_hours = ${split.worked}, regular_hours = ${split.regular}, overtime_hours = ${split.overtime}
+    UPDATE attendance SET
+      actual_hours = ${split.worked},
+      regular_hours = ${split.regular},
+      overtime_hours = ${split.overtime},
+      early_in_minutes = ${timingCols.early_in_minutes},
+      late_in_minutes = ${timingCols.late_in_minutes},
+      early_out_minutes = ${timingCols.early_out_minutes},
+      late_out_minutes = ${timingCols.late_out_minutes}
     WHERE id = ${attendanceId}
   `
   if (split.overtime > 0) {

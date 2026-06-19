@@ -14,6 +14,7 @@ import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import { todayLocalIsoDate } from '../../lib/datetime'
 import type { AttendanceRecord } from '../../types/hrms'
+import { DtrTimingBadges, dtrTimingFlags } from '../../lib/dtrTiming'
 
 export function AttendancePage() {
   const { user } = useAuth()
@@ -196,6 +197,7 @@ export function AttendancePage() {
                 {canView && <th>Employee</th>}
                 <th>Clock in</th>
                 <th>Clock out</th>
+                <th>Timing</th>
                 <th>Hours</th>
                 <th>OT</th>
                 <th>Clock-out</th>
@@ -212,6 +214,10 @@ export function AttendancePage() {
                   )}
                   <td>{new Date(r.clock_in).toLocaleString()}</td>
                   <td>{r.clock_out ? new Date(r.clock_out).toLocaleString() : '—'}</td>
+                  <td>
+                    <DtrTimingBadges record={r} />
+                    {!dtrTimingFlags(r).hasAny && '—'}
+                  </td>
                   <td>{r.actual_hours ?? '—'}</td>
                   <td>{r.overtime_hours && Number(r.overtime_hours) > 0 ? r.overtime_hours : '—'}</td>
                   <td>
