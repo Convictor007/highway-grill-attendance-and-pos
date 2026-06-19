@@ -25,8 +25,22 @@ export type HourSplit = {
   timing: ShiftTiming
 }
 
-function parseTs(iso: string): number {
-  return new Date(iso.replace(' ', 'T')).getTime()
+function parseTs(value: unknown): number {
+  if (value instanceof Date) return value.getTime()
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const s = String(value ?? '').trim()
+  if (!s) return NaN
+  const normalized = s.includes('T') ? s : s.replace(' ', 'T')
+  return new Date(normalized).getTime()
+}
+
+function normalizeDate(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  return String(value ?? '').slice(0, 10)
+}
+
+function normalizeTime(value: unknown): string {
+  return String(value ?? '').slice(0, 8)
 }
 
 function shiftTimestamp(date: string, time: string): number {
@@ -42,11 +56,11 @@ function shiftEndTimestamp(date: string, startTime: string, endTime: string): nu
   return endTs
 }
 
-export function workedHours(clockIn: string, clockOut: string, record: Record<string, unknown>): number {
+export function workedHours(clockIn: unknown, clockOut: unknown, record: Record<string, unknown>): number {
   let minutes = Math.round((parseTs(clockOut) - parseTs(clockIn)) / 60_000)
   if (record.break_start && record.break_end) {
     const breakMins = Math.round(
-      (parseTs(String(record.break_end)) - parseTs(String(record.break_start))) / 60_000,
+      (parseTs(record.break_end) - parseTs(record.break_start)) / 60_000,
     )
     minutes = Math.max(0, minutes - breakMins)
   }
@@ -54,19 +68,19 @@ export function workedHours(clockIn: string, clockOut: string, record: Record<st
 }
 
 export function resolveShiftTiming(record: Record<string, unknown>, shift: ShiftAssignment | null): ShiftTiming {
-  const clockInTs = parseTs(String(record.clock_in))
-  const clockOutRaw = record.clock_out ? String(record.clock_out) : ''
-  const clockOutTs = clockOutRaw ? parseTs(clockOutRaw) : null
+  const clockInTs = parseTs(record.clock_in)
+  const clockOutRaw = record.clock_out
+  const clockOutTs = clockOutRaw != null && clockOutRaw !== '' ? parseTs(clockOutRaw) : null
   const nineHourEndTs = clockInTs + MAX_REGULAR_HOURS * 3_600_000
 
   let scheduledStartTs: number | null = null
   let scheduledEndTs: number | null = null
   if (shift?.shift_date && shift.start_time && shift.end_time) {
-    scheduledStartTs = shiftTimestamp(String(shift.shift_date).slice(0, 10), String(shift.start_time))
+    scheduledStartTs = shiftTimestamp(normalizeDate(shift.shift_date), normalizeTime(shift.start_time))
     scheduledEndTs = shiftEndTimestamp(
-      String(shift.shift_date).slice(0, 10),
-      String(shift.start_time),
-      String(shift.end_time),
+      normalizeDate(shift.shift_date),
+      normalizeTime(shift.start_time),
+      normalizeTime(shift.end_time),
     )
   }
 
@@ -115,13 +129,13 @@ export function resolveShiftTiming(record: Record<string, unknown>, shift: Shift
 }
 
 function expectedRegularEndTimestamp(record: Record<string, unknown>, shift: ShiftAssignment | null): number | null {
-  const clockInTs = parseTs(String(record.clock_in))
+  const clockInTs = parseTs(record.clock_in)
   const nineHourEndTs = clockInTs + MAX_REGULAR_HOURS * 3_600_000
   if (!shift?.shift_date || !shift.end_time) return nineHourEndTs
   const scheduledEndTs = shiftEndTimestamp(
-    String(shift.shift_date).slice(0, 10),
-    String(shift.start_time ?? '00:00:00'),
-    String(shift.end_time),
+    normalizeDate(shift.shift_date),
+    normalizeTime(shift.start_time ?? '00:00:00'),
+    normalizeTime(shift.end_time),
   )
   return Math.max(scheduledEndTs, nineHourEndTs)
 }

@@ -14,6 +14,14 @@ export async function GET(request: Request) {
     const open = await openSession(user.employee_id)
     const onBreak = Boolean(open?.break_start && !open?.break_end)
     const policy = await clockPolicyForEmployee(user.employee_id)
+    let shift = null
+    if (open) {
+      try {
+        shift = await auto.shiftContextForEmployee(user.employee_id)
+      } catch {
+        shift = null
+      }
+    }
     return jsonOk({
       open: open != null,
       on_break: onBreak,
@@ -21,7 +29,7 @@ export async function GET(request: Request) {
       geofence_required: policy.geofence_required,
       mobile_clock: policy.mobile_clock ?? false,
       position_label: policy.position_label ?? null,
-      shift: open ? await auto.shiftContextForEmployee(user.employee_id) : null,
+      shift,
     })
   })
 }

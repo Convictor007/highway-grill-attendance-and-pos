@@ -179,7 +179,7 @@ export async function shiftContextForEmployee(employeeId: string) {
   const shift = await resolveShift(open, employeeId)
   const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19)
   const timing = resolveShiftTiming({ ...open, clock_out: nowStr }, shift)
-  const worked = workedHours(String(open.clock_in), nowStr, open)
+  const worked = workedHours(open.clock_in, nowStr, open)
   const nowTs = Date.now()
   const expectedEndTs = timing.expected_end_ts
   const minutesUntilEnd =
@@ -195,7 +195,7 @@ export async function shiftContextForEmployee(employeeId: string) {
   const startLabel = hasShift ? String(shift!.start_time).slice(0, 5) : null
   const endLabel = hasShift ? String(shift!.end_time).slice(0, 5) : null
   const expectedEndLabel =
-    expectedEndTs != null
+    expectedEndTs != null && Number.isFinite(expectedEndTs)
       ? new Date(expectedEndTs).toISOString().replace('T', ' ').slice(11, 16)
       : null
 

@@ -6,8 +6,10 @@ import {
   clockOut as doClockOut,
   clockErrorMessage,
   fetchClockStatus,
+  type ClockStatus,
   type ShiftClockContext,
 } from '../../lib/clock'
+import { resolveClockOpenState } from '../../lib/clockState'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
 import { reverseGeocode } from '../../lib/geocode'
 import { useAuth } from '../../context/AuthContext'
@@ -77,13 +79,15 @@ export function EmployeeHomePage() {
     fromDate.setDate(fromDate.getDate() - 6)
     const from = fromDate.toISOString().slice(0, 10)
     const [status, summary, shifts, history] = await Promise.all([
-      fetchClockStatus().catch(() => ({ open: false, on_break: false })),
+      fetchClockStatus().catch((): ClockStatus => ({ open: false, on_break: false })),
       api<HoursSummary>('/attendance/summary').catch(() => null),
       api<MyShift[]>('/shifts/my').catch(() => [] as MyShift[]),
       api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`).catch(() => [] as AttendanceRecord[]),
     ])
-    setOpen(status.open)
-    setOnBreak(!!status.on_break)
+    const clock = resolveClockOpenState(status, history)
+    setOpen(clock.open)
+    setOnBreak(clock.onBreak)
+    if (clock.open) setClockError(null)
     setGeofenceRequired(!!status.geofence_required)
     setMobileClock(!!status.mobile_clock)
     setPositionLabel(status.position_label ?? null)
@@ -134,7 +138,12 @@ export function EmployeeHomePage() {
       await geofence.refresh()
       await refresh()
     } catch (err) {
-      setClockError(clockErrorMessage(err))
+      const msg = clockErrorMessage(err)
+      if (/already clocked/i.test(msg)) {
+        await refresh()
+      } else {
+        setClockError(msg)
+      }
     } finally {
       setBusy(false)
     }

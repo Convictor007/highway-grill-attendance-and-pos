@@ -17,6 +17,7 @@ import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import type { AttendanceRecord } from '../../types/hrms'
+import { resolveClockOpenState } from '../../lib/clockState'
 
 interface HoursSummary {
   from: string
@@ -76,12 +77,14 @@ export function DtrPage() {
           mobile_clock?: boolean
           position_label?: string | null
           shift?: ShiftClockContext | null
-        }>('/attendance/status'),
+        }>('/attendance/status').catch(() => ({ open: false, on_break: false })),
         api<HoursSummary>('/attendance/summary'),
         api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`),
       ])
-      setOpen(status.open)
-      setOnBreak(!!status.on_break)
+      const clock = resolveClockOpenState(status, history)
+      setOpen(clock.open)
+      setOnBreak(clock.onBreak)
+      if (clock.open) setClockError(null)
       setGeofenceRequired(!!status.geofence_required)
       setMobileClock(!!status.mobile_clock)
       setPositionLabel(status.position_label ?? null)
@@ -118,7 +121,12 @@ export function DtrPage() {
       await geofence.refresh()
       await load({ silent: true })
     } catch (err) {
-      setClockError(clockErrorMessage(err))
+      const msg = clockErrorMessage(err)
+      if (/already clocked/i.test(msg)) {
+        await load({ silent: true })
+      } else {
+        setClockError(msg)
+      }
     } finally {
       setBusy(false)
     }
