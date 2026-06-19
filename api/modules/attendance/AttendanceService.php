@@ -87,7 +87,7 @@ final class AttendanceService
         ?float $accuracyM = null
     ): array {
         if ($this->openSession($employeeId)) {
-            throw new \RuntimeException('Already clocked in');
+            throw new \InvalidArgumentException('You are already clocked in — tap Clock out to end this session.');
         }
 
         $this->assertGeofenceForClockIn($employeeId, $latitude, $longitude, $accuracyM);
@@ -138,6 +138,29 @@ final class AttendanceService
         ?string $address = null
     ): array {
         return (new AttendanceAutoService())->manualClockOut($employeeId, $latitude, $longitude, $address);
+    }
+
+    public function cancelMistakenClockIn(string $employeeId): array
+    {
+        $open = $this->openSession($employeeId);
+        if (!$open) {
+            throw new \InvalidArgumentException('You are not clocked in');
+        }
+
+        $pdo = Database::connection();
+        if (Schema::hasColumn('overtime_requests', 'attendance_id')) {
+            $pdo->prepare('DELETE FROM overtime_requests WHERE attendance_id = :id')
+                ->execute(['id' => $open['id']]);
+        }
+        $stmt = $pdo->prepare(
+            'DELETE FROM attendance WHERE id = :id AND employee_id = :eid AND clock_out IS NULL'
+        );
+        $stmt->execute(['id' => $open['id'], 'eid' => $employeeId]);
+        if ($stmt->rowCount() === 0) {
+            throw new \InvalidArgumentException('Could not cancel clock-in');
+        }
+
+        return ['cancelled' => true];
     }
 
     public function get(string $id): ?array

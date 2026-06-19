@@ -28,6 +28,7 @@ export type ClockStatus = {
   mobile_clock?: boolean
   position_label?: string | null
   shift?: ShiftClockContext | null
+  session?: { clock_in: string; id?: string } | null
 }
 
 export async function fetchClockStatus(): Promise<ClockStatus> {
@@ -101,6 +102,10 @@ export async function clockOut(): Promise<void> {
   const coords = await resolveCoords(false)
   const address = coords ? await addressForCoords(coords) : null
   await postClock('clock-out', coords, address)
+}
+
+export async function cancelMistakenClockIn(): Promise<void> {
+  await api('/attendance/cancel-clock-in', { method: 'POST', body: '{}' })
 }
 
 export function clockErrorMessage(err: unknown): string {

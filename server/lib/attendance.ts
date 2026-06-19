@@ -133,7 +133,9 @@ export async function clockIn(
   address?: string | null,
   accuracyM?: number | null,
 ) {
-  if (await openSession(employeeId)) throw new Error('Already clocked in')
+  if (await openSession(employeeId)) {
+    throw new ValidationError('You are already clocked in — tap Clock out to end this session.')
+  }
   await assertGeofenceForClockIn(employeeId, latitude, longitude, accuracyM)
   const db = getDb()
   const [row] = await db`
@@ -153,6 +155,27 @@ export async function clockOut(
   address?: string | null,
 ) {
   return auto.manualClockOut(employeeId, latitude, longitude, address)
+}
+
+/** Remove an open session with no hours — accidental clock-in on day off, etc. */
+export async function cancelMistakenClockIn(employeeId: string) {
+  const open = await openSession(employeeId)
+  if (!open) throw new ValidationError('You are not clocked in')
+
+  const db = getDb()
+  try {
+    await db`DELETE FROM overtime_requests WHERE attendance_id = ${open.id}`
+  } catch {
+    /* attendance_id column optional on older DBs */
+  }
+  const deleted = await db`
+    DELETE FROM attendance
+    WHERE id = ${open.id} AND employee_id = ${employeeId} AND clock_out IS NULL
+  `
+  if (Number(deleted.count) === 0) {
+    throw new ValidationError('Could not cancel clock-in')
+  }
+  return { cancelled: true }
 }
 
 export async function breakStart(employeeId: string) {

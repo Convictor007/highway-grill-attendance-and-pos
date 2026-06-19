@@ -224,6 +224,21 @@ final class AttendanceController
                 return;
             }
 
+            if ($method === 'POST' && $action === 'cancel-clock-in') {
+                Auth::requirePermission($user, 'attendance.self');
+                Auth::requireActiveEmployeeAccount($user);
+                $employeeId = $user['employee_id'] ?? null;
+                if (!$employeeId) {
+                    Response::error('No employee linked', 422);
+                    return;
+                }
+                Response::json([
+                    'success' => true,
+                    'data' => $this->service->cancelMistakenClockIn($employeeId),
+                ]);
+                return;
+            }
+
             if ($method === 'POST' && $action === 'vicinity-ping') {
                 Auth::requirePermission($user, 'attendance.self');
                 Auth::requireActiveEmployeeAccount($user);

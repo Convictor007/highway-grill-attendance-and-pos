@@ -1,13 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../lib/api'
 import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
-import {
-  clockIn as doClockIn,
-  clockOut as doClockOut,
-  clockErrorMessage,
-  type ShiftClockContext,
-} from '../../lib/clock'
+import { clockErrorMessage, type ShiftClockContext } from '../../lib/clock'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
+import { ClockActions } from '../../components/ClockActions'
 import { useAuth } from '../../context/AuthContext'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -58,8 +54,11 @@ export function DtrPage() {
   const [positionLabel, setPositionLabel] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [shiftCtx, setShiftCtx] = useState<ShiftClockContext | null>(null)
+  const [sessionClockIn, setSessionClockIn] = useState<string | null>(null)
+  const [todayNotes, setTodayNotes] = useState<string | null>(null)
+  const [hasTodayAssignment, setHasTodayAssignment] = useState(false)
   const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
-  const showEndShift = open && !!shiftCtx?.show_end_shift
+  const today = new Date().toISOString().slice(0, 10)
 
   const load = async (options?: LoadOptions) => {
     const { showLoading, finish } = resolveLoadBehavior(options)
@@ -69,7 +68,7 @@ export function DtrPage() {
       const fromDate = new Date()
       fromDate.setDate(fromDate.getDate() - 13)
       const from = fromDate.toISOString().slice(0, 10)
-      const [status, weekSum, history] = await Promise.all([
+      const [status, weekSum, history, shifts] = await Promise.all([
         api<{
           open: boolean
           on_break?: boolean
@@ -77,9 +76,11 @@ export function DtrPage() {
           mobile_clock?: boolean
           position_label?: string | null
           shift?: ShiftClockContext | null
+          session?: { clock_in: string } | null
         }>('/attendance/status'),
         api<HoursSummary>('/attendance/summary'),
         api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`),
+        api<{ shift_date: string; notes?: string | null }[]>('/shifts/my').catch(() => []),
       ])
       setOpen(status.open)
       setOnBreak(!!status.on_break)
@@ -87,6 +88,10 @@ export function DtrPage() {
       setMobileClock(!!status.mobile_clock)
       setPositionLabel(status.position_label ?? null)
       setShiftCtx(status.shift ?? null)
+      setSessionClockIn(status.session?.clock_in ?? null)
+      const todayShift = shifts.find((s) => s.shift_date === today)
+      setTodayNotes(todayShift?.notes ?? null)
+      setHasTodayAssignment(Boolean(todayShift))
       setSummary(weekSum)
       setRecords(history)
     } finally {
@@ -109,35 +114,6 @@ export function DtrPage() {
       void geofence.updateFromCoords(coords)
     },
   })
-
-  const handleClockIn = async () => {
-    if (!canClock) return
-    setBusy(true)
-    setClockError(null)
-    try {
-      await doClockIn(geofenceRequired)
-      await geofence.refresh()
-      await load({ silent: true })
-    } catch (err) {
-      setClockError(clockErrorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleClockOut = async () => {
-    if (!canClock) return
-    setBusy(true)
-    setClockError(null)
-    try {
-      await doClockOut()
-      await load({ silent: true })
-    } catch (err) {
-      setClockError(clockErrorMessage(err))
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const handleBreakStart = async () => {
     if (!canClock || !open) return
@@ -178,48 +154,26 @@ export function DtrPage() {
             {summary ? `${summary.total_hours.toFixed(1)} hrs` : '—'}
           </strong>
         </div>
-        <div className="clock-actions clock-actions-inline">
-          {!open ? (
-            <button
-              type="button"
-              className="btn btn-clock-in btn-sm"
-              disabled={busy || !canClock || !geofence.canClockIn || geofence.loading}
-              onClick={handleClockIn}
-            >
-              Clock in
-            </button>
-          ) : (
-            <>
-              {!onBreak ? (
-                <button type="button" className="btn btn-ghost btn-sm" disabled={busy || !canClock} onClick={handleBreakStart}>
-                  Start break
-                </button>
-              ) : (
-                <button type="button" className="btn btn-primary btn-sm" disabled={busy || !canClock} onClick={handleBreakEnd}>
-                  End break
-                </button>
-              )}
-              {showEndShift && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm btn-end-shift"
-                  disabled={busy || onBreak || !canClock}
-                  onClick={handleClockOut}
-                >
-                  End shift
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn btn-clock-out btn-sm"
-                disabled={busy || onBreak || !canClock}
-                onClick={handleClockOut}
-              >
-                Clock out
-              </button>
-            </>
-          )}
-        </div>
+        <ClockActions
+          open={open}
+          onBreak={onBreak}
+          clockInAt={sessionClockIn}
+          busy={busy}
+          setBusy={setBusy}
+          canClock={canClock}
+          geofenceRequired={geofenceRequired}
+          geofenceCanClockIn={geofence.canClockIn}
+          geofenceLoading={geofence.loading}
+          isRestDay={todayNotes === 'REST_DAY'}
+          noShiftToday={!hasTodayAssignment}
+          onRefresh={() => load({ silent: true })}
+          onGeofenceRefresh={() => geofence.refresh()}
+          onBreakStart={handleBreakStart}
+          onBreakEnd={handleBreakEnd}
+          clockError={clockError}
+          setClockError={setClockError}
+          compact
+        />
         <ClockGeofenceBanner
           required={geofenceRequired}
           mobileClock={mobileClock}
@@ -241,7 +195,6 @@ export function DtrPage() {
           requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
-        {clockError && <p className="error-msg" style={{ marginTop: '0.5rem' }}>{clockError}</p>}
       </div>
 
       <div className="card table-wrap">
