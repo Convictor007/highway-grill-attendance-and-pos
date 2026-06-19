@@ -82,7 +82,7 @@ export function ScheduleCellEditModal({ open, target, templates, onClose, onSave
           employee_id: target.employeeId,
           shift_date: target.date,
           off: mode === 'rest',
-          shift_template_id: mode === 'rest' ? undefined : (matching?.id ?? templateId || undefined),
+          shift_template_id: mode === 'rest' ? undefined : (matching?.id ?? (templateId || undefined)),
           start_time: mode === 'rest' ? undefined : startTime,
           end_time: mode === 'rest' ? undefined : endTime,
         }),
