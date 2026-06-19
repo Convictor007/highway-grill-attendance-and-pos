@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../../lib/api'
 import {
+  clockIn as doClockIn,
+  clockOut as doClockOut,
   clockErrorMessage,
   fetchClockStatus,
   type ShiftClockContext,
 } from '../../lib/clock'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
-import { ClockActions } from '../../components/ClockActions'
 import { reverseGeocode } from '../../lib/geocode'
 import { useAuth } from '../../context/AuthContext'
 import { canUseEmployeeFeatures } from '../../lib/accountStatus'
@@ -16,7 +17,6 @@ import { ClockLocationModal } from '../../components/ClockLocationModal'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import type { AttendanceRecord } from '../../types/hrms'
-import { DtrTimingBadges } from '../../lib/dtrTiming'
 
 interface HoursSummary {
   from: string
@@ -31,7 +31,6 @@ interface MyShift {
   start_time: string
   end_time: string
   shift_name: string | null
-  notes?: string | null
 }
 
 function formatTime(iso: string | null) {
@@ -64,16 +63,13 @@ export function EmployeeHomePage() {
   const [mobileClock, setMobileClock] = useState(false)
   const [positionLabel, setPositionLabel] = useState<string | null>(null)
   const [shiftCtx, setShiftCtx] = useState<ShiftClockContext | null>(null)
-  const [sessionClockIn, setSessionClockIn] = useState<string | null>(null)
   const [locationMapOpen, setLocationMapOpen] = useState(false)
 
   const name = user?.employee?.first_name ?? 'there'
   const canClock = canUseEmployeeFeatures(user) && Boolean(user?.employee_id)
   const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
+  const showEndShift = open && !!shiftCtx?.show_end_shift
   const today = new Date().toISOString().slice(0, 10)
-  const todayAssignment = todayShift
-  const isRestDay = todayAssignment?.notes === 'REST_DAY'
-  const noShiftToday = !todayAssignment
 
   const refresh = async () => {
     const to = new Date().toISOString().slice(0, 10)
@@ -92,7 +88,6 @@ export function EmployeeHomePage() {
     setMobileClock(!!status.mobile_clock)
     setPositionLabel(status.position_label ?? null)
     setShiftCtx(status.shift ?? null)
-    setSessionClockIn(status.session?.clock_in ?? null)
     setWeekHours(summary)
     const shiftToday = shifts.find((s) => s.shift_date === today) ?? null
     setTodayShift(shiftToday)
@@ -129,6 +124,35 @@ export function EmployeeHomePage() {
       .then((geo) => setCurrentAddress(geo.short))
       .catch(() => setCurrentAddress(null))
   }, [geofence.lastCoords])
+
+  const handleClockIn = async () => {
+    if (!canClock) return
+    setBusy(true)
+    setClockError(null)
+    try {
+      await doClockIn(geofenceRequired)
+      await geofence.refresh()
+      await refresh()
+    } catch (err) {
+      setClockError(clockErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleClockOut = async () => {
+    if (!canClock) return
+    setBusy(true)
+    setClockError(null)
+    try {
+      await doClockOut()
+      await refresh()
+    } catch (err) {
+      setClockError(clockErrorMessage(err))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const handleBreakStart = async () => {
     if (!canClock || !open) return
@@ -207,25 +231,51 @@ export function EmployeeHomePage() {
           requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
-        <ClockActions
-          open={open}
-          onBreak={onBreak}
-          clockInAt={sessionClockIn}
-          busy={busy}
-          setBusy={setBusy}
-          canClock={canClock}
-          geofenceRequired={geofenceRequired}
-          geofenceCanClockIn={geofence.canClockIn}
-          geofenceLoading={geofence.loading}
-          isRestDay={isRestDay}
-          noShiftToday={noShiftToday}
-          onRefresh={refresh}
-          onGeofenceRefresh={() => geofence.refresh()}
-          onBreakStart={handleBreakStart}
-          onBreakEnd={handleBreakEnd}
-          clockError={clockError}
-          setClockError={setClockError}
-        />
+        {open && geofenceRequired && (
+          <p className="muted-block clock-policy-note">
+            Clock in inside the work zone. Early clock-in does not shorten your shift — you still finish at scheduled end.
+            Overtime is auto-recorded when you work past shift end, 9 hours, or midnight. After midnight, leaving the
+            zone for 5 minutes clocks you out automatically.
+          </p>
+        )}
+        {clockError && <p className="error-msg">{clockError}</p>}
+        <div className="clock-actions">
+          {!open ? (
+            <button
+              type="button"
+              className="btn btn-clock-in"
+              disabled={busy || !canClock || !geofence.canClockIn || geofence.loading}
+              onClick={handleClockIn}
+            >
+              Clock in
+            </button>
+          ) : (
+            <>
+              {!onBreak ? (
+                <button type="button" className="btn btn-ghost" disabled={busy || !canClock} onClick={handleBreakStart}>
+                  Start break
+                </button>
+              ) : (
+                <button type="button" className="btn btn-primary" disabled={busy || !canClock} onClick={handleBreakEnd}>
+                  End break
+                </button>
+              )}
+              {showEndShift && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-end-shift"
+                  disabled={busy || onBreak || !canClock}
+                  onClick={handleClockOut}
+                >
+                  End shift
+                </button>
+              )}
+              <button type="button" className="btn btn-clock-out" disabled={busy || onBreak || !canClock} onClick={handleClockOut}>
+                Clock out
+              </button>
+            </>
+          )}
+        </div>
         {canClock && (
           <button
             type="button"
@@ -260,9 +310,7 @@ export function EmployeeHomePage() {
           <h2>Today&apos;s schedule</h2>
           <Link to="/scheduling" className="text-link">View all</Link>
         </div>
-        {todayAssignment && isRestDay ? (
-          <p className="muted-block">Rest day — no shift scheduled.</p>
-        ) : todayShift ? (
+        {todayShift ? (
           <dl className="schedule-dl">
             <div>
               <dt>Date</dt>
@@ -307,7 +355,6 @@ export function EmployeeHomePage() {
                     <span>
                       <small>Out</small> {formatTime(r.clock_out)}
                     </span>
-                    <DtrTimingBadges record={r} />
                   </div>
                   <div className="dtr-row-hours">
                     {r.actual_hours != null ? `${Number(r.actual_hours).toFixed(1)}h` : open && !r.clock_out ? '…' : '—'}
