@@ -1,5 +1,5 @@
 import type { ShiftClockContext } from '../lib/clock'
-import { formatTimingMinutes } from './dtrTiming'
+import { formatTimingMinutes } from '../lib/dtrTiming'
 
 type Props = {
   shift: ShiftClockContext | null | undefined
