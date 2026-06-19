@@ -193,10 +193,7 @@ export async function myShifts(employeeId: string, from?: string | null, to?: st
       AND sch.status IN ('published', 'locked', 'draft')
     ORDER BY sa.shift_date, sa.start_time
   `
-  return rows.map((row) => ({
-    ...row,
-    shift_date: normalizeCalendarDate(row.shift_date),
-  }))
+  return enrichShiftRows(employeeId, rows as Record<string, unknown>[])
 }
 
 export async function coworkers(employeeId: string) {
@@ -234,10 +231,16 @@ export async function upsertRosterCell(data: Record<string, unknown>, userId: st
   if (!data.start_time || !data.end_time) {
     throw new ValidationError('start_time and end_time are required when assigning a shift')
   }
+  const templateId = await resolveTemplateIdForTimes(
+    branchId,
+    data.start_time,
+    data.end_time,
+    data.shift_template_id,
+  )
   const assignment = await addAssignment({
     schedule_id: schedule.id,
     employee_id: employeeId,
-    shift_template_id: data.shift_template_id,
+    shift_template_id: templateId,
     shift_date: shiftDate,
     start_time: data.start_time,
     end_time: data.end_time,
@@ -328,6 +331,66 @@ export async function ensureScheduleRollover(branchId: string, weekStart: string
     }
   }
   return (await findScheduleForWeek(branchId, ws)) ?? schedule
+}
+
+function normalizeShiftTime(time: unknown): string {
+  return String(time ?? '').slice(0, 8)
+}
+
+export function matchShiftTemplateByTimes(
+  templates: Array<{ id?: unknown; name: unknown; start_time: unknown; end_time: unknown }>,
+  startTime: unknown,
+  endTime: unknown,
+) {
+  const start = normalizeShiftTime(startTime)
+  const end = normalizeShiftTime(endTime)
+  return (
+    templates.find(
+      (t) => normalizeShiftTime(t.start_time) === start && normalizeShiftTime(t.end_time) === end,
+    ) ?? null
+  )
+}
+
+export function resolveAssignmentShiftName(
+  templates: Array<{ name: unknown; start_time: unknown; end_time: unknown }>,
+  startTime: unknown,
+  endTime: unknown,
+  linkedName: unknown,
+): string {
+  const match = matchShiftTemplateByTimes(templates, startTime, endTime)
+  if (match?.name) return String(match.name)
+  if (linkedName) return String(linkedName)
+  return formatShiftLabel(String(startTime), String(endTime))
+}
+
+async function branchShiftTemplates(branchId: string) {
+  const db = getDb()
+  return db`SELECT id, name, start_time, end_time FROM shift_templates WHERE branch_id = ${branchId}`
+}
+
+export async function resolveTemplateIdForTimes(
+  branchId: string,
+  startTime: unknown,
+  endTime: unknown,
+  providedId?: unknown,
+): Promise<string | null> {
+  const templates = await branchShiftTemplates(branchId)
+  const match = matchShiftTemplateByTimes(templates, startTime, endTime)
+  if (match?.id != null) return String(match.id)
+  if (providedId) return String(providedId)
+  return null
+}
+
+async function enrichShiftRows(employeeId: string, rows: Record<string, unknown>[]) {
+  const db = getDb()
+  const emp = await db`SELECT branch_id FROM employees WHERE id = ${employeeId} LIMIT 1`
+  const branchId = emp[0]?.branch_id ? String(emp[0].branch_id) : null
+  const templates = branchId ? await branchShiftTemplates(branchId) : []
+  return rows.map((row) => ({
+    ...row,
+    shift_date: normalizeCalendarDate(row.shift_date),
+    shift_name: resolveAssignmentShiftName(templates, row.start_time, row.end_time, row.shift_name),
+  }))
 }
 
 function formatShiftLabel(start: string, end: string) {

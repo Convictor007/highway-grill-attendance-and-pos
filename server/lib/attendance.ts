@@ -5,6 +5,7 @@ import * as auto from './attendance-auto'
 import { upsertAutoFromAttendance } from './overtime'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
 import { mondayThisWeek, todayIso } from './date-utils'
+import { resolveAssignmentShiftName } from './shifts'
 
 const ATT_LIST = `SELECT a.*, e.emp_number, e.first_name, e.last_name, e.branch_id
   FROM attendance a INNER JOIN employees e ON e.id = a.employee_id`
@@ -232,6 +233,12 @@ export async function scheduledShiftForEmployee(employeeId: string, date: string
   if (!row) return null
   const start = String(row.start_time).slice(0, 8)
   const end = String(row.end_time).slice(0, 8)
+  const emp = await db`SELECT branch_id FROM employees WHERE id = ${employeeId} LIMIT 1`
+  const branchId = emp[0]?.branch_id ? String(emp[0].branch_id) : null
+  const templates = branchId
+    ? await db`SELECT id, name, start_time, end_time FROM shift_templates WHERE branch_id = ${branchId}`
+    : []
+  const shiftName = resolveAssignmentShiftName(templates, row.start_time, row.end_time, row.shift_name)
   const endDate = end <= start ? new Date(date + 'T12:00:00') : new Date(date + 'T12:00:00')
   if (end <= start) endDate.setDate(endDate.getDate() + 1)
   const endDateStr = endDate.toISOString().slice(0, 10)
@@ -239,7 +246,7 @@ export async function scheduledShiftForEmployee(employeeId: string, date: string
   const rawHours = (new Date(`${endDateStr}T${end}`).getTime() - new Date(`${date}T${start}`).getTime()) / 3600000
   return {
     assignment_id: row.id,
-    shift_name: row.shift_name ?? null,
+    shift_name: shiftName,
     shift_date: date,
     start_time: row.start_time,
     end_time: row.end_time,

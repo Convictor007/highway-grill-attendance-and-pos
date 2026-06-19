@@ -70,6 +70,10 @@ export function ScheduleCellEditModal({ open, target, templates, onClose, onSave
     setSaving(true)
     setError(null)
     try {
+      const matching = templates.find(
+        (t) =>
+          normalizeTimeInput(t.start_time) === startTime && normalizeTimeInput(t.end_time) === endTime,
+      )
       await api('/shifts/roster/cell', {
         method: 'POST',
         body: JSON.stringify({
@@ -78,7 +82,7 @@ export function ScheduleCellEditModal({ open, target, templates, onClose, onSave
           employee_id: target.employeeId,
           shift_date: target.date,
           off: mode === 'rest',
-          shift_template_id: mode === 'rest' ? undefined : templateId || undefined,
+          shift_template_id: mode === 'rest' ? undefined : matching?.id ?? templateId || undefined,
           start_time: mode === 'rest' ? undefined : startTime,
           end_time: mode === 'rest' ? undefined : endTime,
         }),
