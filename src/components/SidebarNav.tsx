@@ -7,18 +7,20 @@ import type { AuthUser } from '../types/roles'
 type Props = {
   entries: NavEntry[]
   user: AuthUser | null
+  onNavigate?: () => void
 }
 
 function groupStorageKey(id: string) {
   return `hg_sidebar_group_${id}`
 }
 
-function NavLinkItem({ item }: { item: NavItem }) {
+function NavLinkItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   return (
     <NavLink
       to={item.to}
       end={item.end}
       className={({ isActive }) => (isActive ? 'nav active' : 'nav')}
+      onClick={() => onNavigate?.()}
     >
       <NavIcon name={item.icon} />
       <span>{item.label}</span>
@@ -26,7 +28,15 @@ function NavLinkItem({ item }: { item: NavItem }) {
   )
 }
 
-function NavGroupBlock({ group, user }: { group: Extract<NavEntry, { type: 'group' }>; user: AuthUser | null }) {
+function NavGroupBlock({
+  group,
+  user,
+  onNavigate,
+}: {
+  group: Extract<NavEntry, { type: 'group' }>
+  user: AuthUser | null
+  onNavigate?: () => void
+}) {
   const location = useLocation()
   const items = filterNav(group.items, user)
   const childActive = items.some(
@@ -69,6 +79,7 @@ function NavGroupBlock({ group, user }: { group: Extract<NavEntry, { type: 'grou
               to={item.to}
               end={item.end}
               className={({ isActive }) => (isActive ? 'nav nav-sub active' : 'nav nav-sub')}
+              onClick={() => onNavigate?.()}
             >
               <span>{item.label}</span>
             </NavLink>
@@ -79,14 +90,14 @@ function NavGroupBlock({ group, user }: { group: Extract<NavEntry, { type: 'grou
   )
 }
 
-export function SidebarNav({ entries, user }: Props) {
+export function SidebarNav({ entries, user, onNavigate }: Props) {
   return (
     <>
       {entries.map((entry) =>
         isNavGroup(entry) ? (
-          <NavGroupBlock key={entry.id} group={entry} user={user} />
+          <NavGroupBlock key={entry.id} group={entry} user={user} onNavigate={onNavigate} />
         ) : (
-          <NavLinkItem key={entry.to} item={entry} />
+          <NavLinkItem key={entry.to} item={entry} onNavigate={onNavigate} />
         ),
       )}
     </>

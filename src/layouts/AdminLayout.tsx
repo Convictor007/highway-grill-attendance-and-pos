@@ -1,8 +1,10 @@
-import { Outlet, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { SidebarNav } from '../components/SidebarNav'
 import { SidebarUserMenu } from '../components/SidebarUserMenu'
 import { BrandLogo } from '../components/BrandLogo'
+import { NavIcon } from '../components/NavIcon'
 import { staffMenuSections } from '../config/navigation'
 import { isSystemAdmin } from '../lib/roles'
 import { NotificationBell } from '../components/NotificationBell'
@@ -10,18 +12,54 @@ import { NotificationBell } from '../components/NotificationBell'
 export function AdminLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const sections = staffMenuSections(user)
   const portalLabel = isSystemAdmin(user) ? 'System Admin' : 'HR Portal'
+
+  useEffect(() => {
+    setDrawerOpen(false)
+  }, [location.pathname])
 
   const handleLogout = async () => {
     await logout()
     navigate('/login')
   }
 
+  const closeDrawer = () => setDrawerOpen(false)
+
   return (
     <div className="dash admin-shell">
-      <aside className="sidebar">
-        <div className="brand">
+      <header className="app-header admin-app-header">
+        <div className="app-header-brand">
+          <BrandLogo size="sm" />
+          <div>
+            <strong>Highway Grill</strong>
+            <span className="app-header-date">{portalLabel}</span>
+          </div>
+        </div>
+        <div className="app-header-actions">
+          <NotificationBell />
+          <button
+            type="button"
+            className="btn-icon admin-menu-btn"
+            aria-label="Open menu"
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen(true)}
+          >
+            <NavIcon name="menu" />
+          </button>
+        </div>
+      </header>
+
+      <aside className={`sidebar admin-sidebar${drawerOpen ? ' open' : ''}`}>
+        <div className="sidebar-panel-head admin-sidebar-panel-head">
+          <strong>Menu</strong>
+          <button type="button" className="btn-icon" aria-label="Close menu" onClick={closeDrawer}>
+            ×
+          </button>
+        </div>
+        <div className="brand admin-sidebar-brand">
           <BrandLogo size="md" />
           <div>
             <strong>Highway Grill</strong>
@@ -32,7 +70,7 @@ export function AdminLayout() {
           {sections.map((section) => (
             <div key={section.label ?? 'main'} className="sidebar-section">
               {section.label && <div className="sidebar-section-label">{section.label}</div>}
-              <SidebarNav entries={section.items} user={user} />
+              <SidebarNav entries={section.items} user={user} onNavigate={closeDrawer} />
             </div>
           ))}
         </nav>
@@ -44,8 +82,13 @@ export function AdminLayout() {
           />
         </div>
       </aside>
-      <main className="main">
-        <div className="main-top-bar">
+
+      {drawerOpen && (
+        <button type="button" className="sidebar-backdrop admin-sidebar-backdrop" aria-label="Close menu" onClick={closeDrawer} />
+      )}
+
+      <main className="main admin-main">
+        <div className="main-top-bar admin-main-top-bar">
           <NotificationBell />
         </div>
         <Outlet />

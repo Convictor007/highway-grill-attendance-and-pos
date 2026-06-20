@@ -1601,25 +1601,90 @@ th {
   border-color: var(--danger);
 }
 
-@media (max-width: 768px) {
-  .sidebar {
-    position: static;
-    width: 100%;
-    height: auto;
-    max-height: none;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+.admin-app-header {
+  display: none;
+}
+
+.admin-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .admin-shell .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    width: min(280px, 85vw);
+    max-width: 85vw;
+    height: 100vh;
+    height: 100dvh;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    border-right: 1px solid var(--border);
+    border-bottom: none;
+    overflow: hidden;
   }
 
-  .sidebar nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    overflow: visible;
+  .admin-shell .sidebar.open {
+    transform: translateX(0);
   }
 
-  .main {
+  .admin-shell .sidebar nav {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-shell .sidebar .nav,
+  .admin-shell .sidebar .sidebar-nav-group-toggle {
+    min-height: 44px;
+  }
+
+  .admin-shell .main {
     margin-left: 0;
     padding: 1rem;
+    padding-top: 0.75rem;
+    min-width: 0;
+  }
+
+  .admin-app-header {
+    display: flex;
+  }
+
+  .admin-main-top-bar {
+    display: none;
+  }
+
+  .admin-sidebar-panel-head {
+    display: flex;
+  }
+
+  .admin-shell .admin-sidebar-brand {
+    display: none;
+  }
+
+  .admin-sidebar-backdrop {
+    display: block;
+  }
+}
+
+@media (min-width: 901px) {
+  .admin-app-header {
+    display: none;
+  }
+
+  .admin-menu-btn {
+    display: none !important;
+  }
+
+  .admin-sidebar-panel-head {
+    display: none;
+  }
+
+  .admin-sidebar-backdrop {
+    display: none;
   }
 }
 
@@ -5456,8 +5521,8 @@ tr.row-clickable:hover td {
   }
 
   .admin-shell .notification-panel {
-    top: max(0.75rem, env(safe-area-inset-top, 0px));
-    max-height: min(70vh, calc(100dvh - 1.5rem));
+    top: calc(var(--header-height, 56px) + 0.5rem);
+    max-height: min(70vh, calc(100dvh - var(--header-height, 56px) - 1.25rem));
   }
 }
 
