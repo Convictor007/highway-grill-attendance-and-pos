@@ -57,7 +57,7 @@ export function HrReportsPage() {
       perm: 'attendance.view',
     },
     { label: 'Month hours', value: stats?.month_hours, to: '/hr/attendance-stats', perm: 'attendance.view' },
-    { label: 'Pending leave', value: stats?.pending_leave, to: '/leave', perm: 'leave.view' },
+    { label: 'Pending leave', value: stats?.pending_leave, to: '/leaves', perm: 'leave.view' },
     { label: 'Pending loans', value: stats?.pending_loans, to: '/hr/loans', perm: 'loans.manage' },
     { label: 'Draft payroll runs', value: stats?.draft_payroll_runs, to: '/payroll', perm: 'payroll.view' },
   ].filter((c) => hasPermission(user, c.perm))

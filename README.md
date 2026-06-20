@@ -5,8 +5,8 @@ Restaurant HRMS for Highway Grill — employees, attendance, leave, and payroll.
 ## Stack
 
 - **Frontend:** React + Vite + TypeScript
-- **API:** PHP (XAMPP) — no direct database access from the UI
-- **Database:** MySQL (`highway_grill_hrms`)
+- **API:** Node (Next.js in `server/`) — production on Vercel; local dev on port 3001
+- **Database:** Postgres (Neon, production) · MySQL optional for local XAMPP legacy
 
 ## Setup
 
@@ -21,9 +21,9 @@ Edit `.env` for your MySQL password, CORS origin, and XAMPP path if the project 
 | Variable | Purpose |
 |----------|---------|
 | `VITE_API_BASE` | Frontend API prefix (default `/api`) |
-| `VITE_PROXY_TARGET` | Apache URL for Vite proxy |
-| `VITE_PROXY_API_PATH` | Path to `api/index.php` on Apache |
-| `DB_*` | MySQL connection for PHP API |
+| `VITE_PROXY_TARGET` | API proxy target (default `http://localhost:3001` for Node) |
+| `VITE_PROXY_API_PATH` | Set only for legacy PHP: e.g. `/HG_web/api/index.php` on Apache |
+| `DATABASE_URL` | Postgres connection for Node API (`server/.env.local`) |
 | `CORS_ORIGIN` | Allowed origin (default `http://localhost:5173`) |
 | `AUTH_HASH_PASSWORDS` | `false` = plain passwords in dev seeds |
 
@@ -49,12 +49,22 @@ Set `DB_PASS` in `.env` if your root user has a password.
 
 ### 3. Run app
 
+Terminal 1 — API (Node):
+
+```bash
+npm run dev:api
+```
+
+Terminal 2 — frontend:
+
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+Open http://localhost:5173 — Vite proxies `/api` and `/uploads` to the Node server on port 3001.
+
+**Legacy PHP (XAMPP only):** set `VITE_PROXY_TARGET=http://localhost` and `VITE_PROXY_API_PATH=/HG_web/api/index.php` in `.env`, use Apache + MySQL as before.
 
 | Role | Email | Password |
 |------|-------|----------|
@@ -62,7 +72,7 @@ Open http://localhost:5173
 | HR | hr@highwaygrill.local | dsadsadsa |
 | Employee | employee@highwaygrill.local | dsadsadsa |
 
-Vite proxies `/api/*` → `{VITE_PROXY_TARGET}{VITE_PROXY_API_PATH}/*`
+Vite proxies `/api/*` → Node (`http://localhost:3001/api/*`) by default.
 
 ## Database layout
 

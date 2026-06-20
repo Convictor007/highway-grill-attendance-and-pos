@@ -34,6 +34,7 @@ import { HrTipsPage } from '../pages/hr/HrTipsPage'
 import { HrReportsPage } from '../pages/hr/HrReportsPage'
 import { HrBenefitsPage } from '../pages/hr/HrBenefitsPage'
 import { DtrExportPage } from '../pages/attendance/DtrExportPage'
+import { LEGACY_REDIRECTS } from './legacyRedirects'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -69,7 +70,6 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route path="overtime" element={<Navigate to="/dtr" replace />} />
         <Route
           path="leaves"
           element={
@@ -91,7 +91,6 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route path="documents" element={<Navigate to="/service-records" replace />} />
         <Route
           path="memos"
           element={
@@ -110,7 +109,6 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route path="benefits" element={<Navigate to="/payroll" replace />} />
         <Route
           path="service-records"
           element={
@@ -121,12 +119,8 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route path="field-work" element={<Navigate to="/" replace />} />
         <Route path="profile" element={<ProfilePage />} />
 
-        <Route path="leave" element={<Navigate to="/leaves" replace />} />
-        <Route path="my-shifts" element={<Navigate to="/scheduling" replace />} />
-        <Route path="my-payslips" element={<Navigate to="/payroll" replace />} />
         <Route
           path="attendance"
           element={
@@ -147,7 +141,6 @@ export function AppRoutes() {
             </RequireHr>
           }
         />
-        <Route path="hr/overtime" element={<Navigate to="/hr/attendance-stats" replace />} />
         <Route
           path="hr/dtr-export"
           element={
@@ -283,9 +276,9 @@ export function AppRoutes() {
             </RequireAdmin>
           }
         />
-        <Route path="admin/field-work" element={<Navigate to="/admin" replace />} />
-        <Route path="settings" element={<Navigate to="/admin/settings" replace />} />
-        <Route path="compliance" element={<Navigate to="/admin/compliance" replace />} />
+        {LEGACY_REDIRECTS.map(({ path, to }) => (
+          <Route key={path} path={path} element={<Navigate to={to} replace />} />
+        ))}
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
