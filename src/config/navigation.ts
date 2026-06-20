@@ -118,7 +118,3 @@ export function filterNavEntries(entries: NavEntry[], user: AuthUser | null): Na
   }
   return out
 }
-
-export function isEmployeePortal(user: AuthUser | null): boolean {
-  return user?.role_slug === 'employee'
-}

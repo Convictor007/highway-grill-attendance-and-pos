@@ -10,6 +10,7 @@ interface HrDocument {
   category: string
   title: string
   file_url: string | null
+  expires_at?: string | null
   created_at: string
 }
 
@@ -36,7 +37,14 @@ interface ServiceRecord {
   bank_accounts: BankAccount[]
 }
 
-const SERVICE_CATEGORIES = new Set(['contract', 'certificate', 'memo'])
+const categoryLabels: Record<string, string> = {
+  contract: 'Contract',
+  id: 'ID',
+  certificate: 'Certificate',
+  payslip: 'Payslip',
+  memo: 'Memo',
+  other: 'Other',
+}
 
 export function ServiceRecordsPage() {
   const { user } = useAuth()
@@ -55,7 +63,7 @@ export function ServiceRecordsPage() {
       api<ServiceRecord>(`/contracts/service-record/${eid}`).catch(() => null),
     ])
       .then(([allDocs, svc]) => {
-        setDocs(allDocs.filter((d) => SERVICE_CATEGORIES.has(d.category)))
+        setDocs(allDocs)
         setRecord(svc)
       })
       .finally(() => setLoading(false))
@@ -129,7 +137,9 @@ export function ServiceRecordsPage() {
                 <div>
                   <strong>{d.title}</strong>
                   <span className="doc-meta">
-                    {d.category} · {new Date(d.created_at.replace(' ', 'T')).toLocaleDateString()}
+                    {categoryLabels[d.category] ?? d.category} ·{' '}
+                    {new Date(d.created_at.replace(' ', 'T')).toLocaleDateString()}
+                    {d.expires_at ? ` · Expires ${new Date(d.expires_at.replace(' ', 'T')).toLocaleDateString()}` : ''}
                   </span>
                 </div>
                 {d.file_url ? (

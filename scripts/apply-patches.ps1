@@ -1,6 +1,7 @@
-# Apply incremental SQL patches (safe on existing DB)
+# Apply incremental SQL patches from database/archive (safe on existing DB)
 $mysql = "C:\xampp\mysql\bin\mysql.exe"
 $root = Split-Path $PSScriptRoot -Parent
+$archive = Join-Path $root "database\archive"
 if (-not (Test-Path $mysql)) {
     Write-Error "MySQL not found at $mysql. Start XAMPP MySQL first."
     exit 1
@@ -15,8 +16,11 @@ $patches = @(
 )
 
 foreach ($name in $patches) {
-    $file = Join-Path $root "database\$name"
-    if (-not (Test-Path $file)) { continue }
+    $file = Join-Path $archive $name
+    if (-not (Test-Path $file)) {
+        Write-Warning "Skipping $name — not found in database/archive"
+        continue
+    }
     Write-Host "Applying $name ..."
     & $mysql -u root -e "SOURCE $($file -replace '\\','/')" 2>&1
     if ($LASTEXITCODE -ne 0) {

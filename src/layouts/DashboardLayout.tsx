@@ -1,5 +1,5 @@
 import { useAuth } from '../context/AuthContext'
-import { isEmployeePortal } from '../config/navigation'
+import { isEmployeePortal } from '../lib/accountStatus'
 import { AdminLayout } from './AdminLayout'
 import { EmployeeLayout } from './EmployeeLayout'
 

@@ -26,7 +26,6 @@ import { DtrPage } from '../pages/dtr/DtrPage'
 import { MemosNoticesPage } from '../pages/memos/MemosNoticesPage'
 import { LoansPage } from '../pages/employee/LoansPage'
 import { ServiceRecordsPage } from '../pages/employee/ServiceRecordsPage'
-import { MyDocumentsPage } from '../pages/documents/MyDocumentsPage'
 import { HrLoansPage } from '../pages/hr/HrLoansPage'
 import { HrContentPage } from '../pages/hr/HrContentPage'
 import { AttendanceStatsPage } from '../pages/attendance/AttendanceStatsPage'
@@ -92,16 +91,7 @@ export function AppRoutes() {
             </RequirePermission>
           }
         />
-        <Route
-          path="documents"
-          element={
-            <RequirePermission permission="documents.view.self">
-              <RequireActiveEmployee>
-                <MyDocumentsPage />
-              </RequireActiveEmployee>
-            </RequirePermission>
-          }
-        />
+        <Route path="documents" element={<Navigate to="/service-records" replace />} />
         <Route
           path="memos"
           element={
