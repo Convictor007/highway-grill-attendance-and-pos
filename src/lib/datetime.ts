@@ -24,11 +24,40 @@ export function normalizeShiftDate(value: unknown): string {
 
 export function formatDateDisplay(iso: string): string {
   if (!iso) return 'Select date'
-  const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return iso
+  const normalized = normalizeShiftDate(iso)
+  if (!normalized) return String(iso).slice(0, 10) || iso
+  const [y, m, d] = normalized.split('-').map(Number)
+  if (!y || !m || !d) return normalized
   const dt = new Date(y, m - 1, d)
-  if (Number.isNaN(dt.getTime())) return iso
+  if (Number.isNaN(dt.getTime())) return normalized
   return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/** Compact date for tables — e.g. Jun 16, 2026 */
+export function formatDateShort(value: unknown): string {
+  const normalized = normalizeShiftDate(value)
+  if (!normalized) return '—'
+  const [y, m, d] = normalized.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  if (Number.isNaN(dt.getTime())) return normalized
+  return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/** Payroll period range — e.g. Jun 16 – 30, 2026 */
+export function formatPayrollPeriod(start: unknown, end: unknown): string {
+  const s = normalizeShiftDate(start)
+  const e = normalizeShiftDate(end)
+  if (!s && !e) return '—'
+  if (!s) return formatDateShort(e)
+  if (!e) return formatDateShort(s)
+  if (s === e) return formatDateShort(s)
+  const [sy, sm, sd] = s.split('-').map(Number)
+  const [ey, em, ed] = e.split('-').map(Number)
+  if (sy === ey && sm === em) {
+    const month = new Date(sy, sm - 1, 1).toLocaleDateString(undefined, { month: 'short' })
+    return `${month} ${sd} – ${ed}, ${sy}`
+  }
+  return `${formatDateShort(s)} – ${formatDateShort(e)}`
 }
 
 /** Normalize DB/API time values to HH:mm for inputs and display. */

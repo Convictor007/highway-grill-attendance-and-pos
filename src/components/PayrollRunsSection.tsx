@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { formatDateShort, formatPayrollPeriod } from '../lib/datetime'
 import { api } from '../lib/api'
 import { useNotification } from '../hooks/useNotification'
 import { buildQuery, DEFAULT_PAGE_SIZE } from '../lib/pagination'
@@ -564,10 +565,8 @@ export function PayrollRunsSection({
                       onClick={() => openRun(r.id)}
                     >
                       <td>{r.branch_name}</td>
-                      <td>
-                        {r.period_start} – {r.period_end}
-                      </td>
-                      <td>{r.pay_date}</td>
+                      <td>{formatPayrollPeriod(r.period_start, r.period_end)}</td>
+                      <td>{formatDateShort(r.pay_date)}</td>
                       <td>{money(r.total_gross)}</td>
                       <td>{money(r.total_net)}</td>
                       <td>
@@ -601,10 +600,10 @@ export function PayrollRunsSection({
             <div className="payroll-run-panel-head">
               <div>
                 <h3 className="section-title" style={{ marginBottom: '0.25rem' }}>
-                  {selected.branch_name} · {selected.period_start} – {selected.period_end}
+                  {selected.branch_name} · {formatPayrollPeriod(selected.period_start, selected.period_end)}
                 </h3>
                 <p className="payroll-run-meta">
-                  Pay date {selected.pay_date}
+                  Pay date {formatDateShort(selected.pay_date)}
                   {selected.processed_at && (
                     <> · Processed {new Date(selected.processed_at.replace(' ', 'T')).toLocaleString()}</>
                   )}

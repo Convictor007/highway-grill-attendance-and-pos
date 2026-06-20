@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatDateShort, formatPayrollPeriod } from '../../lib/datetime'
 import { api } from '../../lib/api'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
@@ -59,8 +60,8 @@ export function MyPayslipsPage() {
                   className="row-clickable"
                   onClick={() => setDetailId(p.id)}
                 >
-                  <td>{p.pay_date}</td>
-                  <td>{p.period_start} – {p.period_end}</td>
+                  <td>{formatDateShort(p.pay_date)}</td>
+                  <td>{formatPayrollPeriod(p.period_start, p.period_end)}</td>
                   <td>{p.regular_hours}</td>
                   <td>{money(p.gross_pay)}</td>
                   <td className="payroll-my-net">{money(p.net_pay)}</td>

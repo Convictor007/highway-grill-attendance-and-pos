@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { formatPayrollPeriod } from '../lib/datetime'
 import { api } from '../lib/api'
 import { type LoadOptions, resolveLoadBehavior } from '../lib/scroll'
 import { useNotification } from '../hooks/useNotification'
@@ -281,7 +282,7 @@ export function PayrollEmployeePrepare({
           )}
 
           <p className="form-hint payroll-prepare-hint">
-            Period {data.run.period_start} – {data.run.period_end}. Check which dates count toward pay, then review or
+            Period {formatPayrollPeriod(data.run.period_start, data.run.period_end)}. Check which dates count toward pay, then review or
             edit deductions before generating this employee&apos;s payslip.
           </p>
 
