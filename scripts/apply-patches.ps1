@@ -12,7 +12,8 @@ $patches = @(
     "patch_employee_permissions.sql",
     "patch_field_work.sql",
     "patch_loans.sql",
-    "patch_geocode_address.sql"
+    "patch_geocode_address.sql",
+    "patch_drop_unused_modules.sql"
 )
 
 foreach ($name in $patches) {
