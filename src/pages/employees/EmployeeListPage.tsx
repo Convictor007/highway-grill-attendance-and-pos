@@ -8,6 +8,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmployeeAvatar } from '../../components/EmployeeAvatar'
 import { EmployeeEditModal } from '../../components/EmployeeEditModal'
+import { workerClassLabel, isOnCall } from '../../lib/workerClass'
 import type { Branch, Employee } from '../../types/hrms'
 
 type ViewMode = 'card' | 'list' | 'grid'
@@ -19,11 +20,13 @@ function EmployeeActions({
   canManage,
   onEdit,
   onTerminate,
+  onPromote,
 }: {
   emp: Employee
   canManage: boolean
   onEdit: () => void
   onTerminate: () => void
+  onPromote: () => void
 }) {
   if (!canManage) return null
   return (
@@ -31,6 +34,11 @@ function EmployeeActions({
       <button type="button" className="btn btn-ghost btn-sm" onClick={onEdit}>
         Edit
       </button>
+      {isOnCall(emp.worker_class) && emp.status === 'active' && (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onPromote}>
+          Promote to regular
+        </button>
+      )}
       {emp.status === 'active' && (
         <button type="button" className="btn btn-ghost btn-sm" onClick={onTerminate}>
           Terminate
@@ -87,6 +95,24 @@ export function EmployeeListPage() {
     }
   }
 
+  const onPromote = async (emp: Employee) => {
+    if (
+      !(await confirm(
+        `Promote ${emp.first_name} ${emp.last_name} to regular? They will receive paid leave (pro-rated) and be eligible for 13th month pay.`,
+        { confirmLabel: 'Promote' },
+      ))
+    ) {
+      return
+    }
+    try {
+      await api(`/employees/${emp.id}/promote-regular`, { method: 'POST', body: '{}' })
+      success(`${emp.first_name} is now a regular employee`)
+      load({ silent: true })
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not promote employee')
+    }
+  }
+
   const viewToggle = (
     <div className="view-toggle" role="group" aria-label="Employee view">
       {(['card', 'list', 'grid'] as ViewMode[]).map((mode) => (
@@ -136,6 +162,9 @@ export function EmployeeListPage() {
                   <p className="muted-block employee-card__sub">{e.emp_number}</p>
                 </div>
                 <span className={`badge badge-${e.status}`}>{e.status}</span>
+                <span className={`badge ${isOnCall(e.worker_class) ? 'badge-pending' : 'badge-approved'}`}>
+                  {workerClassLabel(e.worker_class)}
+                </span>
               </div>
               <dl className="employee-card__meta">
                 <div>
@@ -160,6 +189,7 @@ export function EmployeeListPage() {
                 canManage={canManage}
                 onEdit={() => setEditingEmployee(e)}
                 onTerminate={() => onTerminate(e.id)}
+                onPromote={() => onPromote(e)}
               />
             </article>
           ))}
@@ -178,11 +208,15 @@ export function EmployeeListPage() {
                 </span>
               </div>
               <span className={`badge badge-${e.status}`}>{e.status}</span>
+              <span className={`badge ${isOnCall(e.worker_class) ? 'badge-pending' : 'badge-approved'}`}>
+                {workerClassLabel(e.worker_class)}
+              </span>
               <EmployeeActions
                 emp={e}
                 canManage={canManage}
                 onEdit={() => setEditingEmployee(e)}
                 onTerminate={() => onTerminate(e.id)}
+                onPromote={() => onPromote(e)}
               />
             </div>
           ))}

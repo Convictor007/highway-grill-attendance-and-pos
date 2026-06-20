@@ -1,7 +1,7 @@
 import { getDb, nullableInt } from './db'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
 import { ValidationError } from './errors'
-import { ensureBalancesForEmployee } from './leave'
+import { ensureBalancesForEmployee, seedRegularLeaveBalances, type WorkerClass } from './leave'
 
 const EMPLOYEE_SELECT = `
   SELECT e.*, b.name AS branch_name, d.name AS department_name, p.title AS position_title,
@@ -35,7 +35,6 @@ export async function listEmployees(branchId?: string | null, status?: string | 
 }
 
 export async function getEmployee(id: string) {
-  const db = getDb()
   const rows = await unsafe(`${EMPLOYEE_SELECT} WHERE e.id = $1 LIMIT 1`, [id])
   return rows[0] ?? null
 }
@@ -67,10 +66,11 @@ export async function validatePositionForBranch(
 export async function createEmployee(data: Record<string, unknown>) {
   const db = getDb()
   const status = String(data.status ?? 'active')
+  const workerClass = normalizeWorkerClass(data.worker_class)
   const [row] = await db`
     INSERT INTO employees (
       branch_id, department_id, position_id, emp_number, first_name, last_name,
-      email, phone, hire_date, employment_type, pay_basis, pay_rate, is_stay_in, housing_deduction,
+      email, phone, hire_date, employment_type, worker_class, pay_basis, pay_rate, is_stay_in, housing_deduction,
       status, date_of_birth, gender, nationality, national_id, address, emergency_name, emergency_phone, photo_url
     ) VALUES (
       ${nullableInt(data.branch_id)}, ${nullableInt(data.department_id)}, ${nullableInt(data.position_id)},
@@ -78,6 +78,7 @@ export async function createEmployee(data: Record<string, unknown>) {
       ${nullableStr(data.email)}, ${nullableStr(data.phone)},
       ${String(data.hire_date ?? new Date().toISOString().slice(0, 10))},
       ${normalizeEmploymentType(String(data.employment_type ?? 'full_time'))},
+      ${workerClass},
       ${normalizePayBasis(String(data.pay_basis ?? 'hourly'))},
       ${nullablePayRate(data.pay_rate)},
       ${Boolean(data.is_stay_in)},
@@ -107,7 +108,7 @@ export async function updateEmployee(id: string, data: Record<string, unknown>) 
 
   const fields = [
     'emp_number', 'first_name', 'last_name', 'email', 'phone', 'branch_id', 'department_id', 'position_id',
-    'employment_type', 'status', 'address', 'date_of_birth', 'gender', 'nationality', 'national_id',
+    'employment_type', 'worker_class', 'status', 'address', 'date_of_birth', 'gender', 'nationality', 'national_id',
     'emergency_name', 'emergency_phone', 'photo_url', 'hire_date', 'pay_basis', 'pay_rate',
     'is_stay_in', 'housing_deduction',
   ] as const
@@ -123,6 +124,7 @@ export async function updateEmployee(id: string, data: Record<string, unknown>) 
     }
     else if (f === 'gender') val = normalizeGender(val)
     else if (f === 'employment_type') val = normalizeEmploymentType(String(val))
+    else if (f === 'worker_class') val = normalizeWorkerClass(val)
     else if (f === 'pay_basis') val = normalizePayBasis(String(val))
     else if (f === 'pay_rate') val = nullablePayRate(val)
     else if (f === 'is_stay_in') val = Boolean(val)
@@ -145,6 +147,25 @@ export async function updateEmployee(id: string, data: Record<string, unknown>) 
   const sets = Object.keys(updates).map((k, i) => `${k} = $${i + 2}`).join(', ')
   const values: SqlValue[] = [id, ...Object.values(updates) as SqlValue[]]
   await unsafeExec(`UPDATE employees SET ${sets} WHERE id = $1`, values)
+
+  const prevClass = String(existing.worker_class ?? 'regular')
+  const nextClass = String(updates.worker_class ?? prevClass)
+  if (prevClass === 'on_call' && nextClass === 'regular') {
+    await seedRegularLeaveBalances(id, new Date().getFullYear(), true)
+  }
+
+  return getEmployee(id)
+}
+
+export async function promoteToRegular(id: string) {
+  const existing = await getEmployee(id)
+  if (!existing) return null
+  if (String(existing.worker_class ?? 'regular') === 'regular') {
+    throw new ValidationError('Employee is already regular')
+  }
+  const db = getDb()
+  await db`UPDATE employees SET worker_class = 'regular' WHERE id = ${id}`
+  await seedRegularLeaveBalances(id, new Date().getFullYear(), true)
   return getEmployee(id)
 }
 
@@ -192,6 +213,10 @@ function normalizeGender(value: unknown): string | null {
 
 function normalizeEmploymentType(value: string): string {
   return ['full_time', 'part_time', 'casual', 'seasonal'].includes(value) ? value : 'full_time'
+}
+
+function normalizeWorkerClass(value: unknown): WorkerClass {
+  return String(value ?? 'regular') === 'on_call' ? 'on_call' : 'regular'
 }
 
 function normalizePayBasis(value: string): string {

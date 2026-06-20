@@ -20,6 +20,7 @@ export interface Employee {
   emergency_phone?: string | null
   hire_date: string
   employment_type: string
+  worker_class?: 'regular' | 'on_call'
   pay_basis?: 'hourly' | 'daily'
   pay_rate?: string | number | null
   is_stay_in?: number | boolean
@@ -335,6 +336,7 @@ export interface OrgMasterlistEntry {
   phone: string | null
   hire_date: string
   employment_type: string
+  worker_class?: 'regular' | 'on_call'
   status: string
   branch_name?: string
   department_name?: string
@@ -351,6 +353,8 @@ export interface LeaveRequest {
   reason: string | null
   status: string
   leave_type_name?: string
+  leave_type_paid?: boolean | number
+  worker_class?: 'regular' | 'on_call'
   first_name?: string
   last_name?: string
 }
@@ -364,6 +368,7 @@ export interface LeaveBalance {
   used: string
   pending: string
   leave_type_name?: string
+  worker_class?: 'regular' | 'on_call'
   first_name?: string
   last_name?: string
   emp_number?: string

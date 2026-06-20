@@ -161,7 +161,7 @@ export async function enrichUser(user: AuthUser): Promise<AuthUser & { employee?
   const db = getDb()
   const rows = await db<Record<string, unknown>[]>`
     SELECT id, emp_number, first_name, last_name, branch_id, department_id, position_id, status,
-           photo_url, gender, date_of_birth
+           photo_url, gender, date_of_birth, worker_class
     FROM employees WHERE id = ${user.employee_id}
     LIMIT 1
   `

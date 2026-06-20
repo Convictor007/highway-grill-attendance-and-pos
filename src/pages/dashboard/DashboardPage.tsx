@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
 import { isFieldStaff } from '../../lib/roles'
 import { PageHeader } from '../../components/PageHeader'
+import { formatDateShort } from '../../lib/datetime'
+import { workerClassLabel } from '../../lib/workerClass'
 import type { DashboardSummary, LeaveBalance, OrgMasterlistEntry } from '../../types/hrms'
 
 interface HoursSummary {
@@ -170,6 +172,7 @@ export function DashboardPage() {
                 <th>Branch</th>
                 <th>Department</th>
                 <th>Position</th>
+                <th>Class</th>
                 <th>Hired</th>
                 <th>Status</th>
               </tr>
@@ -183,7 +186,8 @@ export function DashboardPage() {
                   <td>{e.branch_name ?? '—'}</td>
                   <td>{e.department_name ?? '—'}</td>
                   <td>{e.position_title ?? '—'}</td>
-                  <td>{e.hire_date}</td>
+                  <td>{workerClassLabel(e.worker_class)}</td>
+                  <td>{formatDateShort(e.hire_date)}</td>
                   <td>{e.status}</td>
                 </tr>
               ))}

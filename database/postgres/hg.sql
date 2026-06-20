@@ -129,6 +129,8 @@ CREATE TABLE employees (
     hire_date         DATE NOT NULL DEFAULT CURRENT_DATE,
     employment_type   VARCHAR(20) NOT NULL DEFAULT 'full_time'
         CHECK (employment_type IN ('full_time', 'part_time', 'casual', 'seasonal')),
+    worker_class      VARCHAR(20) NOT NULL DEFAULT 'regular'
+        CHECK (worker_class IN ('regular', 'on_call')),
     pay_basis         VARCHAR(10) NOT NULL DEFAULT 'hourly'
         CHECK (pay_basis IN ('hourly', 'daily')),
     pay_rate          NUMERIC(10, 2),

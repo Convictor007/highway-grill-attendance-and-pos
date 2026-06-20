@@ -27,6 +27,7 @@ export interface AuthUser {
     department_id?: string | null
     position_id?: string | null
     status: string
+    worker_class?: 'regular' | 'on_call'
     photo_url?: string | null
     gender?: string | null
     date_of_birth?: string | null

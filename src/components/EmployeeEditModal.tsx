@@ -18,6 +18,7 @@ export type EmployeeFormState = {
   hire_date: string
   status: string
   employment_type: string
+  worker_class: 'regular' | 'on_call'
   date_of_birth: string
   gender: Gender | ''
   nationality: string
@@ -45,6 +46,7 @@ function emptyForm(branchId = ''): EmployeeFormState {
     hire_date: new Date().toISOString().slice(0, 10),
     status: 'active',
     employment_type: 'full_time',
+    worker_class: 'on_call' as const,
     date_of_birth: '',
     gender: '',
     nationality: DEFAULT_NATIONALITY,
@@ -71,6 +73,7 @@ function formFromEmployee(emp: Employee): EmployeeFormState {
     hire_date: emp.hire_date?.slice(0, 10) ?? '',
     status: emp.status,
     employment_type: emp.employment_type ?? 'full_time',
+    worker_class: emp.worker_class === 'on_call' ? 'on_call' : 'regular',
     date_of_birth: emp.date_of_birth?.slice(0, 10) ?? '',
     gender: (emp.gender as Gender) ?? '',
     nationality: emp.nationality || DEFAULT_NATIONALITY,
@@ -319,6 +322,19 @@ export function EmployeeEditModal({ open, employee, isNew = false, branches, onC
             <option value="casual">Casual</option>
             <option value="seasonal">Seasonal</option>
           </select>
+        </div>
+        <div className="form-group">
+          <label>Worker class</label>
+          <select
+            value={form.worker_class}
+            onChange={(e) => setForm({ ...form, worker_class: e.target.value as 'regular' | 'on_call' })}
+          >
+            <option value="regular">Regular (paid leave, 13th month)</option>
+            <option value="on_call">On-call (no paid leave, no 13th month)</option>
+          </select>
+          <p className="form-hint" style={{ marginBottom: 0 }}>
+            On-call staff can be promoted to regular when they qualify for full benefits.
+          </p>
         </div>
         <fieldset className="form-fieldset">
           <legend>Payroll compensation</legend>

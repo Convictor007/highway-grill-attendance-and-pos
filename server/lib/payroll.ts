@@ -678,7 +678,8 @@ export async function generate13thMonthPayslips(
   const payDate = String(run.pay_date)
   const year = new Date(payDate).getFullYear()
   const emps = await unsafe<Record<string, unknown>>(
-    `SELECT e.id FROM employees e WHERE e.branch_id = $1 AND e.status = 'active'`,
+    `SELECT e.id FROM employees e
+     WHERE e.branch_id = $1 AND e.status = 'active' AND e.worker_class = 'regular'`,
     [String(run.branch_id)],
   )
 

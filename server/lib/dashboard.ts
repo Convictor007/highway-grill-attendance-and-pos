@@ -86,7 +86,7 @@ export async function summary(branchId?: string | null) {
 export async function orgMasterlist(branchId?: string | null) {
   const params: SqlValue[] = []
   let sql = `SELECT e.id, e.emp_number, e.first_name, e.last_name, e.email, e.phone,
-    e.hire_date, e.employment_type, e.status,
+    e.hire_date, e.employment_type, e.worker_class, e.status,
     b.name AS branch_name, d.name AS department_name, p.title AS position_title
     FROM employees e
     LEFT JOIN branches b ON b.id = e.branch_id

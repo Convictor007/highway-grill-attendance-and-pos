@@ -4,6 +4,7 @@ import { preserveScroll } from '../../lib/scroll'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { hasPermission } from '../../lib/auth'
+import { workerClassLabel, isOnCall } from '../../lib/workerClass'
 import { PageHeader } from '../../components/PageHeader'
 import { EmptyState } from '../../components/EmptyState'
 import { LeaveTypeModal, type LeaveTypeRecord } from '../../components/LeaveTypeModal'
@@ -19,7 +20,8 @@ export function LeavePage() {
   const canViewBalances = hasPermission(user, 'leave.view')
   const [requests, setRequests] = useState<LeaveRequest[]>([])
   const [balances, setBalances] = useState<LeaveBalance[]>([])
-  const [types, setTypes] = useState<LeaveTypeRecord[]>([])
+  const [allTypes, setAllTypes] = useState<LeaveTypeRecord[]>([])
+  const [applyTypes, setApplyTypes] = useState<LeaveTypeRecord[]>([])
   const [typeModalOpen, setTypeModalOpen] = useState(false)
   const [editingType, setEditingType] = useState<LeaveTypeRecord | null>(null)
   const [form, setForm] = useState({
@@ -32,9 +34,15 @@ export function LeavePage() {
   const load = async () => {
     const reqs = await api<LeaveRequest[]>('/leave/requests')
     setRequests(reqs)
-    const tps = await api<LeaveTypeRecord[]>('/leave/types')
-    setTypes(tps)
-    if (tps[0] && !form.leave_type_id) setForm((f) => ({ ...f, leave_type_id: tps[0].id }))
+    const eligible = await api<LeaveTypeRecord[]>('/leave/types')
+    setApplyTypes(eligible)
+    if (canManageTypes) {
+      setAllTypes(await api<LeaveTypeRecord[]>('/leave/types?all=1'))
+    } else {
+      setAllTypes(eligible)
+    }
+    const defaultType = eligible[0]?.id ?? ''
+    setForm((f) => ({ ...f, leave_type_id: f.leave_type_id || defaultType }))
     if (canViewBalances) {
       const year = new Date().getFullYear()
       const bal = await api<LeaveBalance[]>(`/leave/balances?year=${year}`)
@@ -52,7 +60,7 @@ export function LeavePage() {
     try {
       await api('/leave/requests', { method: 'POST', body: JSON.stringify(form) })
       success('Leave request submitted')
-      setForm({ leave_type_id: types[0]?.id ?? '', start_date: '', end_date: '', reason: '' })
+      setForm({ leave_type_id: applyTypes[0]?.id ?? '', start_date: '', end_date: '', reason: '' })
       await preserveScroll(load)
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not submit leave request')
@@ -83,6 +91,9 @@ export function LeavePage() {
     }
   }
 
+  const typesForManage = canManageTypes ? allTypes : applyTypes
+  const ownOnCall = canApply && !canApprove && isOnCall(user?.employee?.worker_class)
+
   return (
     <div>
       <PageHeader
@@ -104,10 +115,16 @@ export function LeavePage() {
         }
       />
 
+      {ownOnCall && (
+        <p className="card form-hint" style={{ marginBottom: '1.5rem', padding: '0.75rem 1rem' }}>
+          You are classified as <strong>on-call</strong>. Paid leave is not available — you may request unpaid absence only.
+        </p>
+      )}
+
       {canManageTypes && (
         <div className="card table-wrap" style={{ marginBottom: '1.5rem' }}>
           <h3 className="section-title">Leave types</h3>
-          {types.length === 0 ? (
+          {typesForManage.length === 0 ? (
             <EmptyState title="No leave types" description="Add types such as Vacation, Sick, or Emergency leave." />
           ) : (
           <table>
@@ -122,7 +139,7 @@ export function LeavePage() {
               </tr>
             </thead>
             <tbody>
-              {types.map((t) => (
+              {typesForManage.map((t) => (
                 <tr key={t.id}>
                   <td>
                     <span
@@ -175,6 +192,7 @@ export function LeavePage() {
             <thead>
               <tr>
                 {canApprove && <th>Employee</th>}
+                {canApprove && <th>Class</th>}
                 <th>Type</th>
                 <th>Accrued</th>
                 <th>Used</th>
@@ -187,6 +205,7 @@ export function LeavePage() {
                 return (
                   <tr key={b.id}>
                     {canApprove && <td>{b.first_name} {b.last_name}</td>}
+                    {canApprove && <td>{workerClassLabel(b.worker_class)}</td>}
                     <td>{b.leave_type_name}</td>
                     <td>{b.accrued}</td>
                     <td>{b.used}</td>
@@ -199,15 +218,15 @@ export function LeavePage() {
         </div>
       )}
 
-      {canApply && (
+      {canApply && applyTypes.length > 0 && (
         <form className="card" style={{ marginBottom: '1.5rem' }} onSubmit={onApply}>
           <h3 style={{ marginBottom: '1rem', fontSize: '1rem' }}>Apply for leave</h3>
           <div className="form-row">
             <div className="form-group">
               <label>Type</label>
               <select value={form.leave_type_id} onChange={(e) => setForm({ ...form, leave_type_id: e.target.value })} required>
-                {types.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
+                {applyTypes.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}{t.paid ? '' : ' (unpaid)'}</option>
                 ))}
               </select>
             </div>
@@ -233,6 +252,15 @@ export function LeavePage() {
         </form>
       )}
 
+      {canApply && applyTypes.length === 0 && (
+        <div className="card" style={{ marginBottom: '1.5rem' }}>
+          <EmptyState
+            title="No leave types available"
+            description="Contact HR if you need to request time off."
+          />
+        </div>
+      )}
+
       <div className="card table-wrap">
         <h3 className="section-title">Requests</h3>
         {requests.length === 0 ? (
@@ -242,6 +270,7 @@ export function LeavePage() {
           <thead>
             <tr>
               {canApprove && <th>Employee</th>}
+              {canApprove && <th>Class</th>}
               <th>Type</th>
               <th>Dates</th>
               <th>Days</th>
@@ -253,7 +282,11 @@ export function LeavePage() {
             {requests.map((r) => (
               <tr key={r.id}>
                 {canApprove && <td>{r.first_name} {r.last_name}</td>}
-                <td>{r.leave_type_name}</td>
+                {canApprove && <td>{workerClassLabel(r.worker_class)}</td>}
+                <td>
+                  {r.leave_type_name}
+                  {r.leave_type_paid === false || r.leave_type_paid === 0 ? ' (unpaid)' : ''}
+                </td>
                 <td>{r.start_date} – {r.end_date}</td>
                 <td>{r.days_count}</td>
                 <td><span className={`badge badge-${r.status}`}>{r.status}</span></td>

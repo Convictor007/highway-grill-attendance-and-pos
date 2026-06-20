@@ -113,7 +113,8 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO leave_types (id, name, paid, days_per_year, carry_forward, requires_approval, color_hex) VALUES
 (1, 'Vacation',        true, 15, true,  true,  '#378ADD'),
 (2, 'Sick',            true, 10, false, true,  '#1D9E75'),
-(3, 'Emergency leave', true,  5, false, true,  '#BA7517')
+(3, 'Emergency leave', true,  5, false, true,  '#BA7517'),
+(4, 'Unpaid absence',  false, 0, false, true,  '#888888')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO holidays (id, branch_id, holiday_date, name, holiday_type, pay_multiplier) VALUES

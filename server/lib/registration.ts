@@ -86,12 +86,12 @@ export async function register(data: Record<string, unknown>) {
     const [emp] = await tx`
       INSERT INTO employees (
         branch_id, department_id, position_id, emp_number, first_name, last_name,
-        email, phone, hire_date, employment_type, status, date_of_birth, gender, nationality,
+        email, phone, hire_date, employment_type, worker_class, status, date_of_birth, gender, nationality,
         address, emergency_name, emergency_phone, is_stay_in
       ) VALUES (
         ${nullableInt(branchId)}, ${nullableInt(data.department_id)}, ${nullableInt(data.position_id)},
         ${empNumber}, ${firstName}, ${lastName},
-        ${email}, ${phone || null}, CURRENT_DATE, ${employmentType}, 'pending', ${dob || null}, ${gender},
+        ${email}, ${phone || null}, CURRENT_DATE, ${employmentType}, 'on_call', 'pending', ${dob || null}, ${gender},
         ${String(data.nationality ?? '').trim() || 'Filipino'},
         ${String(data.address ?? '').trim() || null},
         ${String(data.emergency_name ?? '').trim() || null},
