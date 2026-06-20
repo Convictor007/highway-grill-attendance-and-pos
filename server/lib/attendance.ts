@@ -301,23 +301,6 @@ export async function statistics(branchId: string | null, from: string, to: stri
   }
 }
 
-export async function manualEntry(data: Record<string, unknown>, reviewerUserId: string) {
-  const clockIn = String(data.clock_in ?? new Date().toISOString().replace('T', ' ').slice(0, 19))
-  const clockOut = data.clock_out ? String(data.clock_out) : null
-  let hours = data.actual_hours != null ? Number(data.actual_hours) : null
-  if (clockOut && hours == null) {
-    hours = Math.round(((new Date(clockOut).getTime() - new Date(clockIn).getTime()) / 3600000) * 100) / 100
-  }
-  const db = getDb()
-  const [row] = await db`
-    INSERT INTO attendance (employee_id, clock_in, clock_out, actual_hours, method, shift_assignment_id, approved_by, approved_at)
-    VALUES (${String(data.employee_id)}, ${clockIn}, ${clockOut}, ${hours}, ${String(data.method ?? 'manual')},
-      ${data.shift_assignment_id ? String(data.shift_assignment_id) : null}, ${reviewerUserId}, NOW())
-    RETURNING id
-  `
-  return (await getAttendance(String(row.id)))!
-}
-
 export async function updateAttendance(id: string, data: Record<string, unknown>, approverUserId?: string | null) {
   const existing = await getAttendance(id)
   if (!existing) return null

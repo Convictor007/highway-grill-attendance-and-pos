@@ -15,10 +15,6 @@ export function deductionPerPeriod(principal: number, schedule: RepaymentSchedul
   return Math.round((principal / periods) * 100) / 100
 }
 
-export function repaymentScheduleLabel(schedule: RepaymentSchedule): string {
-  return schedule === 'one_month' ? '1 month' : 'Semi-monthly'
-}
-
 export function repaymentTermSummary(schedule: RepaymentSchedule, duration: number): string {
   if (schedule === 'one_month') {
     return '1 month (2 semi-monthly cutoffs)'

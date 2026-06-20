@@ -78,11 +78,6 @@ export const hrMenuEntries: NavEntry[] = [
   { to: '/payroll', label: 'Payroll', icon: 'wallet', perm: 'payroll.view' },
 ]
 
-/** @deprecated flat list — use hrMenuEntries */
-export const hrMenuItems: NavItem[] = hrMenuEntries.flatMap((entry) =>
-  isNavGroup(entry) ? entry.items : [entry],
-)
-
 /** System admin only — no HR daily operations */
 export const adminSystemItems: NavItem[] = [
   { to: '/admin', label: 'Overview', icon: 'home', end: true },

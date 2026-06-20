@@ -108,6 +108,3 @@ export function joinDateTime(date: string, time: string): string {
   return `${date}T${time || '00:00'}`
 }
 
-export function dateFromIsoDateTime(iso: string): string {
-  return splitDateTime(toLocalDateTimeInput(iso)).date
-}

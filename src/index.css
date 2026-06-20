@@ -2647,29 +2647,6 @@ th {
   line-height: 1.5;
 }
 
-.coming-soon-card {
-  text-align: center;
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.coming-soon-icon {
-  font-size: 2.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.coming-soon-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.coming-soon-desc {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
 .admin-shell .sidebar .nav {
   display: flex;
   align-items: center;
@@ -3670,11 +3647,6 @@ th {
 }
 
 /* Address picker + center pin map (Shopee-style GIS) */
-.field-work-page {
-  max-width: 480px;
-  margin: 0 auto;
-}
-
 .address-picker {
   background: #fff;
   color: #222;
@@ -5327,12 +5299,6 @@ tr.row-clickable:hover td {
   font-weight: 600;
 }
 
-.schedule-grid-footnotes {
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
 .schedule-current-week {
   margin: 0.35rem 0 0;
   font-size: 0.85rem;
@@ -5346,16 +5312,6 @@ tr.row-clickable:hover td {
 
 .schedule-grid-day-head--highlight {
   background: var(--surface-2, rgba(0, 0, 0, 0.03));
-}
-
-.schedule-grid-day-footnote {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--accent, #ee4d2d);
-  line-height: 1.2;
 }
 
 .schedule-grid-day-tag--today {
@@ -5476,20 +5432,6 @@ tr.row-clickable:hover td {
   background: rgba(238, 77, 45, 0.06);
 }
 
-.schedule-grid-day-footnote--btn,
-.schedule-footnote-chip--btn {
-  border: none;
-  background: none;
-  font: inherit;
-  cursor: pointer;
-  text-align: inherit;
-}
-
-.schedule-grid-day-footnote--btn:hover,
-.schedule-footnote-chip--btn:hover {
-  text-decoration: underline;
-}
-
 .schedule-edit-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5506,25 +5448,6 @@ tr.row-clickable:hover td {
 .schedule-edit-off-toggle input {
   width: auto;
   margin: 0;
-}
-
-.schedule-grid-footnotes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1rem;
-  margin: 0.75rem 0 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.schedule-footnote-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 6px;
-  background: var(--surface-2, rgba(0, 0, 0, 0.04));
-  border: 1px solid var(--border);
 }
 
 .schedule-grid-you {
@@ -5969,24 +5892,6 @@ tr.row-clickable:hover td {
 .datetime-picker-row .picker-field {
   flex: 1;
   min-width: 140px;
-}
-
-.schedule-shift-banner {
-  padding: 0.85rem 1rem;
-  margin-bottom: 0.25rem;
-}
-
-.schedule-shift-banner-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.schedule-shift-banner--empty,
-.schedule-shift-banner--off {
-  border-style: dashed;
 }
 
 .schedule-week-picker-wrap {

@@ -10,7 +10,7 @@ import {
   getBasemapZoomLimits,
   type BasemapId,
 } from '../lib/basemaps'
-import type { MapMarker } from './LeafletMap'
+import type { MapMarker } from './mapTypes'
 
 export type MapCenterPinHandle = {
   getCenter: () => [number, number] | null

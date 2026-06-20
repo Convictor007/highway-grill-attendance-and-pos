@@ -53,23 +53,6 @@ export async function deleteTemplate(id: string) {
   return count > 0
 }
 
-export async function schedules(branchId?: string | null) {
-  const db = getDb()
-  if (branchId) {
-    return db`
-      SELECT s.*, b.name AS branch_name FROM schedules s
-      INNER JOIN branches b ON b.id = s.branch_id
-      WHERE s.week_start > '2000-01-01' AND s.branch_id = ${branchId}
-      ORDER BY s.week_start DESC
-    `
-  }
-  return db`
-    SELECT s.*, b.name AS branch_name FROM schedules s
-    INNER JOIN branches b ON b.id = s.branch_id
-    WHERE s.week_start > '2000-01-01' ORDER BY s.week_start DESC
-  `
-}
-
 export async function getSchedule(id: string) {
   const db = getDb()
   const rows = await db`
@@ -125,27 +108,6 @@ export async function ensureSchedule(branchId: string, weekStart: string, userId
   return createSchedule({ branch_id: branchId, week_start: ws, status: 'draft' }, userId)
 }
 
-export async function assignments(scheduleId?: string | null) {
-  const db = getDb()
-  if (scheduleId) {
-    return db`
-      SELECT sa.*, e.emp_number, e.first_name, e.last_name, st.name AS shift_name
-      FROM shift_assignments sa
-      INNER JOIN employees e ON e.id = sa.employee_id
-      LEFT JOIN shift_templates st ON st.id = sa.shift_template_id
-      WHERE sa.schedule_id = ${scheduleId}
-      ORDER BY sa.shift_date, sa.start_time
-    `
-  }
-  return db`
-    SELECT sa.*, e.emp_number, e.first_name, e.last_name, st.name AS shift_name
-    FROM shift_assignments sa
-    INNER JOIN employees e ON e.id = sa.employee_id
-    LEFT JOIN shift_templates st ON st.id = sa.shift_template_id
-    ORDER BY sa.shift_date, sa.start_time
-  `
-}
-
 export async function addAssignment(data: Record<string, unknown>) {
   const db = getDb()
   const [row] = await db`
@@ -158,25 +120,6 @@ export async function addAssignment(data: Record<string, unknown>) {
   `
   const rows = await db`SELECT * FROM shift_assignments WHERE id = ${row.id}`
   return rows[0]
-}
-
-export async function updateAssignment(id: string, data: Record<string, unknown>) {
-  const db = getDb()
-  const existing = await db`SELECT * FROM shift_assignments WHERE id = ${id} LIMIT 1`
-  if (!existing[0]) return null
-  const fields = ['shift_template_id', 'start_time', 'end_time', 'break_mins', 'notes']
-  const updates: Record<string, unknown> = {}
-  for (const f of fields) if (f in data) updates[f] = data[f]
-  if (Object.keys(updates).length === 0) return existing[0]
-  const sets = Object.keys(updates).map((k, i) => `${k} = $${i + 2}`).join(', ')
-  await unsafeExec(`UPDATE shift_assignments SET ${sets} WHERE id = $1`, [id, ...Object.values(updates) as SqlValue[]])
-  const rows = await db`SELECT * FROM shift_assignments WHERE id = ${id}`
-  return rows[0] ?? null
-}
-
-export async function deleteAssignment(id: string) {
-  const count = await unsafeExec(`DELETE FROM shift_assignments WHERE id = $1`, [id])
-  return count > 0
 }
 
 export async function myShifts(employeeId: string, from?: string | null, to?: string | null) {

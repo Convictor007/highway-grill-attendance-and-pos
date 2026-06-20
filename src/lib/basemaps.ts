@@ -134,8 +134,4 @@ export function defaultBasemapFromLight(light?: boolean): BasemapId {
   return 'streets'
 }
 
-export function getDefaultBasemapId(): BasemapId {
-  return defaultBasemapFromLight(false)
-}
-
 export { isMapboxEnabled } from './mapbox'
