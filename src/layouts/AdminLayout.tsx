@@ -39,7 +39,6 @@ export function AdminLayout() {
           </div>
         </div>
         <div className="app-header-actions">
-          <NotificationBell />
           <button
             type="button"
             className="btn-icon admin-menu-btn"
@@ -88,7 +87,7 @@ export function AdminLayout() {
       )}
 
       <main className="main admin-main">
-        <div className="main-top-bar admin-main-top-bar">
+        <div className="admin-toolbar">
           <NotificationBell />
         </div>
         <Outlet />

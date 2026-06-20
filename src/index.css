@@ -1773,8 +1773,15 @@ th {
     display: flex;
   }
 
-  .admin-main-top-bar {
-    display: none;
+  .admin-toolbar {
+    position: fixed;
+    top: 0;
+    right: 3.25rem;
+    height: var(--header-height, 56px);
+    display: flex;
+    align-items: center;
+    margin: 0;
+    z-index: 25;
   }
 
   .admin-sidebar-panel-head {
@@ -1793,6 +1800,12 @@ th {
 @media (min-width: 901px) {
   .admin-app-header {
     display: none;
+  }
+
+  .admin-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.75rem;
   }
 
   .admin-menu-btn {
