@@ -9,6 +9,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { RegisterPage } from '../pages/auth/RegisterPage'
 import { RequireActiveEmployee } from '../components/RequireActiveEmployee'
+import { RequireLeaveAccess } from '../components/RequireLeaveAccess'
 import { EmployeeListPage } from '../pages/employees/EmployeeListPage'
 import { AttendancePage } from '../pages/attendance/AttendancePage'
 import { LeavePage } from '../pages/leave/LeavePage'
@@ -73,10 +74,10 @@ export function AppRoutes() {
         <Route
           path="leaves"
           element={
-            <RequirePermission permission={['leave.view', 'leave.apply']}>
-              <RequireActiveEmployee>
+            <RequirePermission permission={['leave.view', 'leave.apply', 'leave.approve', 'leave.manage']}>
+              <RequireLeaveAccess>
                 <LeavePage />
-              </RequireActiveEmployee>
+              </RequireLeaveAccess>
             </RequirePermission>
           }
         />
