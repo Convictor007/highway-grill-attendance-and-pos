@@ -4,52 +4,46 @@ Restaurant HRMS for Highway Grill — employees, attendance, leave, and payroll.
 
 ## Stack
 
-- **Frontend:** React + Vite + TypeScript
-- **API:** Node (Next.js in `server/`) — production on Vercel; local dev on port 3001
-- **Database:** Postgres (Neon, production) · MySQL optional for local XAMPP legacy
+- **Frontend:** React + Vite + TypeScript (`src/`)
+- **API:** Node / Next.js (`server/`) — Vercel in production, port 3001 locally
+- **Database:** Postgres (Neon on Vercel) · MySQL optional for local legacy seeds only
+
+The UI calls `/api/*` only — no direct database access from the browser.
 
 ## Setup
 
 ### 1. Environment
 
-```bash
-copy .env.example .env
-```
-
-Edit `.env` for your MySQL password, CORS origin, and XAMPP path if the project is not under `htdocs/HG_web`:
+Create `server/.env.local` with at least:
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_API_BASE` | Frontend API prefix (default `/api`) |
-| `VITE_PROXY_TARGET` | API proxy target (default `http://localhost:3001` for Node) |
-| `VITE_PROXY_API_PATH` | Set only for legacy PHP: e.g. `/HG_web/api/index.php` on Apache |
-| `DATABASE_URL` | Postgres connection for Node API (`server/.env.local`) |
+| `DATABASE_URL` | Postgres connection string (Neon) |
 | `CORS_ORIGIN` | Allowed origin (default `http://localhost:5173`) |
 | `AUTH_HASH_PASSWORDS` | `false` = plain passwords in dev seeds |
 
-PHP reads the same `.env` from the project root via `api/config/config.php`.
+Optional root `.env` for Vite:
 
-### 2. MySQL (fresh database)
+| Variable | Purpose |
+|----------|---------|
+| `VITE_API_BASE` | API prefix (default `/api`) |
+| `VITE_PROXY_TARGET` | Dev proxy target (default `http://localhost:3001`) |
 
-Delete `highway_grill_hrms` in phpMyAdmin if it already exists, then:
+### 2. Database
+
+**Production (Neon):** apply `database/postgres/hg.sql` and patches under `database/postgres/`.
+
+**Local MySQL (optional):** only if you still use XAMPP for schema experiments:
 
 ```powershell
 .\scripts\setup-database.ps1
 ```
 
-Or manually:
-
-```powershell
-C:\xampp\mysql\bin\mysql.exe -u root < database\schema.sql
-C:\xampp\mysql\bin\mysql.exe -u root < database\seed.sql
-php scripts\test-login.php
-```
-
-Set `DB_PASS` in `.env` if your root user has a password.
+See `database/README.md` for patch scripts.
 
 ### 3. Run app
 
-Terminal 1 — API (Node):
+Terminal 1 — API:
 
 ```bash
 npm run dev:api
@@ -62,9 +56,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — Vite proxies `/api` and `/uploads` to the Node server on port 3001.
-
-**Legacy PHP (XAMPP only):** set `VITE_PROXY_TARGET=http://localhost` and `VITE_PROXY_API_PATH=/HG_web/api/index.php` in `.env`, use Apache + MySQL as before.
+Open http://localhost:5173 — Vite proxies `/api` and `/uploads` to the Node server.
 
 | Role | Email | Password |
 |------|-------|----------|
@@ -72,33 +64,22 @@ Open http://localhost:5173 — Vite proxies `/api` and `/uploads` to the Node se
 | HR | hr@highwaygrill.local | dsadsadsa |
 | Employee | employee@highwaygrill.local | dsadsadsa |
 
-Vite proxies `/api/*` → Node (`http://localhost:3001/api/*`) by default.
+## Deploy
 
-## Database layout
+Production: https://highwaygrill.vercel.app
+
+```bash
+git push origin main
+npx vercel deploy --prod
+```
+
+## Docs
 
 | File | Purpose |
 |------|---------|
-| `database/schema.sql` | Drop DB, create all tables |
-| `database/seed.sql` | Roles, permissions, branch, demo users, shifts |
-| `database/README.md` | Install notes |
-
-## Schema reference
-
-- Visual schema: `docs/schema/restaurant_hrms_database_schema.html`
-- Legacy POS SQL: `database/archive/tables_pos_legacy.sql`
-
-## API reference
-
-Full endpoint list: `docs/API.md`
+| `docs/API.md` | REST endpoint reference (Node) |
+| `database/README.md` | SQL schema and patches |
 
 ## Modules
 
-- **Dashboard** — stats for admin / HR
-- **Employees** — add, edit, terminate
-- **Users** — logins linked to employees + roles
-- **Shifts** — schedules and assignments
-- **Attendance** — clock in/out + register
-- **Leave** — balances, apply, approve
-- **Payroll** — runs and payslips
-
-Inspired by [Frappe HRMS](https://github.com/frappe/hrms) module structure; custom implementation.
+Dashboard, employees, users, shifts, attendance, leave, payroll, benefits, loans, compliance, memos, field work, tips.

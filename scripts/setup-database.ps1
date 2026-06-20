@@ -13,4 +13,4 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Write-Host "Applying seed..."
 & $mysql -u root -e "SOURCE $($seed -replace '\\','/')"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Write-Host "Done. Test logins: php scripts\test-login.php"
+Write-Host "Done. Start API with: npm run dev:api"

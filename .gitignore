@@ -12,7 +12,6 @@ server/.next
 server/public
 server/node_modules
 server/tsconfig.tsbuildinfo
-api/vendor
 dist
 dist-ssr
 *.local
@@ -31,10 +30,6 @@ dist-ssr
 *.sw?
 
 .cursor/ (keep folder only)
-api/uploads/documents/*
-!api/uploads/documents/.gitkeep
-api/uploads/photos/*
-!api/uploads/photos/.gitkeep
 
 .vercel
 .env*

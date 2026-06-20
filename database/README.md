@@ -64,8 +64,10 @@ C:\xampp\mysql\bin\mysql.exe -u root < database\archive\patch_drop_unused_module
 
 Then sign out and sign in again if permissions changed.
 
-## Verify logins
+## Verify API (local)
+
+With `npm run dev:api` running:
 
 ```powershell
-php scripts\test-login.php
+curl -s -X POST http://localhost:3001/api/auth/login -H "Content-Type: application/json" -d "{\"email\":\"hr@highwaygrill.local\",\"password\":\"dsadsadsa\"}"
 ```
