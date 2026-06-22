@@ -74,7 +74,7 @@ export const hrMenuEntries: NavEntry[] = [
   { to: '/hr/tips', label: 'Tips pool', icon: 'wallet', perm: 'payroll.view' },
   { to: '/hr/content', label: 'HR content', icon: 'memo', perm: 'employees.manage' },
   { to: '/hr/reports', label: 'Reports', icon: 'overtime', perm: 'reports.view' },
-  { to: '/leaves', label: 'Leave', icon: 'calendar', perm: 'leave.view' },
+  { to: '/leaves', label: 'Leave', icon: 'calendar', perm: ['leave.view', 'leave.approve', 'leave.manage'] },
   { to: '/payroll', label: 'Payroll', icon: 'wallet', perm: 'payroll.view' },
 ]
 

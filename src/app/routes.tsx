@@ -74,11 +74,9 @@ export function AppRoutes() {
         <Route
           path="leaves"
           element={
-            <RequirePermission permission={['leave.view', 'leave.apply', 'leave.approve', 'leave.manage']}>
-              <RequireLeaveAccess>
-                <LeavePage />
-              </RequireLeaveAccess>
-            </RequirePermission>
+            <RequireLeaveAccess>
+              <LeavePage />
+            </RequireLeaveAccess>
           }
         />
         <Route path="payroll" element={<PayrollRoute />} />
