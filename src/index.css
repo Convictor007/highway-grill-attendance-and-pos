@@ -638,6 +638,38 @@ th {
   border-color: var(--accent);
 }
 
+.stat-table-wrap {
+  padding: 0;
+  margin-bottom: 1.5rem;
+}
+
+.stat-table {
+  white-space: nowrap;
+}
+
+.stat-table thead th {
+  white-space: nowrap;
+}
+
+.stat-table tbody tr td {
+  border-bottom: none;
+}
+
+.stat-table__value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stat-table__value--link {
+  text-decoration: none;
+  color: var(--text);
+}
+
+.stat-table__value--link:hover {
+  color: var(--accent);
+}
+
 .stat-num {
   font-size: 2rem;
   font-weight: 600;

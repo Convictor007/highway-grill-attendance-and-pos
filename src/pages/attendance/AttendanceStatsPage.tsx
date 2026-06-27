@@ -3,6 +3,7 @@ import { api } from '../../lib/api'
 import { type LoadOptions, resolveLoadBehavior } from '../../lib/scroll'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
+import { StatRowTable } from '../../components/StatRowTable'
 import type { Branch } from '../../types/hrms'
 import { DatePicker } from '../../components/DatePicker'
 
@@ -99,24 +100,14 @@ export function AttendanceStatsPage() {
 
       {!loading && stats && (
         <>
-          <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-            <div className="card stat-card" style={{ cursor: 'default' }}>
-              <div className="stat-num">{stats.total_hours.toFixed(1)}</div>
-              <div className="stat-label">Total hours</div>
-            </div>
-            <div className="card stat-card" style={{ cursor: 'default' }}>
-              <div className="stat-num">{stats.attendance_rate}%</div>
-              <div className="stat-label">Presence rate</div>
-            </div>
-            <div className="card stat-card" style={{ cursor: 'default' }}>
-              <div className="stat-num">{stats.holiday_hours_worked}</div>
-              <div className="stat-label">Holiday hours</div>
-            </div>
-            <div className="card stat-card" style={{ cursor: 'default' }}>
-              <div className="stat-num">{stats.approved_overtime_hours}</div>
-              <div className="stat-label">Approved OT hrs</div>
-            </div>
-          </div>
+          <StatRowTable
+            items={[
+              { label: 'Total hours', value: stats.total_hours.toFixed(1) },
+              { label: 'Presence rate', value: `${stats.attendance_rate}%` },
+              { label: 'Holiday hours', value: stats.holiday_hours_worked },
+              { label: 'Approved OT hrs', value: stats.approved_overtime_hours },
+            ]}
+          />
 
           <div className="card table-wrap">
             <h3 className="section-title">By employee</h3>

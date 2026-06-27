@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
 import { isFieldStaff } from '../../lib/roles'
 import { PageHeader } from '../../components/PageHeader'
+import { StatRowTable } from '../../components/StatRowTable'
 import { formatDateShort } from '../../lib/datetime'
 import { workerClassLabel } from '../../lib/workerClass'
 import type { DashboardSummary, LeaveBalance, OrgMasterlistEntry } from '../../types/hrms'
@@ -124,19 +125,14 @@ export function DashboardPage() {
       )}
 
       {myBalances.length > 0 && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.5rem' }}>
           <h2 className="section-title">My leave balance</h2>
-          <div className="stat-grid">
-            {myBalances.map((b) => {
-              const rem = Number(b.accrued) - Number(b.used) - Number(b.pending)
-              return (
-                <div key={b.id} className="card stat-card" style={{ cursor: 'default' }}>
-                  <div className="stat-num">{rem.toFixed(0)}</div>
-                  <div className="stat-label">{b.leave_type_name} days left</div>
-                </div>
-              )
-            })}
-          </div>
+          <StatRowTable
+            items={myBalances.map((b) => ({
+              label: `${b.leave_type_name} days left`,
+              value: (Number(b.accrued) - Number(b.used) - Number(b.pending)).toFixed(0),
+            }))}
+          />
         </div>
       )}
 
@@ -151,14 +147,7 @@ export function DashboardPage() {
       {cards.length > 0 && (
         <>
           <h2 className="section-title">Overview</h2>
-          <div className="stat-grid">
-            {cards.map((c) => (
-              <Link key={c.label} to={c.to} className="card stat-card">
-                <div className="stat-num">{c.value ?? '—'}</div>
-                <div className="stat-label">{c.label}</div>
-              </Link>
-            ))}
-          </div>
+          <StatRowTable items={cards.map((c) => ({ label: c.label, value: c.value, to: c.to }))} />
         </>
       )}
 

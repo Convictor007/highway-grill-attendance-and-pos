@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import { hasPermission } from '../../lib/auth'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
+import { StatRowTable } from '../../components/StatRowTable'
 import { formatDateShort } from '../../lib/datetime'
 import { workerClassLabel } from '../../lib/workerClass'
 import type { Branch, DashboardSummary, OrgMasterlistEntry } from '../../types/hrms'
@@ -89,14 +90,7 @@ export function HrReportsPage() {
         <LoadingBlock />
       ) : (
         <>
-          <div className="stat-grid" style={{ marginBottom: '1.5rem' }}>
-            {cards.map((c) => (
-              <Link key={c.label} to={c.to} className="card stat-card">
-                <div className="stat-num">{c.value ?? '—'}</div>
-                <div className="stat-label">{c.label}</div>
-              </Link>
-            ))}
-          </div>
+          <StatRowTable items={cards.map((c) => ({ label: c.label, value: c.value, to: c.to }))} />
 
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <h3 className="section-title">Quick links</h3>
