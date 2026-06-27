@@ -640,7 +640,7 @@ th {
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 1px;
   margin-bottom: 1.5rem;
   background: var(--border);
