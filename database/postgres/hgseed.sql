@@ -133,12 +133,6 @@ INSERT INTO compliance_checklists (id, name, checklist_type, frequency, due_day)
 (3, 'Labor law poster review',       'labor',       'annual',  15)
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO announcements (id, branch_id, title, body, priority, posted_by, publish_at) VALUES
-(1, 1, 'Welcome to Highway Grill HR Portal',
- 'Use DTR to clock in, check Scheduling for your roster, and contact HR for leave or loan requests.',
- 'normal', 2, NOW())
-ON CONFLICT (id) DO NOTHING;
-
 INSERT INTO field_work_sites (id, branch_id, name, address, latitude, longitude, radius_m, is_active, clock_in_eligible) VALUES
 (1, 1, 'Main branch geofence', 'MacArthur Highway, Pampanga', 15.1458, 120.5906, 150, true, true)
 ON CONFLICT (id) DO NOTHING;
