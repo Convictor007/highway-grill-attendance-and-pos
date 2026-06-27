@@ -23,10 +23,3 @@ export function isActiveEmployee(user: AuthUser | null): boolean {
 export function canUseEmployeeFeatures(user: AuthUser | null): boolean {
   return isActiveEmployee(user)
 }
-
-/** Leave page: crew must be activated; HR/staff use leave.view without employee activation. */
-export function canAccessLeavePage(user: AuthUser | null): boolean {
-  if (!user) return false
-  if (!isEmployeePortal(user)) return true
-  return canUseEmployeeFeatures(user)
-}
