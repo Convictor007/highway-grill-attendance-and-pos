@@ -638,36 +638,56 @@ th {
   border-color: var(--accent);
 }
 
-.stat-table-wrap {
-  padding: 0;
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 1px;
   margin-bottom: 1.5rem;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
-.stat-table {
-  white-space: nowrap;
+.stat-row__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
 }
 
-.stat-table thead th {
-  white-space: nowrap;
+.stat-row__cell--link {
+  transition: background 0.15s ease;
 }
 
-.stat-table tbody tr td {
-  border-bottom: none;
+.stat-row__cell--link:hover {
+  background: var(--surface-hover);
 }
 
-.stat-table__value {
+.stat-row__value {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--text);
+  line-height: 1.1;
 }
 
-.stat-table__value--link {
-  text-decoration: none;
-  color: var(--text);
-}
-
-.stat-table__value--link:hover {
+.stat-row__cell--link:hover .stat-row__value {
   color: var(--accent);
+}
+
+.stat-row__label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* Narrow screens: force a 2-column layout instead of horizontal overflow. */
+@media (max-width: 640px) {
+  .stat-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .stat-num {

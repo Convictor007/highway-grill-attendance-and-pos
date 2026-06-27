@@ -11,38 +11,32 @@ type Props = {
   className?: string
 }
 
-/** Compact single-row metrics table (replaces the stat-card grid). */
+/**
+ * Compact metrics grid. Lays the items out in a single row when they fit,
+ * and reflows into multiple rows (2 columns on narrow screens) otherwise.
+ */
 export function StatRowTable({ items, className }: Props) {
   if (items.length === 0) return null
   return (
-    <div className={`card table-wrap stat-table-wrap${className ? ` ${className}` : ''}`}>
-      <table className="stat-table">
-        <thead>
-          <tr>
-            {items.map((item) => (
-              <th key={item.label}>{item.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            {items.map((item) => {
-              const display = item.value ?? '—'
-              return (
-                <td key={item.label}>
-                  {item.to ? (
-                    <Link to={item.to} className="stat-table__value stat-table__value--link">
-                      {display}
-                    </Link>
-                  ) : (
-                    <span className="stat-table__value">{display}</span>
-                  )}
-                </td>
-              )
-            })}
-          </tr>
-        </tbody>
-      </table>
+    <div className={`stat-row${className ? ` ${className}` : ''}`}>
+      {items.map((item) => {
+        const display = item.value ?? '—'
+        const content = (
+          <>
+            <span className="stat-row__value">{display}</span>
+            <span className="stat-row__label">{item.label}</span>
+          </>
+        )
+        return item.to ? (
+          <Link key={item.label} to={item.to} className="stat-row__cell stat-row__cell--link">
+            {content}
+          </Link>
+        ) : (
+          <div key={item.label} className="stat-row__cell">
+            {content}
+          </div>
+        )
+      })}
     </div>
   )
 }
