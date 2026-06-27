@@ -639,8 +639,8 @@ th {
 }
 
 .stat-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   margin-bottom: 1.5rem;
   background: var(--border);
@@ -651,6 +651,8 @@ th {
 
 .stat-row__cell {
   display: flex;
+  flex: 1 1 calc(25% - 1px);
+  min-width: 130px;
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.85rem 1rem;
@@ -683,10 +685,11 @@ th {
   font-size: 0.8rem;
 }
 
-/* Narrow screens: force a 2-column layout instead of horizontal overflow. */
+/* Narrow screens: 2 per row instead of horizontal overflow. */
 @media (max-width: 640px) {
-  .stat-row {
-    grid-template-columns: repeat(2, 1fr);
+  .stat-row__cell {
+    flex: 1 1 calc(50% - 1px);
+    min-width: 0;
   }
 }
 
