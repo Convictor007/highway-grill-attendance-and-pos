@@ -117,7 +117,21 @@ async function updatePayslipRow(payslipId: string, row: PayslipComputeRow): Prom
   )
 }
 
+/**
+ * Single source of truth for gross pay. Gross is ALWAYS the sum of the payslip's
+ * own earning columns, so a stored gross can never drift from its line items
+ * (e.g. when an allowance or credit adjustment is later removed).
+ */
+function recomputeGross(row: PayslipComputeRow): PayslipComputeRow {
+  row.gross_pay =
+    Math.round(
+      (row.basic_pay + row.overtime_pay + row.holiday_pay + row.tips_amount + row.benefits_amount) * 100,
+    ) / 100
+  return row
+}
+
 function applyNetPay(row: PayslipComputeRow): PayslipComputeRow {
+  recomputeGross(row)
   row.net_pay = Math.max(
     0,
     Math.round(
@@ -241,15 +255,16 @@ async function computeRegularPayslip(
   const holidayPay = await holidayPremiumPay(employeeId, periodStart, periodEnd, branchId, hourly)
   const overtimeHours = await approvedOvertimeHours(employeeId, periodStart, periodEnd)
   const overtimePay = Math.round(overtimeHours * hourly * 1.25 * 100) / 100
-  const benefitsAmount = await periodTotalForEmployee(employeeId, payFrequency)
+  const enrolledBenefits = await periodTotalForEmployee(employeeId, payFrequency)
   const adj = await payrollAdjustments.totalsForEmployee(employeeId, String(runRow.id))
-  const adjNet = Number(adj.net)
-  const adjDebits = Math.max(0, -adjNet)
-  const gross = Math.round((basicPay + holidayPay + overtimePay + benefitsAmount + Math.max(0, adjNet)) * 100) / 100
-  const profile = await getGovernmentProfile(employeeId)
-  const deductions = forPayPeriod(gross, payFrequency, profileToDeductionConfig(profile as Record<string, unknown>))
+  // Credit adjustments (bonus/allowance/meal/transport) are part of earnings, so
+  // fold them into the visible benefits line; debits flow into deductions. This
+  // keeps gross fully reconstructable from the payslip's own columns.
+  const adjCredits = Math.max(0, Number(adj.credits))
+  const adjDebits = Math.max(0, Number(adj.debits))
+  const benefitsAmount = Math.round((enrolledBenefits + adjCredits) * 100) / 100
 
-  return {
+  const row: PayslipComputeRow = {
     regular_hours: regularHours,
     overtime_hours: overtimeHours,
     holiday_hours: holidayHours,
@@ -258,15 +273,25 @@ async function computeRegularPayslip(
     holiday_pay: holidayPay,
     tips_amount: 0,
     benefits_amount: benefitsAmount,
-    gross_pay: gross,
-    sss_amount: deductions.sss,
-    philhealth_amount: deductions.philhealth,
-    pagibig_amount: deductions.pagibig,
-    tax_amount: deductions.tax,
+    gross_pay: 0,
+    sss_amount: 0,
+    philhealth_amount: 0,
+    pagibig_amount: 0,
+    tax_amount: 0,
     other_deductions: adjDebits,
     net_pay: 0,
     adj_debits: adjDebits,
   }
+  recomputeGross(row)
+
+  const profile = await getGovernmentProfile(employeeId)
+  const deductions = forPayPeriod(row.gross_pay, payFrequency, profileToDeductionConfig(profile as Record<string, unknown>))
+  row.sss_amount = deductions.sss
+  row.philhealth_amount = deductions.philhealth
+  row.pagibig_amount = deductions.pagibig
+  row.tax_amount = deductions.tax
+
+  return row
 }
 
 function assertCanRegenerate(runRow: Record<string, unknown>): void {
