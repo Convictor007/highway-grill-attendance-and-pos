@@ -65,13 +65,14 @@ INSERT INTO branches (id, name, address, phone, timezone, is_active, default_lat
 (1, 'Highway Grill', 'MacArthur Highway, Pampanga', '+63-45-000-0000', 'Asia/Manila', true, 15.1458, 120.5906)
 ON CONFLICT (id) DO NOTHING;
 
+-- "Service" (SVC) is the single customer-facing / dining-room department.
+-- (Front of House was merged into Service — see patch_merge_foh_into_service.sql)
 INSERT INTO departments (id, branch_id, name, cost_center) VALUES
-(1, 1, 'Management',     'MGMT'),
-(2, 1, 'Kitchen',        'KIT'),
-(3, 1, 'Service',        'SVC'),
-(4, 1, 'Front of House', 'FOH'),
-(5, 1, 'Bar',            'BAR'),
-(6, 1, 'Cafe',           'CAFE')
+(1, 1, 'Management', 'MGMT'),
+(2, 1, 'Kitchen',    'KIT'),
+(3, 1, 'Service',    'SVC'),
+(5, 1, 'Bar',        'BAR'),
+(6, 1, 'Cafe',       'CAFE')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hourly, is_tipped) VALUES
@@ -87,11 +88,11 @@ INSERT INTO positions (id, department_id, title, pay_grade, min_hourly, max_hour
 (10, 2, 'Kitchen Helper',     'K1',  65.00,  88.00, false),
 (11, 2, 'Sous Chef',          'K4',  90.00, 125.00, false),
 (12, 2, 'Pastry Chef',        'K3',  82.00, 118.00, false),
-(13, 4, 'Server',             'S2',  70.00, 100.00, true),
-(14, 4, 'Cashier',            'S2',  72.00,  95.00, false),
-(15, 4, 'Host',               'S2',  68.00,  92.00, false),
-(16, 4, 'Busser',             'S1',  62.00,  82.00, false),
-(17, 4, 'Food Runner',        'S1',  65.00,  85.00, false),
+(13, 3, 'Server',             'S2',  70.00, 100.00, true),
+(14, 3, 'Cashier',            'S2',  72.00,  95.00, false),
+(15, 3, 'Host',               'S2',  68.00,  92.00, false),
+(16, 3, 'Busser',             'S1',  62.00,  82.00, false),
+(17, 3, 'Food Runner',        'S1',  65.00,  85.00, false),
 (18, 5, 'Bartender',          'B3',  75.00, 110.00, true),
 (19, 6, 'Barista',            'C2',  70.00,  98.00, false),
 (20, 6, 'Cafe Server',        'C2',  68.00,  95.00, true),

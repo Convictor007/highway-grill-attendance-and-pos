@@ -1,5 +1,6 @@
 import { ValidationError } from './errors'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
+import { clockInstantToBranchDate, DEFAULT_BRANCH_TZ } from './branch-time'
 import { forPayPeriod, thirteenthMonthTax, profileToDeductionConfig } from './payroll-ph-deductions'
 import { getGovernmentProfile } from './government-benefits'
 import * as payrollAdjustments from './payroll-adjustments'
@@ -12,6 +13,9 @@ import {
   list as listLoans,
 } from './loans'
 export { sendRunPayslips, sendPayslip } from './payroll-payslip-mail'
+
+/** Branch-local calendar date derived from attendance.clock_in (TIMESTAMPTZ). */
+const CLOCK_IN_LOCAL_DATE = `(clock_in AT TIME ZONE '${DEFAULT_BRANCH_TZ}')::date`
 
 type PaginatedResult<T> = {
   items: T[]
@@ -172,15 +176,15 @@ async function countPayDays(
   if (includedDates && includedDates.length > 0) {
     const placeholders = includedDates.map((_, i) => `$${i + 2}`).join(', ')
     const rows = await unsafe<{ c: string }>(
-      `SELECT COUNT(DISTINCT DATE(clock_in)) AS c FROM attendance
-       WHERE employee_id = $1 AND DATE(clock_in) IN (${placeholders})`,
+      `SELECT COUNT(DISTINCT ${CLOCK_IN_LOCAL_DATE}) AS c FROM attendance
+       WHERE employee_id = $1 AND ${CLOCK_IN_LOCAL_DATE} IN (${placeholders})`,
       [employeeId, ...includedDates],
     )
     return Number(rows[0]?.c ?? 0)
   }
   const rows = await unsafe<{ c: string }>(
-    `SELECT COUNT(DISTINCT DATE(clock_in)) AS c FROM attendance
-     WHERE employee_id = $1 AND DATE(clock_in) BETWEEN $2 AND $3`,
+    `SELECT COUNT(DISTINCT ${CLOCK_IN_LOCAL_DATE}) AS c FROM attendance
+     WHERE employee_id = $1 AND ${CLOCK_IN_LOCAL_DATE} BETWEEN $2::date AND $3::date`,
     [employeeId, from, to],
   )
   return Number(rows[0]?.c ?? 0)
@@ -196,14 +200,14 @@ async function sumPayHours(
     const placeholders = includedDates.map((_, i) => `$${i + 2}`).join(', ')
     const rows = await unsafe<{ h: string }>(
       `SELECT COALESCE(SUM(actual_hours), 0) AS h FROM attendance
-       WHERE employee_id = $1 AND DATE(clock_in) IN (${placeholders})`,
+       WHERE employee_id = $1 AND ${CLOCK_IN_LOCAL_DATE} IN (${placeholders})`,
       [employeeId, ...includedDates],
     )
     return Math.round(Number(rows[0]?.h ?? 0) * 100) / 100
   }
   const rows = await unsafe<{ h: string }>(
     `SELECT COALESCE(SUM(actual_hours), 0) AS h FROM attendance
-     WHERE employee_id = $1 AND DATE(clock_in) BETWEEN $2 AND $3`,
+     WHERE employee_id = $1 AND ${CLOCK_IN_LOCAL_DATE} BETWEEN $2::date AND $3::date`,
     [employeeId, from, to],
   )
   return Math.round(Number(rows[0]?.h ?? 0) * 100) / 100
@@ -741,15 +745,16 @@ export function periodDateList(start: string, end: string): string[] {
 
 export async function attendanceByPeriodDay(employeeId: string, periodStart: string, periodEnd: string) {
   const rows = await unsafe<Record<string, unknown>>(
-    `SELECT DATE(clock_in) AS work_date, clock_in, clock_out, actual_hours, overtime_hours
+    `SELECT clock_in, clock_out, actual_hours, overtime_hours
      FROM attendance
-     WHERE employee_id = $1 AND DATE(clock_in) BETWEEN $2 AND $3
+     WHERE employee_id = $1 AND ${CLOCK_IN_LOCAL_DATE} BETWEEN $2::date AND $3::date
      ORDER BY clock_in`,
     [employeeId, periodStart, periodEnd],
   )
   const byDate: Record<string, Record<string, unknown>> = {}
   for (const row of rows) {
-    byDate[String(row.work_date).slice(0, 10)] = row
+    const key = clockInstantToBranchDate(row.clock_in)
+    if (key) byDate[key] = row
   }
 
   const out: Record<string, unknown>[] = []

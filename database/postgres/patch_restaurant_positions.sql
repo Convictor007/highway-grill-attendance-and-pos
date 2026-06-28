@@ -5,12 +5,14 @@
 
 BEGIN;
 
+-- NOTE: "Front of House" is intentionally NOT created here. The dining-room /
+-- customer-facing team lives under the "Service" department (see merge patch
+-- patch_merge_foh_into_service.sql). Re-adding FOH would re-split the team.
 INSERT INTO departments (branch_id, name, cost_center)
 SELECT 1, v.name, v.cc
 FROM (VALUES
-  ('Front of House', 'FOH'),
-  ('Bar',            'BAR'),
-  ('Cafe',           'CAFE')
+  ('Bar',  'BAR'),
+  ('Cafe', 'CAFE')
 ) AS v(name, cc)
 WHERE NOT EXISTS (
   SELECT 1 FROM departments d WHERE d.branch_id = 1 AND d.name = v.name
@@ -47,22 +49,6 @@ CROSS JOIN (VALUES
   ('Food Runner', 'S1', 65.00::numeric,  85.00::numeric, false)
 ) AS v(title, pg, min_h, max_h, tipped)
 WHERE d.branch_id = 1 AND d.name = 'Service'
-  AND NOT EXISTS (
-    SELECT 1 FROM positions p WHERE p.department_id = d.id AND p.title = v.title
-  );
-
--- Front of House
-INSERT INTO positions (department_id, title, pay_grade, min_hourly, max_hourly, is_tipped)
-SELECT d.id, v.title, v.pg, v.min_h, v.max_h, v.tipped
-FROM departments d
-CROSS JOIN (VALUES
-  ('Server',      'S2', 70.00::numeric, 100.00::numeric, true),
-  ('Cashier',     'S2', 72.00::numeric,  95.00::numeric, false),
-  ('Host',        'S2', 68.00::numeric,  92.00::numeric, false),
-  ('Busser',      'S1', 62.00::numeric,  82.00::numeric, false),
-  ('Food Runner', 'S1', 65.00::numeric,  85.00::numeric, false)
-) AS v(title, pg, min_h, max_h, tipped)
-WHERE d.branch_id = 1 AND d.name = 'Front of House'
   AND NOT EXISTS (
     SELECT 1 FROM positions p WHERE p.department_id = d.id AND p.title = v.title
   );
