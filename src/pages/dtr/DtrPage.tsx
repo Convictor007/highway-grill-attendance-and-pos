@@ -81,7 +81,14 @@ export function DtrPage() {
           mobile_clock?: boolean
           position_label?: string | null
           shift?: ShiftClockContext | null
-        }>('/attendance/status').catch(() => ({ open: false, on_break: false })),
+        }>('/attendance/status').catch(() => ({
+          open: false,
+          on_break: false,
+          geofence_required: false,
+          mobile_clock: false,
+          position_label: null,
+          shift: null,
+        })),
         api<HoursSummary>('/attendance/summary'),
         api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`),
       ])

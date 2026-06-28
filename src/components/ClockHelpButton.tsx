@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { usePopoverPosition } from '../hooks/usePopoverPosition'
 
 const HELP_POINTS = [
   'Clock in inside the work zone.',
@@ -11,6 +12,9 @@ const HELP_POINTS = [
 export function ClockHelpButton() {
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLSpanElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const popoverPos = usePopoverPosition(open, triggerRef, popoverRef)
 
   useEffect(() => {
     if (!open) return
@@ -33,6 +37,7 @@ export function ClockHelpButton() {
   return (
     <span className="clock-help" ref={wrapRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="clock-help__btn"
         aria-label="Time clock rules"
@@ -43,7 +48,18 @@ export function ClockHelpButton() {
         ?
       </button>
       {open && (
-        <div className="clock-help__popover picker-popover" role="dialog" aria-label="Time clock rules">
+        <div
+          ref={popoverRef}
+          className="clock-help__popover picker-popover picker-popover--fixed"
+          role="dialog"
+          aria-label="Time clock rules"
+          style={{
+            top: popoverPos?.top ?? 0,
+            left: popoverPos?.left ?? 0,
+            maxWidth: popoverPos?.maxWidth ?? 'calc(100vw - 16px)',
+            visibility: popoverPos ? 'visible' : 'hidden',
+          }}
+        >
           <p className="clock-help__title">How the time clock works</p>
           <ul className="clock-help__list">
             {HELP_POINTS.map((point) => (

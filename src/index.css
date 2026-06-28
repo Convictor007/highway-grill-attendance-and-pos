@@ -2927,8 +2927,8 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.5rem;
+  height: 1.5rem;
   padding: 0;
   border-radius: 50%;
   border: 1px solid var(--border);
@@ -2938,6 +2938,8 @@ th {
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .clock-help__btn:hover {
@@ -2946,10 +2948,7 @@ th {
 }
 
 .clock-help__popover {
-  top: calc(100% + 0.4rem);
-  left: auto;
-  right: 0;
-  min-width: 260px;
+  min-width: 0;
   width: min(320px, calc(100vw - 24px));
 }
 
@@ -2977,6 +2976,47 @@ th {
 .geofence-status-distance {
   font-weight: normal;
   opacity: 0.85;
+}
+
+@media (max-width: 560px) {
+  .clock-card {
+    padding: 1.25rem 1rem;
+  }
+
+  .clock-live {
+    font-size: 2rem;
+  }
+
+  .clock-status-row {
+    flex-wrap: wrap;
+  }
+
+  .clock-actions {
+    flex-wrap: wrap;
+  }
+
+  .clock-actions .btn-clock-in,
+  .clock-actions .btn-clock-out,
+  .clock-actions .btn-end-shift {
+    flex: 1 1 100%;
+  }
+
+  .dtr-summary-bar {
+    align-items: flex-start;
+  }
+
+  .dtr-summary-bar .clock-actions-inline {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .dtr-summary-bar .clock-actions-inline .btn {
+    flex: 1 1 auto;
+  }
+
+  .clock-help__popover {
+    width: min(320px, calc(100vw - 16px));
+  }
 }
 
 .modal-overlay {
