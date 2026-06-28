@@ -875,23 +875,43 @@ export async function prepareEmployee(
   const payslip = payslipId ? await getPayslip(payslipId) : null
 
   if (payslip && !attendanceEditMode) {
+    // Earnings and manually-edited deductions reflect what was generated/saved.
     for (const field of [
       'regular_hours',
       'basic_pay',
       'overtime_pay',
       'gross_pay',
-      'sss_amount',
-      'philhealth_amount',
-      'pagibig_amount',
-      'tax_amount',
       'other_deductions',
-      'net_pay',
     ]) {
       if (payslip[field] !== undefined) preview[field] = Number(payslip[field])
     }
     preview.loan_deduction = Number(payslip.loan_deduction ?? loanEst)
     preview.cash_advance = Number(payslip.cash_advance ?? cashAdvance)
     preview.housing_deduction = Number(payslip.housing_deduction ?? housing)
+    // Statutory deductions (SSS/PhilHealth/Pag-IBIG/tax) are managed in Benefits,
+    // so always show the current government-profile values rather than a stale
+    // amount baked into a previously-generated payslip. `computed` already holds
+    // the fresh profile-derived figures.
+    const sssAmount = Number(computed.sss_amount)
+    const philhealthAmount = Number(computed.philhealth_amount)
+    const pagibigAmount = Number(computed.pagibig_amount)
+    const taxAmount = Number(computed.tax_amount)
+    preview.sss_amount = sssAmount
+    preview.philhealth_amount = philhealthAmount
+    preview.pagibig_amount = pagibigAmount
+    preview.tax_amount = taxAmount
+    preview.net_pay = Math.max(
+      0,
+      Math.round(
+        (Number(preview.gross_pay) -
+          sssAmount -
+          philhealthAmount -
+          pagibigAmount -
+          taxAmount -
+          Number(preview.other_deductions)) *
+          100,
+      ) / 100,
+    )
   }
 
   const loans = await listLoans(employeeId)
