@@ -81,6 +81,7 @@ export function PayrollEmployeePrepare({
   const patchDeductions = (patch: Partial<DeductionForm>) => {
     setDeductions((prev) => ({ ...prev, ...patch }))
   }
+  const [activeTab, setActiveTab] = useState<'attendance' | 'deductions'>('attendance')
 
   const load = useCallback(
     async (dates?: string[], options?: LoadOptions) => {
@@ -118,6 +119,7 @@ export function PayrollEmployeePrepare({
       setLoading(false)
       return
     }
+    setActiveTab('attendance')
     load()
   }, [open, employeeId, load])
 
@@ -272,130 +274,159 @@ export function PayrollEmployeePrepare({
             edit deductions before generating this employee&apos;s payslip.
           </p>
 
-          <div className="table-wrap payroll-prepare-attendance">
-            <table>
-              <thead>
-                <tr>
-                  <th>Include</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                  <th>Time in</th>
-                  <th>Time out</th>
-                  <th>Hours</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.attendance.map((day) => (
-                  <tr key={day.date} className={day.present ? '' : 'payroll-day-absent'}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={included.has(day.date)}
-                        disabled={!canEdit || !day.present}
-                        onChange={(e) => toggleDate(day.date, e.target.checked)}
-                        aria-label={`Include ${day.date}`}
-                      />
-                    </td>
-                    <td>{formatDay(day.date)}</td>
-                    <td>{day.present ? 'Present' : 'No record'}</td>
-                    <td>{formatTime(day.clock_in)}</td>
-                    <td>{formatTime(day.clock_out)}</td>
-                    <td>{day.present ? Number(day.actual_hours).toFixed(2) : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="tabs payroll-prepare-tabs" role="tablist" aria-label="Payroll sections">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'attendance'}
+              className={`tab ${activeTab === 'attendance' ? 'active' : ''}`}
+              onClick={() => setActiveTab('attendance')}
+            >
+              Attendance
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'deductions'}
+              className={`tab ${activeTab === 'deductions' ? 'active' : ''}`}
+              onClick={() => setActiveTab('deductions')}
+            >
+              Deductions
+            </button>
           </div>
 
-          <p className="muted-block payroll-prepare-count">
-            Pay basis: <strong>{counted}</strong> {unit} selected
-            {' · '}
-            Basic pay preview: <strong>{money(preview.basic_pay)}</strong>
-            {' · '}
-            Gross: <strong>{money(preview.gross_pay)}</strong>
-          </p>
+          {activeTab === 'attendance' && (
+            <div role="tabpanel">
+              <div className="table-wrap payroll-prepare-attendance">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Include</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th>Time in</th>
+                      <th>Time out</th>
+                      <th>Hours</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.attendance.map((day) => (
+                      <tr key={day.date} className={day.present ? '' : 'payroll-day-absent'}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={included.has(day.date)}
+                            disabled={!canEdit || !day.present}
+                            onChange={(e) => toggleDate(day.date, e.target.checked)}
+                            aria-label={`Include ${day.date}`}
+                          />
+                        </td>
+                        <td>{formatDay(day.date)}</td>
+                        <td>{day.present ? 'Present' : 'No record'}</td>
+                        <td>{formatTime(day.clock_in)}</td>
+                        <td>{formatTime(day.clock_out)}</td>
+                        <td>{day.present ? Number(day.actual_hours).toFixed(2) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-          {data.loans.length > 0 && (
-            <div className="payroll-prepare-loans">
-              <h4 className="subsection-title">Active loans</h4>
-              <ul>
-                {data.loans.map((l) => (
-                  <li key={l.id}>
-                    {l.loan_type ?? 'Loan'} — balance {money(l.balance)}, monthly {money(l.monthly_deduction)}
-                  </li>
-                ))}
-              </ul>
+              <p className="muted-block payroll-prepare-count">
+                Pay basis: <strong>{counted}</strong> {unit} selected
+                {' · '}
+                Basic pay preview: <strong>{money(preview.basic_pay)}</strong>
+                {' · '}
+                Gross: <strong>{money(preview.gross_pay)}</strong>
+              </p>
             </div>
           )}
 
-          <div className="payroll-prepare-deductions">
-            <h4 className="subsection-title">Statutory deductions</h4>
-            <p className="form-hint">
-              Managed in <strong>Benefits</strong> and applied automatically. Edit member IDs and
-              amounts there.
-            </p>
-            <ul className="payroll-statutory-list">
-              <li>
-                <span>SSS</span>
-                <strong>{money(statutory.sss)}</strong>
-              </li>
-              <li>
-                <span>PhilHealth</span>
-                <strong>{money(statutory.philhealth)}</strong>
-              </li>
-              <li>
-                <span>Pag-IBIG</span>
-                <strong>{money(statutory.pagibig)}</strong>
-              </li>
-              <li>
-                <span>Tax</span>
-                <strong>{money(statutory.tax)}</strong>
-              </li>
-            </ul>
+          {activeTab === 'deductions' && (
+            <div role="tabpanel">
+              {data.loans.length > 0 && (
+                <div className="payroll-prepare-loans">
+                  <h4 className="subsection-title">Active loans</h4>
+                  <ul>
+                    {data.loans.map((l) => (
+                      <li key={l.id}>
+                        {l.loan_type ?? 'Loan'} — balance {money(l.balance)}, monthly {money(l.monthly_deduction)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-            <h4 className="subsection-title">Other deductions (edit before generate)</h4>
-            <div className="form-row">
-              <div className="form-group">
-                <label>Loan deduction</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={deductions.loan_deduction}
-                  disabled={!canEdit}
-                  onChange={(e) => patchDeductions({ loan_deduction: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Cash advance</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={deductions.cash_advance}
-                  disabled={!canEdit}
-                  onChange={(e) => patchDeductions({ cash_advance: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Housing / stay-in (HSNG)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={deductions.housing_deduction}
-                  disabled={!canEdit}
-                  onChange={(e) => patchDeductions({ housing_deduction: e.target.value })}
-                />
+              <div className="payroll-prepare-deductions">
+                <h4 className="subsection-title">Statutory deductions</h4>
+                <p className="form-hint">
+                  Managed in <strong>Benefits</strong> and applied automatically. Edit member IDs and
+                  amounts there.
+                </p>
+                <ul className="payroll-statutory-list">
+                  <li>
+                    <span>SSS</span>
+                    <strong>{money(statutory.sss)}</strong>
+                  </li>
+                  <li>
+                    <span>PhilHealth</span>
+                    <strong>{money(statutory.philhealth)}</strong>
+                  </li>
+                  <li>
+                    <span>Pag-IBIG</span>
+                    <strong>{money(statutory.pagibig)}</strong>
+                  </li>
+                  <li>
+                    <span>Tax</span>
+                    <strong>{money(statutory.tax)}</strong>
+                  </li>
+                </ul>
+
+                <h4 className="subsection-title">Other deductions (edit before generate)</h4>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Loan deduction</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={deductions.loan_deduction}
+                      disabled={!canEdit}
+                      onChange={(e) => patchDeductions({ loan_deduction: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Cash advance</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={deductions.cash_advance}
+                      disabled={!canEdit}
+                      onChange={(e) => patchDeductions({ cash_advance: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Housing / stay-in (HSNG)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={deductions.housing_deduction}
+                      disabled={!canEdit}
+                      onChange={(e) => patchDeductions({ housing_deduction: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <p className="payroll-prepare-net">
+                  Net pay preview: <strong>{money(netPreview)}</strong>
+                  {savedNet != null && Math.abs(savedNet - netPreview) > 0.009 && (
+                    <span className="muted-inline" style={{ marginLeft: '0.5rem' }}>
+                      (saved: {money(savedNet)} — click Save to apply edits)
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
-            <p className="payroll-prepare-net">
-              Net pay preview: <strong>{money(netPreview)}</strong>
-              {savedNet != null && Math.abs(savedNet - netPreview) > 0.009 && (
-                <span className="muted-inline" style={{ marginLeft: '0.5rem' }}>
-                  (saved: {money(savedNet)} — click Save to apply edits)
-                </span>
-              )}
-            </p>
-          </div>
+          )}
         </>
       )}
     </Modal>

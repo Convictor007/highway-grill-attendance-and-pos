@@ -4469,9 +4469,12 @@ tr.row-clickable:hover td {
   margin: 0 0 1rem;
 }
 
+.payroll-prepare-tabs {
+  margin-bottom: 1rem;
+}
+
 .payroll-prepare-attendance {
-  max-height: 52vh;
-  overflow: auto;
+  overflow-x: auto;
   margin-bottom: 1rem;
   border: 1px solid var(--border);
   border-radius: 6px;
