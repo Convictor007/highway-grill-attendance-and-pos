@@ -86,18 +86,21 @@ export function PayslipTemplate({ payslip, companyName = 'Highway Grill' }: Prop
       </header>
 
       <table className="payslip-tpl-top-table">
+        <thead>
+          <tr>
+            <th className="payslip-tpl-top-head">BASIC PAY</th>
+            <th className="payslip-tpl-top-head">OVERTIME</th>
+            <th className="payslip-tpl-top-head payslip-tpl-top-head--total">TOTAL EARNINGS</th>
+          </tr>
+        </thead>
         <tbody>
           <tr>
-            <td className="payslip-tpl-top-label">BASIC PAY:</td>
             <td className="payslip-tpl-top-value">
               <AmountCell value={d.basicPay} />
             </td>
-            <td className="payslip-tpl-top-gap" />
-            <td className="payslip-tpl-top-label">OT</td>
             <td className="payslip-tpl-top-value">
               <AmountCell value={d.overtime} />
             </td>
-            <td className="payslip-tpl-top-gap" />
             <td className="payslip-tpl-top-value payslip-tpl-top-total">
               <AmountCell value={d.earningsSubtotal} />
             </td>

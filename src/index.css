@@ -4844,23 +4844,34 @@ tr.row-clickable:hover td {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 0.75rem;
-  border-bottom: 1px solid var(--ps-line);
+  border: 1px solid var(--ps-line);
   font-size: 0.78rem;
+  table-layout: fixed;
+}
+
+.payslip-tpl-top-head {
+  padding: 0.35rem 0.6rem;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ps-maroon);
+  background: var(--ps-tint, rgba(122, 0, 0, 0.06));
+  border-bottom: 1px solid var(--ps-line);
+}
+
+.payslip-tpl-top-head + .payslip-tpl-top-head {
+  border-left: 1px solid var(--ps-line);
+}
+
+.payslip-tpl-top-head--total {
+  color: var(--ps-maroon);
 }
 
 .payslip-tpl-top-table td {
-  padding: 0.5rem 0.35rem;
+  padding: 0.5rem 0.6rem;
   vertical-align: baseline;
-}
-
-.payslip-tpl-top-table tr td:last-child {
-  text-align: right;
-}
-
-.payslip-tpl-top-label {
-  font-weight: 700;
-  color: var(--ps-maroon);
-  white-space: nowrap;
 }
 
 .payslip-tpl-top-value {
@@ -4868,13 +4879,18 @@ tr.row-clickable:hover td {
   white-space: nowrap;
 }
 
-.payslip-tpl-top-gap {
-  width: 1rem;
+.payslip-tpl-top-value + .payslip-tpl-top-value {
+  border-left: 1px solid var(--ps-line);
+}
+
+.payslip-tpl-top-total {
+  background: var(--ps-tint, rgba(122, 0, 0, 0.04));
 }
 
 .payslip-tpl-top-total .payslip-tpl-amt {
   font-size: 0.95rem;
   font-weight: 700;
+  color: var(--ps-maroon);
 }
 
 .payslip-tpl-amt {
