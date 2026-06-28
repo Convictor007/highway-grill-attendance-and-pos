@@ -57,6 +57,13 @@ function formatDate(iso: string) {
   return new Date(iso + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+function formatDateNumeric(iso: string) {
+  const d = new Date(iso + 'T12:00:00')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${mm}/${dd}/${d.getFullYear()}`
+}
+
 function workDateFromClockIn(clockIn: string) {
   return clockIn.slice(0, 10)
 }
@@ -386,29 +393,40 @@ export function EmployeeHomePage() {
         {recent.length === 0 ? (
           <p className="muted-block">No clock records yet this week.</p>
         ) : (
-          <ul className="dtr-list">
-            {recent.map((r) => (
-                <li key={r.id} className="dtr-row">
-                  <div className="dtr-row-date">
-                    <span className="dtr-day">{formatDate(workDateFromClockIn(r.clock_in))}</span>
-                  </div>
-                  <div className="dtr-row-times">
-                    <span>
-                      <small>In</small> {formatTime(r.clock_in)}
-                    </span>
-                    <span>
-                      <small>Out</small> {formatTime(r.clock_out)}
-                    </span>
-                  </div>
-                  <div className="dtr-row-hours">
-                    {r.actual_hours != null ? `${Number(r.actual_hours).toFixed(1)}h` : open && !r.clock_out ? '…' : '—'}
-                    {r.overtime_hours != null && Number(r.overtime_hours) > 0 && (
-                      <span className="dtr-row-ot">OT {Number(r.overtime_hours).toFixed(2)}h</span>
-                    )}
-                  </div>
-                </li>
-            ))}
-          </ul>
+          <div className="table-wrap">
+            <table className="dtr-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>In</th>
+                  <th>Out</th>
+                  <th>Hours</th>
+                  <th>OT</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((r) => (
+                  <tr key={r.id}>
+                    <td>{formatDateNumeric(workDateFromClockIn(r.clock_in))}</td>
+                    <td>{formatTime(r.clock_in)}</td>
+                    <td>{formatTime(r.clock_out)}</td>
+                    <td>
+                      {r.actual_hours != null
+                        ? `${Number(r.actual_hours).toFixed(1)}h`
+                        : open && !r.clock_out
+                          ? '…'
+                          : '—'}
+                    </td>
+                    <td>
+                      {r.overtime_hours != null && Number(r.overtime_hours) > 0
+                        ? `${Number(r.overtime_hours).toFixed(2)}h`
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
     </div>
