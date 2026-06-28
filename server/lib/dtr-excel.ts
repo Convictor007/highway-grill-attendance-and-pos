@@ -39,6 +39,7 @@ export async function generateDtrExcel(report: DtrReport): Promise<Buffer> {
     'OT hrs',
     'Late (min)',
     'Early out (min)',
+    'Late out (min)',
     'Notes',
   ]
   const headerRow = ws.getRow(5)
@@ -73,6 +74,7 @@ export async function generateDtrExcel(report: DtrReport): Promise<Buffer> {
       d.overtime_hours ?? '',
       d.late_in_minutes ?? '',
       d.early_out_minutes ?? '',
+      d.late_out_minutes ?? '',
       d.leave_type ?? d.remarks ?? '',
     ]
     values.forEach((v, i) => {

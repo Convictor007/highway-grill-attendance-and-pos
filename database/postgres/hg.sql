@@ -300,7 +300,7 @@ CREATE TABLE attendance (
     approved_by          INTEGER REFERENCES users(id) ON DELETE SET NULL,
     approved_at          TIMESTAMPTZ,
     clock_out_type       VARCHAR(30)
-        CHECK (clock_out_type IN ('manual', 'auto_midnight_cascade', 'auto_outside')),
+        CHECK (clock_out_type IN ('manual', 'auto_midnight_cascade', 'auto_outside', 'auto_stale_sweep')),
     outside_since        TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

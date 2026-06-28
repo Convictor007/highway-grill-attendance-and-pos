@@ -33,6 +33,22 @@ export function todayInBranchTz(offsetMs = MANILA_OFFSET_MS): string {
   return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`
 }
 
+/** Branch-local calendar date (YYYY-MM-DD) for a clock instant (UTC TIMESTAMPTZ). */
+export function clockInstantToBranchDate(value: unknown, offsetMs = MANILA_OFFSET_MS): string {
+  const ms = parseClockInstant(value)
+  if (Number.isNaN(ms)) return ''
+  const d = new Date(ms + offsetMs)
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`
+}
+
+/** True when clock-out falls on a later branch-local day than clock-in (crossed midnight). */
+export function crossedBranchMidnight(clockIn: unknown, clockOut: unknown, offsetMs = MANILA_OFFSET_MS): boolean {
+  const inDate = clockInstantToBranchDate(clockIn, offsetMs)
+  const outDate = clockInstantToBranchDate(clockOut, offsetMs)
+  if (!inDate || !outDate) return false
+  return outDate > inDate
+}
+
 /** Parse attendance TIMESTAMPTZ (UTC instant) from DB Date or ISO string. */
 export function parseClockInstant(value: unknown): number {
   if (value instanceof Date) return value.getTime()

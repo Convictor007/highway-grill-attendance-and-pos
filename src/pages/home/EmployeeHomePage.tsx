@@ -10,7 +10,6 @@ import {
   type ShiftClockContext,
 } from '../../lib/clock'
 import { resolveClockOpenState } from '../../lib/clockState'
-import { CLOCK_GEOFENCE_POLICY } from '../../lib/clockPolicy'
 import { formatClockTime } from '../../lib/timeFormat'
 import { todayLocalIsoDate, toLocalIsoDate, normalizeShiftDate } from '../../lib/datetime'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
@@ -18,6 +17,7 @@ import { reverseGeocode } from '../../lib/geocode'
 import { useAuth } from '../../context/AuthContext'
 import { canUseEmployeeFeatures } from '../../lib/accountStatus'
 import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
+import { ClockHelpButton } from '../../components/ClockHelpButton'
 import { ClockLocationModal } from '../../components/ClockLocationModal'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
@@ -66,6 +66,7 @@ export function EmployeeHomePage() {
   const [open, setOpen] = useState(false)
   const [onBreak, setOnBreak] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<'in' | 'out' | null>(null)
   const [weekHours, setWeekHours] = useState<HoursSummary | null>(null)
   const [todayShift, setTodayShift] = useState<MyShift | null>(null)
   const [recent, setRecent] = useState<AttendanceRecord[]>([])
@@ -155,6 +156,7 @@ export function EmployeeHomePage() {
   const handleClockIn = async () => {
     if (!canClock) return
     setBusy(true)
+    setPending('in')
     setClockError(null)
     try {
       await doClockIn(geofenceRequired)
@@ -169,12 +171,14 @@ export function EmployeeHomePage() {
       }
     } finally {
       setBusy(false)
+      setPending(null)
     }
   }
 
   const handleClockOut = async () => {
     if (!canClock) return
     setBusy(true)
+    setPending('out')
     setClockError(null)
     try {
       await doClockOut()
@@ -183,6 +187,7 @@ export function EmployeeHomePage() {
       setClockError(clockErrorMessage(err))
     } finally {
       setBusy(false)
+      setPending(null)
     }
   }
 
@@ -247,7 +252,10 @@ export function EmployeeHomePage() {
         <p className="clock-live" aria-live="polite">
           {now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
         </p>
-        <p className={`clock-status-pill ${statusClass}`}>{statusLabel}</p>
+        <div className="clock-status-row">
+          <p className={`clock-status-pill ${statusClass}`}>{statusLabel}</p>
+          <ClockHelpButton />
+        </div>
         {currentAddress && (
           <p className="geo-address-line muted-block" style={{ marginBottom: '0.75rem' }}>
             {currentAddress}
@@ -274,9 +282,6 @@ export function EmployeeHomePage() {
           requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
-        {open && geofenceRequired && (
-          <p className="muted-block clock-policy-note">{CLOCK_GEOFENCE_POLICY}</p>
-        )}
         {clockError && <p className="error-msg">{clockError}</p>}
         <div className="clock-actions">
           {!open ? (
@@ -286,7 +291,7 @@ export function EmployeeHomePage() {
               disabled={busy || !canClock || !geofence.canClockIn || geofence.loading}
               onClick={handleClockIn}
             >
-              Clock in
+              {pending === 'in' ? 'Clocking in…' : 'Clock in'}
             </button>
           ) : (
             <>
@@ -306,11 +311,11 @@ export function EmployeeHomePage() {
                   disabled={busy || onBreak || !canClock}
                   onClick={handleClockOut}
                 >
-                  End shift
+                  {pending === 'out' ? 'Ending shift…' : 'End shift'}
                 </button>
               )}
               <button type="button" className="btn btn-clock-out" disabled={busy || onBreak || !canClock} onClick={handleClockOut}>
-                Clock out
+                {pending === 'out' ? 'Clocking out…' : 'Clock out'}
               </button>
             </>
           )}

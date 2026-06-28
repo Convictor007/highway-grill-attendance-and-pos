@@ -8,6 +8,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
 import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
+import { ClockHelpButton } from '../../components/ClockHelpButton'
 import { AttendanceEditModal } from '../../components/AttendanceEditModal'
 import { DatePicker } from '../../components/DatePicker'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
@@ -27,6 +28,7 @@ export function AttendancePage() {
   const [weekHours, setWeekHours] = useState<{ total_hours: number; shift_count: number } | null>(null)
   const [date, setDate] = useState(todayLocalIsoDate)
   const [loading, setLoading] = useState(true)
+  const [pending, setPending] = useState<'in' | 'out' | null>(null)
   const [clockError, setClockError] = useState<string | null>(null)
   const [geofenceRequired, setGeofenceRequired] = useState(false)
   const geofence = useClockGeofence(geofenceRequired && canSelf, { sessionActive: open && canSelf })
@@ -70,6 +72,7 @@ export function AttendancePage() {
   }, [date])
 
   const clockIn = async () => {
+    setPending('in')
     setClockError(null)
     try {
       await doClockIn(geofenceRequired)
@@ -77,16 +80,21 @@ export function AttendancePage() {
       load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
+    } finally {
+      setPending(null)
     }
   }
 
   const clockOut = async () => {
+    setPending('out')
     setClockError(null)
     try {
       await doClockOut()
       load({ silent: true })
     } catch (err) {
       setClockError(clockErrorMessage(err))
+    } finally {
+      setPending(null)
     }
   }
 
@@ -123,7 +131,10 @@ export function AttendancePage() {
 
       {canSelf && user?.employee_id && (
         <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h3 className="section-title">Time clock</h3>
+          <div className="clock-status-row" style={{ justifyContent: 'flex-start' }}>
+            <h3 className="section-title" style={{ margin: 0 }}>Time clock</h3>
+            <ClockHelpButton />
+          </div>
           <p style={{ marginBottom: '0.75rem' }}>
             {onBreak ? 'You are on break.' : open ? 'You are clocked in.' : 'You are clocked out.'}
           </p>
@@ -156,10 +167,10 @@ export function AttendancePage() {
               <button
                 type="button"
                 className="btn btn-clock-in btn-sm"
-                disabled={!geofence.canClockIn || geofence.loading}
+                disabled={pending !== null || !geofence.canClockIn || geofence.loading}
                 onClick={clockIn}
               >
-                Clock in
+                {pending === 'in' ? 'Clocking in…' : 'Clock in'}
               </button>
             ) : (
               <>
@@ -172,8 +183,8 @@ export function AttendancePage() {
                     End break
                   </button>
                 )}
-                <button type="button" className="btn btn-clock-out btn-sm" disabled={onBreak} onClick={clockOut}>
-                  Clock out
+                <button type="button" className="btn btn-clock-out btn-sm" disabled={onBreak || pending !== null} onClick={clockOut}>
+                  {pending === 'out' ? 'Clocking out…' : 'Clock out'}
                 </button>
               </>
             )}

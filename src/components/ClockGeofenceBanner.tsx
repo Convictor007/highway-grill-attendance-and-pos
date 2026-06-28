@@ -33,7 +33,6 @@ export function ClockGeofenceBanner({
   sessionActive = false,
   loading,
   inside,
-  siteName,
   locationDenied,
   locationError,
   checkedOnce = true,
@@ -71,24 +70,18 @@ export function ClockGeofenceBanner({
         <>Checking your location…</>
       ) : sessionActive ? (
         inside ? (
-          <>Inside branch zone: <strong>{siteName ?? 'Work zone'}</strong></>
+          <>Location confirmed — you&apos;re at your branch.</>
         ) : (
           <>
             Outside work zone.
             {nearestLabel && (
               <span className="geofence-status-distance"> Nearest: {nearestLabel}.</span>
             )}
-            {vicinity?.auto_outside_eligible && vicinity.seconds_until_auto_out != null ? (
+            {vicinity?.auto_outside_eligible && vicinity.seconds_until_auto_out != null && (
               <>
                 {' '}
                 Auto clock-out in <strong>{formatCountdown(vicinity.seconds_until_auto_out)}</strong>
                 {vicinity.past_midnight ? ' (past midnight).' : '.'}
-              </>
-            ) : (
-              <>
-                {' '}
-                Auto clock-out applies after midnight if you stay outside for{' '}
-                {vicinity?.outside_grace_minutes ?? 5} minutes.
               </>
             )}
           </>
@@ -112,16 +105,13 @@ export function ClockGeofenceBanner({
           )}
         </div>
       ) : inside ? (
-        <>
-          Inside branch zone: <strong>{siteName ?? 'Work zone'}</strong>
-        </>
+        <>Location confirmed — you&apos;re at your branch.</>
       ) : (
         <>
           Outside work zone — move inside the check-in area to clock in.
           {nearestLabel && (
             <span className="geofence-status-distance"> Nearest: {nearestLabel}</span>
           )}
-          <span className="geofence-status-distance"> GPS tolerance is applied to the zone radius.</span>
         </>
       )}
     </div>

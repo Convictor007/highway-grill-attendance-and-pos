@@ -30,6 +30,7 @@ export type DtrDayRow = {
   overtime_hours: number | null
   late_in_minutes: number | null
   early_out_minutes: number | null
+  late_out_minutes: number | null
   early_in_minutes: number | null
   leave_type: string | null
   holiday_name: string | null
@@ -271,6 +272,7 @@ export async function buildDtrReport(employeeId: string, from: string, to: strin
     let overtimeHours: number | null = null
     let lateIn: number | null = null
     let earlyOut: number | null = null
+    let lateOut: number | null = null
     let earlyIn: number | null = null
 
     if (records.length > 0) {
@@ -286,6 +288,7 @@ export async function buildDtrReport(employeeId: string, from: string, to: strin
       let ot = 0
       let late = 0
       let early = 0
+      let lateOutSum = 0
       let earlyInSum = 0
       for (const r of records) {
         reg += Number(r.regular_hours ?? 0)
@@ -293,6 +296,7 @@ export async function buildDtrReport(employeeId: string, from: string, to: strin
         ot += Number(r.overtime_hours ?? 0)
         late += Number(r.late_in_minutes ?? 0)
         early += Number(r.early_out_minutes ?? 0)
+        lateOutSum += Number(r.late_out_minutes ?? 0)
         earlyInSum += Number(r.early_in_minutes ?? 0)
       }
       regularHours = round2(reg)
@@ -300,6 +304,7 @@ export async function buildDtrReport(employeeId: string, from: string, to: strin
       overtimeHours = round2(ot)
       lateIn = late > 0 ? late : null
       earlyOut = early > 0 ? early : null
+      lateOut = lateOutSum > 0 ? lateOutSum : null
       earlyIn = earlyInSum > 0 ? earlyInSum : null
 
       if (status === 'worked' || status === 'incomplete') {
@@ -326,6 +331,7 @@ export async function buildDtrReport(employeeId: string, from: string, to: strin
       overtime_hours: overtimeHours && overtimeHours > 0 ? overtimeHours : null,
       late_in_minutes: lateIn,
       early_out_minutes: earlyOut,
+      late_out_minutes: lateOut,
       early_in_minutes: earlyIn,
       leave_type: leaveType,
       holiday_name: holidayName,

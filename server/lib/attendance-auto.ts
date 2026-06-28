@@ -1,8 +1,14 @@
-import { todayInBranchTz } from './branch-time'
+import {
+  clockInstantToBranchDate,
+  crossedBranchMidnight,
+  parseClockInstant,
+  todayInBranchTz,
+} from './branch-time'
 import { getDb } from './db'
 import * as fieldWork from './field-work'
 import {
   computeHourSplit,
+  MAX_REGULAR_HOURS as MAX_REGULAR_HOURS_VALUE,
   resolveShiftTiming,
   timingToDbColumns,
   workedHours,
@@ -23,7 +29,7 @@ async function getRecord(id: string) {
   return rows[0] ?? null
 }
 
-async function openSession(employeeId: string) {
+export async function openSession(employeeId: string) {
   const db = getDb()
   const rows = await db`
     SELECT * FROM attendance WHERE employee_id = ${employeeId} AND clock_out IS NULL
@@ -41,7 +47,7 @@ async function resolveShift(record: Record<string, unknown>, employeeId: string)
     `
     if (rows[0]) return rows[0] as ShiftAssignment
   }
-  const date = String(record.clock_in).slice(0, 10)
+  const date = clockInstantToBranchDate(record.clock_in)
   const rows = await db`
     SELECT shift_date, start_time, end_time FROM shift_assignments
     WHERE employee_id = ${employeeId} AND shift_date = ${date}
@@ -81,20 +87,54 @@ async function closeSession(
       clock_out_address = COALESCE(${address ?? null}, clock_out_address)
     WHERE id = ${String(open.id)}
   `
-  if (split.overtime > 0) {
-    await upsertAutoFromAttendance(
-      String(open.id),
-      String(open.employee_id),
-      String(open.clock_in).slice(0, 10),
-      split.overtime,
-      `${split.reason} (${clockOutType})`,
-    )
-  }
+  // Always sync: creates/updates the auto OT row, or clears it when OT is now 0.
+  await upsertAutoFromAttendance(
+    String(open.id),
+    String(open.employee_id),
+    String(open.clock_in).slice(0, 10),
+    split.overtime,
+    `${split.reason} (${clockOutType})`,
+  )
   return (await getRecord(String(open.id)))!
 }
 
-function isPastMidnight(clockIn: string, clockOut: string): boolean {
-  return clockOut.slice(0, 10) > clockIn.slice(0, 10)
+/** Crew members on the same shift block are assumed to clock in within this window. */
+const PEER_WINDOW_HOURS = 6
+
+/**
+ * Latest clock-out among co-workers at the same branch who worked the same shift
+ * block as the forgotten session. Used so a forgotten session inherits the crew's
+ * real clock-out time instead of running for hours/days. Peers are limited to those
+ * who clocked in within PEER_WINDOW_HOURS of this session so the morning crew does
+ * not get matched against the afternoon/night crew. Returns a DB timestamp string,
+ * or null if no overlapping peer clocked out.
+ */
+async function latestPeerClockOut(
+  branchId: string,
+  clockIn: unknown,
+  excludeEmployeeId: string,
+): Promise<string | null> {
+  const clockInMs = parseClockInstant(clockIn)
+  if (Number.isNaN(clockInMs)) return null
+  const windowMs = PEER_WINDOW_HOURS * 60 * 60 * 1000
+  const lower = new Date(clockInMs - windowMs).toISOString()
+  const upper = new Date(clockInMs + windowMs).toISOString()
+  const db = getDb()
+  const rows = await db`
+    SELECT MAX(a.clock_out) AS t
+    FROM attendance a
+    INNER JOIN employees e ON e.id = a.employee_id
+    WHERE e.branch_id = ${branchId}
+      AND a.clock_out IS NOT NULL
+      AND a.clock_in >= ${lower}
+      AND a.clock_in <= ${upper}
+      AND a.employee_id != ${excludeEmployeeId}
+  `
+  const t = rows[0]?.t
+  if (!t) return null
+  const ms = parseClockInstant(t)
+  if (Number.isNaN(ms)) return null
+  return new Date(ms).toISOString().replace('T', ' ').slice(0, 19)
 }
 
 export async function linkShiftOnClockIn(attendanceId: string, employeeId: string) {
@@ -130,14 +170,19 @@ export async function manualClockOut(
   }
   const now = new Date().toISOString().replace('T', ' ').slice(0, 19)
   const closed = await closeSession(open, now, 'manual', latitude, longitude, address)
-  if (inside && isPastMidnight(String(open.clock_in), now) && branchId) {
+  if (inside && crossedBranchMidnight(open.clock_in, now) && branchId) {
     const others = await getDb()`
       SELECT a.* FROM attendance a
       INNER JOIN employees e ON e.id = a.employee_id
       WHERE a.clock_out IS NULL AND e.branch_id = ${branchId} AND a.employee_id != ${employeeId}
     `
     for (const o of others) {
-      await closeSession(o, now, 'auto_midnight_cascade', null, null, null)
+      const peerOut = await latestPeerClockOut(branchId, o.clock_in, String(o.employee_id))
+      // Inherit the crew's latest real clock-out; fall back to "now" if it would
+      // land before this person's clock-in (e.g. peers worked an earlier shift).
+      const closeAt =
+        peerOut && parseClockInstant(peerOut) > parseClockInstant(o.clock_in) ? peerOut : now
+      await closeSession(o, closeAt, 'auto_midnight_cascade', null, null, null)
     }
   }
   return closed
@@ -161,16 +206,70 @@ export async function recalculateForRecord(attendanceId: string) {
       late_out_minutes = ${timingCols.late_out_minutes}
     WHERE id = ${attendanceId}
   `
-  if (split.overtime > 0) {
-    await upsertAutoFromAttendance(
-      attendanceId,
-      String(row.employee_id),
-      String(row.clock_in).slice(0, 10),
-      split.overtime,
-      split.reason,
-    )
-  }
+  // Always sync: creates/updates the auto OT row, or clears it when OT is now 0.
+  await upsertAutoFromAttendance(
+    attendanceId,
+    String(row.employee_id),
+    String(row.clock_in).slice(0, 10),
+    split.overtime,
+    split.reason,
+  )
   return getRecord(attendanceId)
+}
+
+/** Hours a forgotten session is allowed to stay open before the sweep closes it. */
+const STALE_SESSION_HOURS = 18
+
+/**
+ * Safety net for forgotten clock-outs: close any session still open long after the
+ * crew has gone home. Close time priority:
+ *   1. the latest real clock-out of co-workers on the same shift block (peer window),
+ *   2. the scheduled shift end,
+ *   3. clock-in + the max regular workday (cap).
+ * Run on a schedule (cron) so runaway sessions never accrue days of overtime.
+ */
+export async function sweepStaleSessions() {
+  const db = getDb()
+  const open = await db`
+    SELECT a.*, e.branch_id FROM attendance a
+    INNER JOIN employees e ON e.id = a.employee_id
+    WHERE a.clock_out IS NULL
+      AND a.clock_in < now() - (${STALE_SESSION_HOURS} || ' hours')::interval
+    ORDER BY a.clock_in ASC
+  `
+  const sessions: Array<{ id: string; clock_out: string; source: string }> = []
+  for (const o of open) {
+    const clockInMs = parseClockInstant(o.clock_in)
+    const branchId = o.branch_id ? String(o.branch_id) : null
+    let closeAt: string | null = null
+    let source = 'cap'
+
+    if (branchId) {
+      const peerOut = await latestPeerClockOut(branchId, o.clock_in, String(o.employee_id))
+      if (peerOut && parseClockInstant(peerOut) > clockInMs) {
+        closeAt = peerOut
+        source = 'peer'
+      }
+    }
+    if (!closeAt) {
+      const shift = await resolveShift(o, String(o.employee_id))
+      const endTs = resolveShiftTiming(o, shift).scheduled_end_ts
+      if (endTs != null && endTs > clockInMs) {
+        closeAt = new Date(endTs).toISOString().replace('T', ' ').slice(0, 19)
+        source = 'shift_end'
+      }
+    }
+    if (!closeAt) {
+      closeAt = new Date(clockInMs + MAX_REGULAR_HOURS_VALUE * 3_600_000)
+        .toISOString()
+        .replace('T', ' ')
+        .slice(0, 19)
+      source = 'cap'
+    }
+    await closeSession(o, closeAt, 'auto_stale_sweep', null, null, null)
+    sessions.push({ id: String(o.id), clock_out: closeAt, source })
+  }
+  return { closed: sessions.length, sessions }
 }
 
 export async function shiftContextForEmployee(employeeId: string) {
@@ -249,18 +348,34 @@ export async function vicinityPing(
     outsideSince = new Date().toISOString().replace('T', ' ').slice(0, 19)
     await getDb()`UPDATE attendance SET outside_since = ${outsideSince} WHERE id = ${open.id}`
   }
+  const graceMs = OUTSIDE_MINUTES * 60 * 1000
   const elapsed = Date.now() - new Date(outsideSince.replace(' ', 'T') + 'Z').getTime()
-  const pastMidnight = isPastMidnight(String(open.clock_in), new Date().toISOString().slice(0, 19))
-  if (elapsed >= OUTSIDE_MINUTES * 60 * 1000 && pastMidnight) {
-    const clockOutAt = new Date(new Date(outsideSince.replace(' ', 'T') + 'Z').getTime() + OUTSIDE_MINUTES * 60 * 1000)
+  const pastMidnight = crossedBranchMidnight(open.clock_in, new Date().toISOString().slice(0, 19))
+  if (elapsed >= graceMs && pastMidnight) {
+    const clockOutAt = new Date(new Date(outsideSince.replace(' ', 'T') + 'Z').getTime() + graceMs)
       .toISOString().replace('T', ' ').slice(0, 19)
     const closed = await closeSession(open, clockOutAt, 'auto_outside', latitude, longitude, null)
-    return { auto_clocked_out: true, session: closed, shift, vicinity: { inside: false, geofence_active: true, outside_since: outsideSince } }
+    return {
+      auto_clocked_out: true,
+      session: closed,
+      shift,
+      vicinity: { inside: false, geofence_active: true, outside_since: outsideSince, past_midnight: pastMidnight },
+    }
   }
+  const secondsUntilAutoOut = Math.max(0, Math.ceil((graceMs - elapsed) / 1000))
   return {
     auto_clocked_out: false,
     session: await getRecord(String(open.id)),
     shift,
-    vicinity: { inside: false, geofence_active: true, outside_since: outsideSince, outside_grace_minutes: OUTSIDE_MINUTES },
+    vicinity: {
+      inside: false,
+      geofence_active: true,
+      outside_since: outsideSince,
+      outside_grace_minutes: OUTSIDE_MINUTES,
+      // Countdown only leads to auto clock-out once it is past midnight.
+      auto_outside_eligible: pastMidnight,
+      seconds_until_auto_out: pastMidnight ? secondsUntilAutoOut : null,
+      past_midnight: pastMidnight,
+    },
   }
 }

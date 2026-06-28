@@ -62,6 +62,7 @@ export function dtrHtml(report: DtrReport): string {
         <td class="num">${num(d.overtime_hours)}</td>
         <td class="num">${mins(d.late_in_minutes)}</td>
         <td class="num">${mins(d.early_out_minutes)}</td>
+        <td class="num">${mins(d.late_out_minutes)}</td>
         <td>${esc(d.leave_type ?? d.remarks ?? '—')}</td>
       </tr>`
     })
@@ -112,6 +113,7 @@ export function dtrHtml(report: DtrReport): string {
         <th>OT</th>
         <th>Late</th>
         <th>Early out</th>
+        <th>Late out</th>
         <th>Notes</th>
       </tr>
     </thead>

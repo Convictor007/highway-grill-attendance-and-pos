@@ -25,36 +25,15 @@ function loadDatabaseUrl() {
 
 const url = loadDatabaseUrl()
 if (!url) {
-  console.error('DATABASE_URL not found in env or .env files')
+  console.error('DATABASE_URL not found')
   process.exit(1)
 }
 
-const patches = [
-  'database/postgres/patch_benefit_deductions.sql',
-  'database/postgres/patch_benefit_optional.sql',
-  'database/postgres/patch_benefit_manual_only.sql',
-  'database/postgres/patch_worker_class.sql',
-  'database/postgres/patch_attendance_stale_sweep.sql',
-]
-
 const sql = postgres(url, { max: 1 })
-
 try {
-  for (const rel of patches) {
-    const file = path.join(root, rel)
-    const raw = fs.readFileSync(file, 'utf8')
-    const body = raw
-      .split(/\r?\n/)
-      .filter((line) => !/^\s*BEGIN\s*;?\s*$/i.test(line) && !/^\s*COMMIT\s*;?\s*$/i.test(line))
-      .join('\n')
-    console.log(`Applying ${rel}...`)
-    await sql.unsafe(body)
-    console.log(`OK: ${rel}`)
-  }
-  console.log('All benefit patches applied.')
-} catch (err) {
-  console.error(err.message || err)
-  process.exit(1)
+  const body = fs.readFileSync(path.join(root, 'database/postgres/patch_attendance_stale_sweep.sql'), 'utf8')
+  await sql.unsafe(body)
+  console.log('OK: patch_attendance_stale_sweep.sql')
 } finally {
   await sql.end()
 }

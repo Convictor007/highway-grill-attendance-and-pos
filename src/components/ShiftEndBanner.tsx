@@ -9,22 +9,12 @@ type Props = {
 export function ShiftEndBanner({ shift, open }: Props) {
   if (!open || !shift) return null
 
+  if (!shift.show_end_shift) return null
+
   const earlyDuration = formatDurationMinutes(shift.early_minutes)
   const lateDuration = formatDurationMinutes(shift.late_minutes)
   const end = formatClockTime(shift.expected_shift_end ?? shift.shift_end) || 'end of shift'
   const label = shift.shift_label ? formatShiftTimeRange(shift.shift_label) : null
-
-  if (earlyDuration && !shift.show_end_shift) {
-    return (
-      <div className="shift-end-banner shift-end-banner--early" role="status">
-        {label
-          ? `Clocked in ${earlyDuration} early for ${label}. Regular duty still ends at ${end} — overtime only after that.`
-          : `Clocked in ${earlyDuration} early. Regular duty still ends at ${end}.`}
-      </div>
-    )
-  }
-
-  if (!shift.show_end_shift) return null
 
   const phase = shift.phase ?? 'normal'
   const lateNote = lateDuration ? ` (9-hour duty extended due to ${lateDuration} late start)` : ''

@@ -32,14 +32,7 @@ export async function listAttendance(date?: string | null, branchId?: string | n
   return unsafe(sql, params)
 }
 
-export async function openSession(employeeId: string) {
-  const db = getDb()
-  const rows = await db`
-    SELECT * FROM attendance WHERE employee_id = ${employeeId} AND clock_out IS NULL
-    ORDER BY clock_in DESC LIMIT 1
-  `
-  return rows[0] ?? null
-}
+export const openSession = auto.openSession
 
 export async function getAttendance(id: string) {
   const rows = await unsafe(`${ATT_ONE} WHERE a.id = $1 LIMIT 1`, [id])
@@ -318,8 +311,9 @@ export async function updateAttendance(id: string, data: Record<string, unknown>
   await unsafeExec(`UPDATE attendance SET ${sets} WHERE id = $1`, [id, ...Object.values(updates) as SqlValue[]])
   if ('regular_hours' in data || 'overtime_hours' in data) {
     const row = await getAttendance(id)
-    const ot = Number(row?.overtime_hours ?? 0)
-    if (ot > 0 && row) {
+    if (row) {
+      // Sync auto OT: write the corrected hours, or clear the row when set to 0.
+      const ot = Number(row.overtime_hours ?? 0)
       await upsertAutoFromAttendance(id, String(row.employee_id), String(row.clock_in).slice(0, 10), ot, 'HR attendance correction')
     }
     return row

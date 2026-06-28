@@ -13,13 +13,14 @@ import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
 import { DtrLocationLink } from '../../components/DtrLocationLink'
+import { DtrTimingBadges, dtrTimingFlags } from '../../lib/dtrTiming'
 import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
+import { ClockHelpButton } from '../../components/ClockHelpButton'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import type { AttendanceRecord } from '../../types/hrms'
 import { resolveClockOpenState } from '../../lib/clockState'
 import { DtrExportForm } from '../../components/DtrExportForm'
-import { CLOCK_GEOFENCE_POLICY } from '../../lib/clockPolicy'
 
 interface HoursSummary {
   from: string
@@ -59,6 +60,7 @@ export function DtrPage() {
   const [mobileClock, setMobileClock] = useState(false)
   const [positionLabel, setPositionLabel] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [pending, setPending] = useState<'in' | 'out' | null>(null)
   const [shiftCtx, setShiftCtx] = useState<ShiftClockContext | null>(null)
   const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
   const showEndShift = open && !!shiftCtx?.show_end_shift
@@ -117,6 +119,7 @@ export function DtrPage() {
   const handleClockIn = async () => {
     if (!canClock) return
     setBusy(true)
+    setPending('in')
     setClockError(null)
     try {
       await doClockIn(geofenceRequired)
@@ -131,12 +134,14 @@ export function DtrPage() {
       }
     } finally {
       setBusy(false)
+      setPending(null)
     }
   }
 
   const handleClockOut = async () => {
     if (!canClock) return
     setBusy(true)
+    setPending('out')
     setClockError(null)
     try {
       await doClockOut()
@@ -145,6 +150,7 @@ export function DtrPage() {
       setClockError(clockErrorMessage(err))
     } finally {
       setBusy(false)
+      setPending(null)
     }
   }
 
@@ -181,11 +187,12 @@ export function DtrPage() {
       <PageHeader title="DTR" subtitle="In, out, and hours worked" />
 
       <div className="card dtr-summary-bar">
-        <div>
+        <div className="dtr-summary-week">
           <span className="dtr-summary-label">This week</span>
           <strong className="dtr-summary-value">
             {summary ? `${summary.total_hours.toFixed(1)} hrs` : '—'}
           </strong>
+          <ClockHelpButton />
         </div>
         <div className="clock-actions clock-actions-inline">
           {!open ? (
@@ -195,7 +202,7 @@ export function DtrPage() {
               disabled={busy || !canClock || !geofence.canClockIn || geofence.loading}
               onClick={handleClockIn}
             >
-              Clock in
+              {pending === 'in' ? 'Clocking in…' : 'Clock in'}
             </button>
           ) : (
             <>
@@ -215,7 +222,7 @@ export function DtrPage() {
                   disabled={busy || onBreak || !canClock}
                   onClick={handleClockOut}
                 >
-                  End shift
+                  {pending === 'out' ? 'Ending shift…' : 'End shift'}
                 </button>
               )}
               <button
@@ -224,7 +231,7 @@ export function DtrPage() {
                 disabled={busy || onBreak || !canClock}
                 onClick={handleClockOut}
               >
-                Clock out
+                {pending === 'out' ? 'Clocking out…' : 'Clock out'}
               </button>
             </>
           )}
@@ -250,11 +257,6 @@ export function DtrPage() {
           requesting={geofence.requesting}
         />
         <ShiftEndBanner shift={shiftCtx} open={open} />
-        {open && geofenceRequired && (
-          <p className="muted-block clock-policy-note" style={{ marginTop: '0.5rem', marginBottom: 0 }}>
-            {CLOCK_GEOFENCE_POLICY}
-          </p>
-        )}
         {clockError && <p className="error-msg" style={{ marginTop: '0.5rem' }}>{clockError}</p>}
       </div>
 
@@ -275,6 +277,7 @@ export function DtrPage() {
                 <th>Date</th>
                 <th>Time in</th>
                 <th>Time out</th>
+                <th>Timing</th>
                 <th>Hours</th>
                 <th>OT</th>
                 <th>Location (in)</th>
@@ -285,7 +288,18 @@ export function DtrPage() {
                   <tr key={r.id}>
                     <td>{formatDateLabel(workDateFromClockIn(r.clock_in))}</td>
                     <td>{formatTime(r.clock_in)}</td>
-                    <td>{formatTime(r.clock_out)}</td>
+                    <td>
+                      {formatTime(r.clock_out)}
+                      {r.clock_out_type && r.clock_out_type !== 'manual' && (
+                        <span className="badge badge-processing" style={{ marginLeft: '0.35rem' }}>
+                          {r.clock_out_type.replace(/_/g, ' ')}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <DtrTimingBadges record={r} />
+                      {!dtrTimingFlags(r).hasAny && '—'}
+                    </td>
                     <td>{r.actual_hours != null ? Number(r.actual_hours).toFixed(2) : '—'}</td>
                     <td>
                       {r.overtime_hours != null && Number(r.overtime_hours) > 0

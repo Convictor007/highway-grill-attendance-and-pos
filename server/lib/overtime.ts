@@ -1,5 +1,14 @@
 import { getDb } from './db'
 
+/** Remove the auto-generated OT row for an attendance record (used when OT drops to 0). */
+export async function clearAutoOvertime(attendanceId: string): Promise<void> {
+  const db = getDb()
+  await db`
+    DELETE FROM overtime_requests
+    WHERE attendance_id = ${attendanceId} AND source = 'auto'
+  `
+}
+
 export async function upsertAutoFromAttendance(
   attendanceId: string,
   employeeId: string,
@@ -7,7 +16,12 @@ export async function upsertAutoFromAttendance(
   extraHours: number,
   reason: string,
 ): Promise<void> {
-  if (extraHours <= 0) return
+  // OT no longer applies (e.g. HR correction or auto-close) — drop any stale auto row
+  // so payroll does not keep paying overtime that was recalculated away.
+  if (extraHours <= 0) {
+    await clearAutoOvertime(attendanceId)
+    return
+  }
   const db = getDb()
   const existing = await db`
     SELECT id FROM overtime_requests

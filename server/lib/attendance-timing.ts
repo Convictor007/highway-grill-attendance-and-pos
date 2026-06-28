@@ -1,11 +1,21 @@
 import {
+  crossedBranchMidnight,
   normalizeCalendarDate,
   parseClockInstant,
   shiftWallClockToUtcMs,
 } from './branch-time'
 
 export const MAX_REGULAR_HOURS = 9
-const GRACE_MS = 60_000
+
+const MINUTE_MS = 60_000
+/** Clock in up to this early = on time (no "early in"); pay still starts at shift start. */
+export const EARLY_IN_GRACE_MS = 15 * MINUTE_MS
+/** Clock in within this window after start = on time (not late). */
+export const LATE_IN_GRACE_MS = 5 * MINUTE_MS
+/** Clock out within this window before end = on time (full shift, no "early out"). */
+export const EARLY_OUT_GRACE_MS = 10 * MINUTE_MS
+/** Overtime only starts once clock out is this far past the scheduled end. */
+export const LATE_OUT_GRACE_MS = 5 * MINUTE_MS
 
 export type ShiftAssignment = {
   shift_date: string
@@ -108,9 +118,9 @@ export function resolveShiftTiming(record: Record<string, unknown>, shift: Shift
   let lateOut: number | null = null
 
   if (hasShift && scheduledStartTs != null) {
-    if (clockInTs > scheduledStartTs + GRACE_MS) {
+    if (clockInTs > scheduledStartTs + LATE_IN_GRACE_MS) {
       lateIn = Math.round((clockInTs - scheduledStartTs) / 60_000)
-    } else if (clockInTs < scheduledStartTs - GRACE_MS) {
+    } else if (clockInTs < scheduledStartTs - EARLY_IN_GRACE_MS) {
       earlyIn = Math.round((scheduledStartTs - clockInTs) / 60_000)
     } else {
       earlyIn = 0
@@ -119,9 +129,9 @@ export function resolveShiftTiming(record: Record<string, unknown>, shift: Shift
   }
 
   if (hasShift && scheduledEndTs != null && clockOutTs != null) {
-    if (clockOutTs < scheduledEndTs - GRACE_MS) {
+    if (clockOutTs < scheduledEndTs - EARLY_OUT_GRACE_MS) {
       earlyOut = Math.round((scheduledEndTs - clockOutTs) / 60_000)
-    } else if (clockOutTs > scheduledEndTs + GRACE_MS) {
+    } else if (clockOutTs > scheduledEndTs + LATE_OUT_GRACE_MS) {
       lateOut = Math.round((clockOutTs - scheduledEndTs) / 60_000)
     } else {
       earlyOut = 0
@@ -138,24 +148,6 @@ export function resolveShiftTiming(record: Record<string, unknown>, shift: Shift
     early_out_minutes: earlyOut,
     late_out_minutes: lateOut,
   }
-}
-
-function expectedRegularEndTimestamp(record: Record<string, unknown>, shift: ShiftAssignment | null): number | null {
-  const clockInTs = parseTs(record.clock_in)
-  if (!shift?.shift_date || !shift.end_time) {
-    return clockInTs + MAX_REGULAR_HOURS * 3_600_000
-  }
-  return shiftEndTimestamp(
-    normalizeDate(shift.shift_date),
-    normalizeTime(shift.start_time ?? '00:00:00'),
-    normalizeTime(shift.end_time),
-  )
-}
-
-function isPastMidnight(clockIn: string, clockOut: string): boolean {
-  const shiftDate = clockIn.slice(0, 10)
-  const midnight = parseTs(`${shiftDate}T00:00:00`) + 24 * 60 * 60 * 1000
-  return parseTs(clockOut) >= midnight
 }
 
 function overtimeReasons(
@@ -184,7 +176,7 @@ function overtimeReasons(
       reasons.push('Past scheduled shift end')
     }
   }
-  if (isPastMidnight(clockIn, clockOut)) reasons.push('Past midnight')
+  if (crossedBranchMidnight(clockIn, clockOut)) reasons.push('Past midnight')
   if (payableWorked > MAX_REGULAR_HOURS) {
     reasons.push(`Exceeded ${MAX_REGULAR_HOURS}h regular duty`)
   }
@@ -213,7 +205,11 @@ export function computeHourSplit(record: Record<string, unknown>, shift: ShiftAs
   ) {
     const dutyStartTs = effectiveDutyStartTs(timing, clockInTs)
     const scheduledEndTs = timing.scheduled_end_ts
-    const regularEndTs = Math.min(clockOutTs, scheduledEndTs)
+    // Leaving within the early-out grace counts as the full scheduled shift.
+    const regularEndTs =
+      clockOutTs >= scheduledEndTs - EARLY_OUT_GRACE_MS
+        ? scheduledEndTs
+        : clockOutTs
 
     let regular = 0
     if (regularEndTs > dutyStartTs) {
@@ -222,7 +218,7 @@ export function computeHourSplit(record: Record<string, unknown>, shift: ShiftAs
     regular = Math.round(Math.min(regular, MAX_REGULAR_HOURS) * 100) / 100
 
     let overtime = 0
-    if (clockOutTs > scheduledEndTs + GRACE_MS) {
+    if (clockOutTs > scheduledEndTs + LATE_OUT_GRACE_MS) {
       overtime = workedHours(tsToDbString(scheduledEndTs), clockOut, record)
     }
     overtime = Math.round(overtime * 100) / 100
@@ -258,6 +254,6 @@ export function timingToDbColumns(timing: ShiftTiming) {
     early_in_minutes: timing.early_in_minutes,
     late_in_minutes: timing.late_in_minutes,
     early_out_minutes: timing.early_out_minutes,
-    late_out_minutes: null,
+    late_out_minutes: timing.late_out_minutes,
   }
 }
