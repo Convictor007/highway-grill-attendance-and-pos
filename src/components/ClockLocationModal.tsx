@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Modal } from './Modal'
 import { ClockLiveMap } from './ClockLiveMap'
+import { Spinner } from './Spinner'
 import { api } from '../lib/api'
 import { fetchZoneStatus } from '../lib/fieldWork'
 import { geoErrorMessage, watchPosition, type GeoCoords, type GeoErrorCode } from '../lib/geolocation'
@@ -173,7 +174,15 @@ export function ClockLocationModal({ open, onClose, geofenceRequired = false }: 
         </div>
       </div>
 
-      <ClockLiveMap coords={coords} geofences={geofenceRequired ? geofences : []} basemapId={basemapId} />
+      <div className="clock-live-map-wrap">
+        <ClockLiveMap coords={coords} geofences={geofenceRequired ? geofences : []} basemapId={basemapId} />
+        {!coords && !geoError && (
+          <div className="clock-live-loading" role="status" aria-live="polite">
+            <Spinner size="lg" label="Locating you" />
+            <span>Getting your live location…</span>
+          </div>
+        )}
+      </div>
 
       {coords && (
         <dl className="clock-live-meta">

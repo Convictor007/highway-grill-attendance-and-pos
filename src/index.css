@@ -2367,6 +2367,10 @@ th {
   flex-shrink: 0;
 }
 
+.clock-live-map-wrap {
+  position: relative;
+}
+
 .clock-live-map {
   width: 100%;
   height: min(52vh, 420px);
@@ -2374,6 +2378,23 @@ th {
   border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.clock-live-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 1rem;
 }
 
 .clock-live-meta {
