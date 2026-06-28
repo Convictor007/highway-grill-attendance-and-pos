@@ -178,7 +178,6 @@ export function EmployeeEditModal({ open, employee, isNew = false, branches, onC
       onClose={onClose}
       size="large"
       panelClassName="employee-edit-modal-panel"
-      closeOnBackdropClick={!saving}
       footer={
         <>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={saving}>

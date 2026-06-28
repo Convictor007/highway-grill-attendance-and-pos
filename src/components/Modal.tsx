@@ -13,7 +13,11 @@ type Props = {
   size?: ModalSize
   hideHeader?: boolean
   panelClassName?: string
-  /** When false, clicking the dimmed backdrop does not close the modal. Default true. */
+  /**
+   * @deprecated Backdrop clicks never close modals project-wide. Kept only for
+   * call-site compatibility; setting it has no effect. Close via the × button,
+   * footer actions, or the Escape key.
+   */
   closeOnBackdropClick?: boolean
 }
 
@@ -27,7 +31,6 @@ export function Modal({
   size,
   hideHeader = false,
   panelClassName = '',
-  closeOnBackdropClick = true,
 }: Props) {
   const panelSize: ModalSize = size ?? (wide ? 'wide' : 'default')
   useEffect(() => {
@@ -54,18 +57,8 @@ export function Modal({
     .join(' ')
 
   return (
-    <div
-      className="modal-overlay"
-      role="presentation"
-      onClick={closeOnBackdropClick ? onClose : undefined}
-    >
-      <div
-        className={panelClasses}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-overlay" role="presentation">
+      <div className={panelClasses} role="dialog" aria-modal="true" aria-label={title}>
         {hideHeader ? (
           <span className="modal-title-sr">{title}</span>
         ) : (

@@ -75,7 +75,6 @@ export function PayrollRunCreateModal({ open, branches, onClose, onCreated }: Pr
       open={open}
       title="New semi-monthly run"
       onClose={onClose}
-      closeOnBackdropClick={!busy}
       footer={
         <>
           <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
