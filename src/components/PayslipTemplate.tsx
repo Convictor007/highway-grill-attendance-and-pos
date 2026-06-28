@@ -61,10 +61,12 @@ export function PayslipTemplate({ payslip, companyName = 'Highway Grill' }: Prop
     { label: 'GROSS PAY:', value: <AmountCell value={d.grossPay} />, strong: true },
   ]
 
+  // Total of everything itemised in the middle DEDUCTION column. Derived from
+  // gross − net so it always reconciles with NET PAY. Avoids re-listing CA / loan
+  // / HSNG (which already appear under DEDUCTION) twice on the slip.
+  const totalDeductions = Math.max(0, Math.round((d.grossPay - d.netPay) * 100) / 100)
   const lessRows: KvRow[] = [
-    { label: 'CA', value: <DottedCell value={d.less.ca || ''} />, dotted: true, sub: true },
-    { label: 'LOAN Partial Payment', value: <DottedCell value={d.less.loan || ''} />, dotted: true, sub: true },
-    { label: 'HSNG', value: <DottedCell value={d.less.hsng || ''} />, dotted: true, sub: true },
+    { label: 'TOTAL DEDUCTIONS', value: <AmountCell value={totalDeductions} />, sub: true },
   ]
 
   return (
