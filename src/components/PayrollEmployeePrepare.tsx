@@ -251,7 +251,7 @@ export function PayrollEmployeePrepare({
       open={open}
       title={title}
       onClose={onClose}
-      size="large"
+      size="full"
       panelClassName="payroll-prepare-modal"
       footer={footer}
     >

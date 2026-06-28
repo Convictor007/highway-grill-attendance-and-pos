@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 
-type ModalSize = 'default' | 'wide' | 'large'
+type ModalSize = 'default' | 'wide' | 'large' | 'full'
 
 type Props = {
   open: boolean

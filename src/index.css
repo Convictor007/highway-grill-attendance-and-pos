@@ -3078,6 +3078,32 @@ th {
   padding: 1.25rem 1.5rem;
 }
 
+.modal-panel--full {
+  max-width: 98vw;
+  width: 98vw;
+  max-height: 96vh;
+  height: 96vh;
+}
+
+.modal-panel--full .modal-body {
+  padding: 1.25rem 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .modal-overlay {
+    padding: 0;
+  }
+
+  .modal-panel--full {
+    max-width: 100vw;
+    width: 100vw;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+}
+
 .modal-body--flush-top {
   padding: 0.75rem 1rem 1rem;
   display: flex;
@@ -4430,12 +4456,7 @@ tr.row-clickable:hover td {
   color: var(--text);
 }
 
-.payroll-prepare-modal.modal-panel--large {
-  max-width: min(920px, 96vw);
-}
-
 .payroll-prepare-modal .modal-body {
-  max-height: calc(100vh - 11rem);
   overflow-y: auto;
 }
 
@@ -4449,13 +4470,64 @@ tr.row-clickable:hover td {
 }
 
 .payroll-prepare-attendance {
-  max-height: 280px;
-  overflow-y: auto;
+  max-height: 52vh;
+  overflow: auto;
   margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* Excel-like grid for the attendance table */
+.payroll-prepare-attendance table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.payroll-prepare-attendance thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-2, #1c2433);
+  color: var(--text);
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.payroll-prepare-attendance tbody td {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--border);
+}
+
+.payroll-prepare-attendance tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.payroll-prepare-attendance tbody tr:hover td {
+  background: rgba(245, 215, 142, 0.08);
+}
+
+/* Right-align the numeric Hours column (last column) */
+.payroll-prepare-attendance th:last-child,
+.payroll-prepare-attendance td:last-child {
+  text-align: right;
+}
+
+/* Center the Include checkbox column (first column) */
+.payroll-prepare-attendance th:first-child,
+.payroll-prepare-attendance td:first-child {
+  text-align: center;
+  width: 64px;
 }
 
 .payroll-day-absent td {
   color: var(--muted);
+  background: rgba(255, 90, 90, 0.05);
 }
 
 .payroll-prepare-count {
