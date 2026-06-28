@@ -11,12 +11,23 @@ function money(value: unknown): string {
   return num(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+/**
+ * Parse a period bound that may be a plain "YYYY-MM-DD", a full ISO timestamp
+ * ("2026-06-16T00:00:00.000Z"), or a stringified Date ("Tue Jun 16 2026 ...").
+ */
+function parsePeriodBound(value: string): Date | null {
+  if (!value) return null
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value)
+  if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12)
+  const fallback = new Date(value)
+  return Number.isNaN(fallback.getTime()) ? null : fallback
+}
+
 function formatPeriod(start: string, end: string): string {
-  if (!start || !end) return '—'
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-  const s = new Date(`${start}T12:00:00`)
-  const e = new Date(`${end}T12:00:00`)
-  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return `${start} – ${end}`
+  const s = parsePeriodBound(start)
+  const e = parsePeriodBound(end)
+  if (!s || !e) return '—'
   const sm = months[s.getMonth()]
   const em = months[e.getMonth()]
   if (sm === em) return `${sm} ${s.getDate()} – ${e.getDate()}`

@@ -10,11 +10,28 @@ export function formatPayslipQty(value: string | number | undefined | null): str
   return Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+/**
+ * Parse a date that may be a plain "YYYY-MM-DD" or a full ISO timestamp
+ * (e.g. "2026-06-16T00:00:00.000Z" returned by the API for DATE columns).
+ * Uses the calendar-date part only so timezone never shifts the day.
+ */
+function parsePeriodDate(value?: string): Date | null {
+  if (!value) return null
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value))
+  if (!match) {
+    const fallback = new Date(value)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+  }
+  const [, y, m, d] = match
+  const date = new Date(Number(y), Number(m) - 1, Number(d))
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
 /** e.g. JUN 1 – 15 */
 export function formatPayslipPeriod(periodStart?: string, periodEnd?: string): string {
-  if (!periodStart || !periodEnd) return '—'
-  const start = new Date(`${periodStart}T00:00:00`)
-  const end = new Date(`${periodEnd}T00:00:00`)
+  const start = parsePeriodDate(periodStart)
+  const end = parsePeriodDate(periodEnd)
+  if (!start || !end) return '—'
   const sm = MONTHS[start.getMonth()]
   const em = MONTHS[end.getMonth()]
   if (sm === em) {
