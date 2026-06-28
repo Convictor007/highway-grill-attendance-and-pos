@@ -1,6 +1,7 @@
 import { ValidationError } from './errors'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
 import { clockInstantToBranchDate, DEFAULT_BRANCH_TZ } from './branch-time'
+import { toIsoDateString } from './date-utils'
 import { forPayPeriod, thirteenthMonthTax, profileToDeductionConfig } from './payroll-ph-deductions'
 import { getGovernmentProfile } from './government-benefits'
 import * as payrollAdjustments from './payroll-adjustments'
@@ -1268,6 +1269,16 @@ export async function getPayslip(id: string) {
   }
   row.housing_deduction = housing
   row.other_adjustments = Math.max(0, Math.round((otherDeductions - loanDeduction - housing) * 100) / 100)
+
+  for (const field of ['period_start', 'period_end', 'pay_date'] as const) {
+    if (row[field] != null) {
+      try {
+        row[field] = toIsoDateString(row[field])
+      } catch {
+        row[field] = String(row[field]).slice(0, 10)
+      }
+    }
+  }
 
   return row
 }
