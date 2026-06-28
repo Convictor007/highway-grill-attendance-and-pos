@@ -8,10 +8,6 @@ import { Modal } from './Modal'
 import type { PayrollPrepareData, Payslip } from '../types/hrms'
 
 type DeductionForm = {
-  sss_amount: string
-  philhealth_amount: string
-  pagibig_amount: string
-  tax_amount: string
   loan_deduction: string
   cash_advance: string
   housing_deduction: string
@@ -21,22 +17,17 @@ function deductionsFromPrepare(res: PayrollPrepareData): DeductionForm {
   const ps = res.payslip
   const p = res.preview
   return {
-    sss_amount: String(ps?.sss_amount ?? p.sss_amount ?? ''),
-    philhealth_amount: String(ps?.philhealth_amount ?? p.philhealth_amount ?? ''),
-    pagibig_amount: String(ps?.pagibig_amount ?? p.pagibig_amount ?? ''),
-    tax_amount: String(ps?.tax_amount ?? p.tax_amount ?? ''),
     loan_deduction: String(ps?.loan_deduction ?? p.loan_deduction ?? ''),
     cash_advance: String(ps?.cash_advance ?? p.cash_advance ?? ''),
     housing_deduction: String(ps?.housing_deduction ?? p.housing_deduction ?? ''),
   }
 }
 
-function computeNetPreview(gross: number, d: DeductionForm): number {
+// Statutory deductions (SSS/PhilHealth/Pag-IBIG/tax) are managed in Benefits and
+// resolved by the backend, so the net preview reads them from the server preview.
+function computeNetPreview(gross: number, statutory: number, d: DeductionForm): number {
   const total =
-    (Number(d.sss_amount) || 0) +
-    (Number(d.philhealth_amount) || 0) +
-    (Number(d.pagibig_amount) || 0) +
-    (Number(d.tax_amount) || 0) +
+    statutory +
     (Number(d.loan_deduction) || 0) +
     (Number(d.cash_advance) || 0) +
     (Number(d.housing_deduction) || 0)
@@ -83,10 +74,6 @@ export function PayrollEmployeePrepare({
   const [loadFailed, setLoadFailed] = useState(false)
   const [included, setIncluded] = useState<Set<string>>(new Set())
   const [deductions, setDeductions] = useState<DeductionForm>({
-    sss_amount: '',
-    philhealth_amount: '',
-    pagibig_amount: '',
-    tax_amount: '',
     loan_deduction: '',
     cash_advance: '',
     housing_deduction: '',
@@ -151,10 +138,6 @@ export function PayrollEmployeePrepare({
           employee_id: employeeId,
           included_dates: [...included],
           overrides: {
-            sss_amount: Number(deductions.sss_amount) || 0,
-            philhealth_amount: Number(deductions.philhealth_amount) || 0,
-            pagibig_amount: Number(deductions.pagibig_amount) || 0,
-            tax_amount: Number(deductions.tax_amount) || 0,
             loan_deduction: Number(deductions.loan_deduction) || 0,
             cash_advance: Number(deductions.cash_advance) || 0,
             housing_deduction: Number(deductions.housing_deduction) || 0,
@@ -182,10 +165,6 @@ export function PayrollEmployeePrepare({
       const updated = await api<Payslip>(`/payroll/payslip/${data.payslip.id}`, {
         method: 'PUT',
         body: JSON.stringify({
-          sss_amount: Number(deductions.sss_amount) || 0,
-          philhealth_amount: Number(deductions.philhealth_amount) || 0,
-          pagibig_amount: Number(deductions.pagibig_amount) || 0,
-          tax_amount: Number(deductions.tax_amount) || 0,
           other_deductions:
             Number(deductions.loan_deduction || 0)
             + Number(deductions.cash_advance || 0)
@@ -211,7 +190,14 @@ export function PayrollEmployeePrepare({
       : preview?.regular_hours ?? 0
     : 0
   const grossPreview = Number(preview?.gross_pay ?? 0)
-  const netPreview = computeNetPreview(grossPreview, deductions)
+  const statutory = {
+    sss: Number(preview?.sss_amount ?? 0),
+    philhealth: Number(preview?.philhealth_amount ?? 0),
+    pagibig: Number(preview?.pagibig_amount ?? 0),
+    tax: Number(preview?.tax_amount ?? 0),
+  }
+  const statutoryTotal = statutory.sss + statutory.philhealth + statutory.pagibig + statutory.tax
+  const netPreview = computeNetPreview(grossPreview, statutoryTotal, deductions)
   const savedNet = data?.payslip?.net_pay != null ? Number(data.payslip.net_pay) : null
 
   const title = emp ? `${emp.first_name} ${emp.last_name}` : 'Prepare payslip'
@@ -343,48 +329,32 @@ export function PayrollEmployeePrepare({
           )}
 
           <div className="payroll-prepare-deductions">
-            <h4 className="subsection-title">Deductions (edit before generate)</h4>
+            <h4 className="subsection-title">Statutory deductions</h4>
+            <p className="form-hint">
+              Managed in <strong>Benefits</strong> and applied automatically. Edit member IDs and
+              amounts there.
+            </p>
+            <ul className="payroll-statutory-list">
+              <li>
+                <span>SSS</span>
+                <strong>{money(statutory.sss)}</strong>
+              </li>
+              <li>
+                <span>PhilHealth</span>
+                <strong>{money(statutory.philhealth)}</strong>
+              </li>
+              <li>
+                <span>Pag-IBIG</span>
+                <strong>{money(statutory.pagibig)}</strong>
+              </li>
+              <li>
+                <span>Tax</span>
+                <strong>{money(statutory.tax)}</strong>
+              </li>
+            </ul>
+
+            <h4 className="subsection-title">Other deductions (edit before generate)</h4>
             <div className="form-row">
-              <div className="form-group">
-                <label>SSS</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={deductions.sss_amount}
-                  disabled={!canEdit}
-                  onChange={(e) => patchDeductions({ sss_amount: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>PhilHealth</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={deductions.philhealth_amount}
-                  disabled={!canEdit}
-                  onChange={(e) => patchDeductions({ philhealth_amount: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Pag-IBIG</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={deductions.pagibig_amount}
-                  disabled={!canEdit}
-                  onChange={(e) => patchDeductions({ pagibig_amount: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Tax</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={deductions.tax_amount}
-                  disabled={!canEdit}
-                  onChange={(e) => patchDeductions({ tax_amount: e.target.value })}
-                />
-              </div>
               <div className="form-group">
                 <label>Loan deduction</label>
                 <input
