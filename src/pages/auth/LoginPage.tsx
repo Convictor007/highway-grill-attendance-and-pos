@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Spinner } from '../../components/Spinner'
-import { BrandLogo } from '../../components/BrandLogo'
+import { Logo3D } from '../../components/Logo3D'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { ApiError } from '../../lib/api'
@@ -43,7 +43,7 @@ export function LoginPage() {
           <p className="login-sub">Sign in to manage your team at Highway Grill</p>
         </div>
         <span className="login-logo-badge">
-          <BrandLogo size="md" />
+          <Logo3D size={64} />
         </span>
       </div>
 
