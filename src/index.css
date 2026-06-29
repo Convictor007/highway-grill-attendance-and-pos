@@ -2604,8 +2604,31 @@ th {
 }
 
 .text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
   font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
   color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.text-link:hover:not(:disabled),
+.text-link:focus-visible {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.text-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .schedule-dl {
@@ -2956,7 +2979,7 @@ th {
 }
 
 .text-link--danger {
-  color: #c0392b;
+  color: var(--danger);
 }
 
 .geofence-status-banner {
