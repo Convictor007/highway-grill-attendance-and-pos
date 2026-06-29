@@ -290,21 +290,7 @@ th {
   overflow: hidden;
 }
 
-.auth-bg-logo {
-  position: absolute;
-  right: -10%;
-  bottom: -12%;
-  width: min(85vw, 960px);
-  max-width: none;
-  opacity: 0.1;
-  filter: saturate(0.9);
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-}
-
-.auth-layout-inner,
-.auth-layout > .login-card {
+.auth-layout-inner {
   position: relative;
   z-index: 1;
 }
@@ -340,8 +326,8 @@ th {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
+  width: 92px;
+  height: 92px;
 }
 
 .login-logo-badge .brand-logo {
