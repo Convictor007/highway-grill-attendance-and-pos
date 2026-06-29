@@ -6692,3 +6692,84 @@ tr.row-clickable:hover td {
   font-size: 0.88rem;
   line-height: 1.45;
 }
+
+/* ============================================================
+   Mobile responsive layer — global refinements
+   ============================================================ */
+
+/* Never let content force a horizontal scroll of the whole page. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+#root,
+.dash,
+.employee-shell,
+.main,
+.admin-main,
+.employee-main {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Media never overflows its container. */
+img,
+video,
+canvas,
+svg:not(.nav-icon):not(.picker-trigger-icon):not(.clock-hand-svg) {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  /* Wide data tables scroll inside their card instead of stretching the page.
+     Modern browsers keep header/body columns aligned with a single anonymous
+     table box, so this stays readable. .schedule-grid keeps its custom scroll. */
+  table:not(.schedule-grid) {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Filter bars wrap their fields instead of overflowing off-screen. */
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .filter-bar__action,
+  .filter-bar__action .btn {
+    width: 100%;
+  }
+
+  /* Header actions take the full row and stay tappable. */
+  .page-header-actions {
+    width: 100%;
+  }
+
+  /* Tighten page padding so content uses the available width. */
+  .main {
+    padding: 1rem;
+  }
+
+  /* Modal footer buttons grow to fill the row for easier tapping. */
+  .modal-footer .btn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 1.25rem;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+}
