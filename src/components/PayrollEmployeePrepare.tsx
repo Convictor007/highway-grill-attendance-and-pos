@@ -160,29 +160,6 @@ export function PayrollEmployeePrepare({
     }
   }
 
-  const onSaveExisting = async () => {
-    if (!data?.payslip?.id) return
-    setBusy(true)
-    try {
-      const updated = await api<Payslip>(`/payroll/payslip/${data.payslip.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({
-          other_deductions:
-            Number(deductions.loan_deduction || 0)
-            + Number(deductions.cash_advance || 0)
-            + Number(deductions.housing_deduction || 0),
-        }),
-      })
-      onSaved()
-      await load(undefined, { silent: true })
-      success(`Deductions saved. Net pay is now ${money(updated.net_pay)}.`)
-    } catch (err) {
-      notifyError(err instanceof Error ? err.message : 'Could not save payslip')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const emp = data?.employee
   const preview = data?.preview
   const unit = data?.pay_basis === 'daily' ? 'days' : 'hours'
@@ -220,9 +197,6 @@ export function PayrollEmployeePrepare({
       <div className="payroll-prepare-actions">
         {data.payslip?.id ? (
           <>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={onSaveExisting}>
-              Save deduction changes
-            </button>
             <button
               type="button"
               className="btn btn-ghost"
@@ -231,8 +205,8 @@ export function PayrollEmployeePrepare({
             >
               View payslip
             </button>
-            <button type="button" className="btn btn-ghost" disabled={busy} onClick={onGenerate}>
-              Regenerate from attendance
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={onGenerate}>
+              Refresh
             </button>
           </>
         ) : (
@@ -425,7 +399,7 @@ export function PayrollEmployeePrepare({
                   Net pay preview: <strong>{money(netPreview)}</strong>
                   {savedNet != null && Math.abs(savedNet - netPreview) > 0.009 && (
                     <span className="muted-inline" style={{ marginLeft: '0.5rem' }}>
-                      (saved: {money(savedNet)} — click Save to apply edits)
+                      (saved: {money(savedNet)} — click Refresh to apply edits)
                     </span>
                   )}
                 </p>

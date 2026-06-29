@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, apiDownload, ApiError } from '../lib/api'
 import { useNotification } from '../hooks/useNotification'
 import { LoadingBlock } from './LoadingBlock'
@@ -12,7 +12,6 @@ type Props = {
 
 export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
   const { error: notifyError } = useNotification()
-  const frameRef = useRef<HTMLIFrameElement>(null)
   const [html, setHtml] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -27,13 +26,6 @@ export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
     } finally {
       setDownloading(false)
     }
-  }
-
-  function handlePrint() {
-    const frame = frameRef.current
-    if (!frame?.contentWindow) return
-    frame.contentWindow.focus()
-    frame.contentWindow.print()
   }
 
   useEffect(() => {
@@ -69,14 +61,6 @@ export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
           >
             {downloading ? 'Preparing…' : 'Download PDF'}
           </button>
-          <button
-            type="button"
-            className="btn btn-ghost payslip-no-print"
-            onClick={handlePrint}
-            disabled={!html}
-          >
-            Print
-          </button>
           <button type="button" className="btn btn-ghost payslip-no-print" onClick={onClose}>
             Close
           </button>
@@ -86,7 +70,6 @@ export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
       {loading && <LoadingBlock label="Loading payslip…" />}
       {html && !loading && (
         <iframe
-          ref={frameRef}
           className="payslip-html-frame"
           title="Payslip"
           srcDoc={html}
