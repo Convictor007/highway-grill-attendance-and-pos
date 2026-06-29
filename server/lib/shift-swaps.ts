@@ -1,6 +1,26 @@
+import type { TransactionSql } from 'postgres'
 import { getDb } from './db'
 import { ValidationError } from './errors'
 import { unsafe } from './sql'
+import { normalizeCalendarDate, todayInBranchTz } from './branch-time'
+
+// Postgres returns SERIAL ids and DATE columns as numbers/Date objects. The
+// frontend compares these against the string `user.employee_id`, so coerce the
+// identity fields to strings before they leave the lib.
+function normalizeSwapRow<T extends Record<string, unknown>>(row: T | null): T | null {
+  if (!row) return row
+  for (const key of [
+    'id',
+    'requester_assignment_id',
+    'requester_employee_id',
+    'target_employee_id',
+    'target_assignment_id',
+    'created_by_user_id',
+  ]) {
+    if (row[key] != null) (row as Record<string, unknown>)[key] = String(row[key])
+  }
+  return row
+}
 
 const SWAP_SELECT = `SELECT sw.*,
   ra.shift_date AS requester_date, ra.start_time AS requester_start, ra.end_time AS requester_end,
@@ -14,8 +34,8 @@ const SWAP_SELECT = `SELECT sw.*,
   INNER JOIN employees et ON et.id = sw.target_employee_id`
 
 async function getSwap(id: string) {
-  const rows = await unsafe(`${SWAP_SELECT} WHERE sw.id = $1 LIMIT 1`, [id])
-  return rows[0] ?? null
+  const rows = await unsafe<Record<string, unknown>>(`${SWAP_SELECT} WHERE sw.id = $1 LIMIT 1`, [id])
+  return normalizeSwapRow(rows[0] ?? null)
 }
 
 async function getAssignment(id: string) {
@@ -25,12 +45,16 @@ async function getAssignment(id: string) {
 }
 
 export async function listSwaps(employeeId?: string | null, hrView = false) {
-  if (hrView) return unsafe(`${SWAP_SELECT} ORDER BY sw.created_at DESC LIMIT 100`)
+  if (hrView) {
+    const rows = await unsafe<Record<string, unknown>>(`${SWAP_SELECT} ORDER BY sw.created_at DESC LIMIT 100`)
+    return rows.map((r) => normalizeSwapRow(r))
+  }
   if (!employeeId) return []
-  return unsafe(
+  const rows = await unsafe<Record<string, unknown>>(
     `${SWAP_SELECT} WHERE sw.requester_employee_id = $1 OR sw.target_employee_id = $2 ORDER BY sw.created_at DESC LIMIT 100`,
     [employeeId, employeeId],
   )
+  return rows.map((r) => normalizeSwapRow(r))
 }
 
 export async function createSwap(data: Record<string, unknown>, userId: string, requesterEmployeeId: string) {
@@ -42,7 +66,9 @@ export async function createSwap(data: Record<string, unknown>, userId: string, 
   if (!assignment || String(assignment.employee_id) !== requesterEmployeeId) {
     throw new ValidationError('Shift assignment not found')
   }
-  if (String(assignment.shift_date) < todayIso()) throw new ValidationError('Cannot swap past shifts')
+  if (normalizeCalendarDate(assignment.shift_date) < todayInBranchTz()) {
+    throw new ValidationError('Cannot swap past shifts')
+  }
   const db = getDb()
   const [target, requester] = await Promise.all([
     db`SELECT branch_id FROM employees WHERE id = ${targetEmployeeId} LIMIT 1`,
@@ -51,28 +77,42 @@ export async function createSwap(data: Record<string, unknown>, userId: string, 
   if (!target[0] || !requester[0] || target[0].branch_id !== requester[0].branch_id) {
     throw new ValidationError('Coworker must be in your branch')
   }
+
+  // For a mutual exchange, the target shift must belong to the target coworker
+  // and fall on the same day as the requester's shift (the documented rule).
+  let targetAssignmentId: string | null = null
+  if (data.target_assignment_id) {
+    targetAssignmentId = String(data.target_assignment_id)
+    const targetAssignment = await getAssignment(targetAssignmentId)
+    if (!targetAssignment || String(targetAssignment.employee_id) !== targetEmployeeId) {
+      throw new ValidationError('Target shift does not belong to that coworker')
+    }
+    if (normalizeCalendarDate(targetAssignment.shift_date) !== normalizeCalendarDate(assignment.shift_date)) {
+      throw new ValidationError('Shift exchanges must be on the same day')
+    }
+  }
+
   const [row] = await db`
     INSERT INTO shift_swap_requests (requester_assignment_id, requester_employee_id, target_employee_id,
       target_assignment_id, message, created_by_user_id)
     VALUES (${assignmentId}, ${requesterEmployeeId}, ${targetEmployeeId},
-      ${data.target_assignment_id ? String(data.target_assignment_id) : null},
+      ${targetAssignmentId},
       ${data.message ? String(data.message) : null}, ${userId})
     RETURNING id
   `
   return getSwap(String(row.id))
 }
 
-async function executeSwap(swap: Record<string, unknown>) {
-  const db = getDb()
+async function executeSwap(swap: Record<string, unknown>, tx: TransactionSql) {
   const reqAssign = await getAssignment(String(swap.requester_assignment_id))
   if (!reqAssign) throw new Error('Assignment missing')
   if (swap.target_assignment_id) {
     const tgtAssign = await getAssignment(String(swap.target_assignment_id))
     if (!tgtAssign) throw new Error('Target assignment missing')
-    await db`UPDATE shift_assignments SET employee_id = ${String(swap.target_employee_id)} WHERE id = ${String(reqAssign.id)}`
-    await db`UPDATE shift_assignments SET employee_id = ${String(swap.requester_employee_id)} WHERE id = ${String(tgtAssign.id)}`
+    await tx`UPDATE shift_assignments SET employee_id = ${String(swap.target_employee_id)} WHERE id = ${String(reqAssign.id)}`
+    await tx`UPDATE shift_assignments SET employee_id = ${String(swap.requester_employee_id)} WHERE id = ${String(tgtAssign.id)}`
   } else {
-    await db`UPDATE shift_assignments SET employee_id = ${String(swap.target_employee_id)} WHERE id = ${String(reqAssign.id)}`
+    await tx`UPDATE shift_assignments SET employee_id = ${String(swap.target_employee_id)} WHERE id = ${String(reqAssign.id)}`
   }
 }
 
@@ -89,7 +129,7 @@ export async function respondSwap(id: string, action: string, responderEmployeeI
     return getSwap(id)
   }
   await db.begin(async (tx) => {
-    await executeSwap(swap)
+    await executeSwap(swap, tx)
     await tx`UPDATE shift_swap_requests SET status = 'accepted', responded_at = NOW() WHERE id = ${id}`
   })
   return getSwap(id)
@@ -102,8 +142,4 @@ export async function cancelSwap(id: string, employeeId: string) {
     WHERE id = ${id} AND requester_employee_id = ${employeeId} AND status = 'pending'
   `
   return result.count > 0
-}
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10)
 }

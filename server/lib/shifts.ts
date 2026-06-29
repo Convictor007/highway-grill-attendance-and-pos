@@ -1,5 +1,5 @@
 import { getDb, nullableInt } from './db'
-import { addDays, normalizeWeekStartSunday, todayIso, toIsoDateString } from './date-utils'
+import { addDays, normalizeWeekStartSunday, toIsoDateString } from './date-utils'
 import { normalizeCalendarDate, todayInBranchTz } from './branch-time'
 import { ValidationError } from './errors'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
@@ -375,7 +375,9 @@ export async function rosterGrid(
   await ensureScheduleRollover(branchId, ws, userId)
   await ensureScheduleRollover(branchId, addDays(ws, 7), userId)
   const weekEnd = addDays(ws, 6)
-  const today = todayIso()
+  // Branch-local "today" so the TODAY/TOMORROW columns and swap cutoff match the
+  // store's calendar (Manila), not the UTC server clock.
+  const today = todayInBranchTz()
   const tomorrow = addDays(today, 1)
   const schedule = await findScheduleForWeek(branchId, ws)
   const footnotes = resolveDayFootnotes(schedule)
@@ -432,20 +434,20 @@ export async function rosterGrid(
       const a = byKey.get(`${emp.id}|${day.date}`)
       if (!a) return { date: day.date, status: 'unset', label: '', off: false }
       if (a.notes === 'REST_DAY') {
-        return { date: day.date, status: 'day_off', label: 'Day off', off: true, assignment_id: a.id }
+        return { date: day.date, status: 'day_off', label: 'Day off', off: true, assignment_id: String(a.id) }
       }
       return {
         date: day.date,
         status: 'working',
         label: formatShiftLabel(String(a.start_time), String(a.end_time)),
         off: false,
-        assignment_id: a.id,
+        assignment_id: String(a.id),
         start_time: a.start_time,
         end_time: a.end_time,
       }
     })
     return {
-      employee_id: emp.id,
+      employee_id: String(emp.id),
       display_name: `${emp.first_name} ${emp.last_name}`.trim(),
       emp_number: emp.emp_number,
       department_name: dept || null,
@@ -457,7 +459,7 @@ export async function rosterGrid(
     title: 'SCHEDULE',
     branch_id: branchId,
     branch_name: branchRows[0]?.name ?? null,
-    schedule_id: schedule?.id ?? null,
+    schedule_id: schedule?.id != null ? String(schedule.id) : null,
     schedule_status: schedule?.status === 'locked' ? 'published' : schedule?.status ?? null,
     editable: true,
     current_date: today,
