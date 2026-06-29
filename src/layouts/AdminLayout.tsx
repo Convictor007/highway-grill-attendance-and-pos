@@ -86,7 +86,7 @@ export function AdminLayout() {
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             onClick={toggleCollapsed}
           >
-            <NavIcon name={collapsed ? 'chevron-right' : 'chevron-left'} />
+            <NavIcon name="menu" />
           </button>
         </div>
         <nav>
