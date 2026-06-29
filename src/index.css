@@ -4672,6 +4672,14 @@ tr.row-clickable:hover td {
   overflow-y: auto;
 }
 
+.payslip-html-frame {
+  display: block;
+  width: 100%;
+  min-height: 720px;
+  border: none;
+  background: #fff;
+}
+
 .payslip-tpl {
   --ps-bg: #ffffff;
   --ps-text: #1c1410;

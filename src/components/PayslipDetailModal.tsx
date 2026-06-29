@@ -1,10 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api, apiDownload, ApiError } from '../lib/api'
 import { useNotification } from '../hooks/useNotification'
 import { LoadingBlock } from './LoadingBlock'
 import { Modal } from './Modal'
-import { PayslipTemplate } from './PayslipTemplate'
-import type { Payslip } from '../types/hrms'
 
 type Props = {
   open: boolean
@@ -14,7 +12,8 @@ type Props = {
 
 export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
   const { error: notifyError } = useNotification()
-  const [detail, setDetail] = useState<Payslip | null>(null)
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const [html, setHtml] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
@@ -30,21 +29,28 @@ export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
     }
   }
 
+  function handlePrint() {
+    const frame = frameRef.current
+    if (!frame?.contentWindow) return
+    frame.contentWindow.focus()
+    frame.contentWindow.print()
+  }
+
   useEffect(() => {
     if (!open || !payslipId) {
-      setDetail(null)
+      setHtml(null)
       return
     }
 
     setLoading(true)
-    api<Payslip>(`/payroll/${payslipId}`)
-      .then(setDetail)
+    api<{ html: string }>(`/payroll/payslip/${payslipId}/html`)
+      .then((data) => setHtml(data.html))
       .catch((err) => {
-        setDetail(null)
+        setHtml(null)
         notifyError(err instanceof Error ? err.message : 'Could not load payslip')
       })
       .finally(() => setLoading(false))
-  }, [open, payslipId])
+  }, [open, payslipId, notifyError])
 
   return (
     <Modal
@@ -59,15 +65,15 @@ export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
             type="button"
             className="btn btn-ghost payslip-no-print"
             onClick={handleDownload}
-            disabled={!detail || downloading}
+            disabled={!html || downloading}
           >
             {downloading ? 'Preparing…' : 'Download PDF'}
           </button>
           <button
             type="button"
             className="btn btn-ghost payslip-no-print"
-            onClick={() => window.print()}
-            disabled={!detail}
+            onClick={handlePrint}
+            disabled={!html}
           >
             Print
           </button>
@@ -78,7 +84,15 @@ export function PayslipDetailModal({ open, payslipId, onClose }: Props) {
       }
     >
       {loading && <LoadingBlock label="Loading payslip…" />}
-      {detail && !loading && <PayslipTemplate payslip={detail} />}
+      {html && !loading && (
+        <iframe
+          ref={frameRef}
+          className="payslip-html-frame"
+          title="Payslip"
+          srcDoc={html}
+          sandbox="allow-same-origin allow-modals"
+        />
+      )}
     </Modal>
   )
 }
