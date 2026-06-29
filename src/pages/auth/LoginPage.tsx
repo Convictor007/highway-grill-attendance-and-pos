@@ -1,8 +1,14 @@
-import { useState, type FormEvent } from 'react'
+import { Suspense, lazy, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Spinner } from '../../components/Spinner'
 import { Logo3D } from '../../components/Logo3D'
 import { useAuth } from '../../context/AuthContext'
+
+// three.js is heavy; only load it for the login screen and fall back to the
+// lightweight CSS-3D logo while it streams in.
+const Logo3DReal = lazy(() =>
+  import('../../components/Logo3DReal').then((m) => ({ default: m.Logo3DReal })),
+)
 import { useNotification } from '../../hooks/useNotification'
 import { ApiError } from '../../lib/api'
 import { RoleSlug } from '../../types/roles'
@@ -43,7 +49,9 @@ export function LoginPage() {
           <p className="login-sub">Sign in to manage your team at Highway Grill</p>
         </div>
         <span className="login-logo-badge">
-          <Logo3D size={64} />
+          <Suspense fallback={<Logo3D size={72} />}>
+            <Logo3DReal size={72} spin={5} />
+          </Suspense>
         </span>
       </div>
 
