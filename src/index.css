@@ -539,22 +539,6 @@ th {
   padding-bottom: 0.4rem;
 }
 
-.time-clock-input {
-  width: 100%;
-  min-height: 42px;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-}
-
-.time-clock-input:focus {
-  outline: 2px solid rgba(232, 93, 4, 0.35);
-  border-color: var(--accent);
-}
-
 .sidebar-user-dropdown {
   position: absolute;
   bottom: calc(100% + 0.35rem);
@@ -6160,6 +6144,127 @@ tr.row-clickable:hover td {
   pointer-events: none;
   height: 0;
   width: 0;
+}
+
+/* —— Analog clock time picker —— */
+.clock-popover {
+  width: auto;
+  min-width: 264px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.clock-digital {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.clock-digital-seg {
+  padding: 0.15rem 0.5rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+  color: var(--text, inherit);
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.clock-digital-seg--active {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+.clock-digital-colon {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text, inherit);
+}
+
+.clock-ampm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.clock-ampm-btn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: var(--muted, #888);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.clock-ampm-btn--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.clock-face {
+  position: relative;
+  border-radius: 50%;
+  background: var(--surface-2, rgba(127, 127, 127, 0.1));
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.clock-hand-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.clock-hand-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.clock-hand-center {
+  fill: var(--accent);
+}
+
+.clock-hand-knob {
+  fill: color-mix(in srgb, var(--accent) 85%, transparent);
+}
+
+.clock-number {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text, inherit);
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-number--active {
+  color: #fff;
+}
+
+.clock-done-btn {
+  width: 100%;
 }
 
 .picker-popover {
