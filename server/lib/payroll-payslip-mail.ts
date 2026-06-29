@@ -112,14 +112,12 @@ export async function sendRunPayslips(runId: string, actorUserId?: string | null
   const run = await getRun(runId)
   if (!run) throw new Error('Payroll run not found')
 
-  const status = String(run.status ?? '')
-  if (!['approved', 'paid'].includes(status)) {
-    throw new Error('Approve the payroll run before sending payslips')
-  }
-
   const db = getDb()
   const rows = await db`
-    SELECT id FROM payslips WHERE payroll_run_id = ${runId} ORDER BY employee_id
+    SELECT id FROM payslips
+    WHERE payroll_run_id = ${runId}
+      AND payment_status IN ('ready', 'emailed')
+    ORDER BY employee_id
   `
 
   const result = { sent: 0, skipped: 0, failed: 0, details: [] as MailResult[] }
@@ -139,9 +137,13 @@ export async function sendPayslip(payslipId: string, actorUserId?: string | null
   const row = await getPayslip(payslipId)
   if (!row) throw new Error('Payslip not found')
 
-  const runStatus = String(row.run_status ?? '')
-  if (!['approved', 'paid'].includes(runStatus)) {
-    throw new Error('Payroll run must be approved or paid before sending payslips')
+  const paymentStatus = String(row.payment_status ?? 'pending')
+  if (!['ready', 'emailed', 'paid'].includes(paymentStatus)) {
+    throw new Error(
+      paymentStatus === 'deferred'
+        ? 'Cannot email a deferred payslip — undefer the employee first'
+        : 'Generate the payslip before emailing (status must be Ready to pay)',
+    )
   }
 
   const employeeId = String(row.employee_id)
@@ -186,6 +188,11 @@ export async function sendPayslip(payslipId: string, actorUserId?: string | null
         status: 'failed',
         reason: mailLastError() ?? 'Mail not sent (check MAIL_ENABLED and SMTP settings)',
       }
+    }
+
+    if (paymentStatus === 'ready') {
+      const db = getDb()
+      await db`UPDATE payslips SET payment_status = 'emailed' WHERE id = ${payslipId}`
     }
 
     await notifyEmployee(employeeId, periodLabel, payslipId)

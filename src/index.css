@@ -166,6 +166,11 @@ th {
   color: #f0c674;
 }
 
+.badge-emailed {
+  background: #1a2d3d;
+  color: #8ec8ff;
+}
+
 .badge-deferred {
   background: #2a2f3d;
   color: #a8b4cc;

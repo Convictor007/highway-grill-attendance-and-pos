@@ -468,7 +468,7 @@ export interface PayrollAttendanceDay {
   overtime_hours: number
 }
 
-export type PayrollDisbursementStatus = 'pending' | 'ready' | 'paid' | 'deferred'
+export type PayrollDisbursementStatus = 'pending' | 'ready' | 'emailed' | 'paid' | 'deferred'
 
 export interface PayrollRosterEntry {
   employee_id: string
@@ -491,9 +491,11 @@ export interface PayrollDisbursementSummary {
   total_employees: number
   pending: number
   ready: number
+  emailed: number
   paid: number
   deferred: number
   net_ready: number
+  net_emailed: number
   net_paid: number
 }
 

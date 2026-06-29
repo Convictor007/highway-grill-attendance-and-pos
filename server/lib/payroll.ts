@@ -452,22 +452,26 @@ async function buildRosterEntries(
 }
 
 function summarizeRosterEntries(roster: Record<string, unknown>[]) {
-  const counts = { pending: 0, ready: 0, paid: 0, deferred: 0 }
+  const counts = { pending: 0, ready: 0, emailed: 0, paid: 0, deferred: 0 }
   let netReady = 0
+  let netEmailed = 0
   let netPaid = 0
   for (const emp of roster) {
     const st = String(emp.payment_status ?? 'pending')
     if (st in counts) counts[st as keyof typeof counts]++
     if (st === 'ready' && emp.payslip_net !== null) netReady += Number(emp.payslip_net)
+    if (st === 'emailed' && emp.payslip_net !== null) netEmailed += Number(emp.payslip_net)
     if (st === 'paid' && emp.payslip_net !== null) netPaid += Number(emp.payslip_net)
   }
   return {
     total_employees: roster.length,
     pending: counts.pending,
     ready: counts.ready,
+    emailed: counts.emailed,
     paid: counts.paid,
     deferred: counts.deferred,
     net_ready: Math.round(netReady * 100) / 100,
+    net_emailed: Math.round(netEmailed * 100) / 100,
     net_paid: Math.round(netPaid * 100) / 100,
   }
 }
@@ -484,6 +488,7 @@ async function syncRunDisbursementStatus(runId: string): Promise<void> {
   const paid = Number(summary.paid ?? 0)
   const deferred = Number(summary.deferred ?? 0)
   const ready = Number(summary.ready ?? 0)
+  const emailed = Number(summary.emailed ?? 0)
   const pending = Number(summary.pending ?? 0)
 
   const cntRows = await unsafe<{ c: string }>(
@@ -495,9 +500,9 @@ async function syncRunDisbursementStatus(runId: string): Promise<void> {
   let status = 'draft'
   if (total > 0 && paid + deferred >= total) {
     status = 'paid'
-  } else if (paid > 0 && (ready > 0 || pending > 0)) {
+  } else if (paid > 0 && (ready > 0 || emailed > 0 || pending > 0)) {
     status = 'partially_paid'
-  } else if (payslipCount > 0 || paid > 0 || ready > 0 || deferred > 0) {
+  } else if (payslipCount > 0 || paid > 0 || ready > 0 || emailed > 0 || deferred > 0) {
     status = 'processing'
   }
 
@@ -1161,8 +1166,8 @@ export async function paySelectedEmployees(
       [payslipId],
     )
     const status = String(stRows[0]?.payment_status ?? '')
-    if (status !== 'ready') {
-      throw new ValidationError('Only employees with ready payslips can be paid now')
+    if (!['ready', 'emailed'].includes(status)) {
+      throw new ValidationError('Only employees with ready or emailed payslips can be paid now')
     }
     await unsafeExec(
       `UPDATE payslips SET payment_status = 'paid', paid_at = NOW() WHERE id = $1`,
@@ -1204,10 +1209,12 @@ export async function disbursementStatusFor(
   runId: string,
   employeeId: string,
   payslip: Record<string, unknown> | null,
-): Promise<'pending' | 'ready' | 'paid' | 'deferred'> {
+): Promise<'pending' | 'ready' | 'emailed' | 'paid' | 'deferred'> {
   if (payslip) {
     const st = String(payslip.payment_status ?? 'ready')
-    if (['ready', 'paid', 'deferred'].includes(st)) return st as 'ready' | 'paid' | 'deferred'
+    if (['ready', 'emailed', 'paid', 'deferred'].includes(st)) {
+      return st as 'ready' | 'emailed' | 'paid' | 'deferred'
+    }
     return 'ready'
   }
   if (await isDeferred(runId, employeeId)) return 'deferred'

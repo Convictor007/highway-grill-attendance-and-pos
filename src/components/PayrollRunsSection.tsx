@@ -39,6 +39,7 @@ function money(value: string | number | undefined | null) {
 function paymentStatusLabel(status: PayrollDisbursementStatus) {
   if (status === 'pending') return 'No payslip'
   if (status === 'ready') return 'Ready to pay'
+  if (status === 'emailed') return 'Email sent'
   if (status === 'paid') return 'Paid'
   return 'Deferred'
 }
@@ -120,7 +121,11 @@ export function PayrollRunsSection({
 
   const selectedReadyNet = useMemo(() => {
     return roster
-      .filter((e) => selectedRosterIds.includes(e.employee_id) && e.payment_status === 'ready')
+      .filter(
+        (e) =>
+          selectedRosterIds.includes(e.employee_id) &&
+          (e.payment_status === 'ready' || e.payment_status === 'emailed'),
+      )
       .reduce((sum, e) => sum + (e.payslip_net ?? 0), 0)
   }, [roster, selectedRosterIds])
 
@@ -334,6 +339,7 @@ export function PayrollRunsSection({
         body: '{}',
       })
       info(payslipDeliveryMessage(result), 'Payslip delivery')
+      await refreshWorkspace()
     } catch (err) {
       notifyError(err instanceof Error ? err.message : 'Could not send payslips')
     } finally {
@@ -358,10 +364,14 @@ export function PayrollRunsSection({
   const onPaySelected = async () => {
     if (!selectedRun || selectedRosterIds.length === 0) return
     const readyIds = roster
-      .filter((e) => selectedRosterIds.includes(e.employee_id) && e.payment_status === 'ready')
+      .filter(
+        (e) =>
+          selectedRosterIds.includes(e.employee_id) &&
+          (e.payment_status === 'ready' || e.payment_status === 'emailed'),
+      )
       .map((e) => e.employee_id)
     if (readyIds.length === 0) {
-      notifyError('Select employees with ready payslips to pay now')
+      notifyError('Select employees with ready or emailed payslips to pay now')
       return
     }
     if (
@@ -457,6 +467,7 @@ export function PayrollRunsSection({
       )
       if (result.status === 'sent') {
         success(`Payslip emailed to ${result.email ?? 'employee'}.`)
+        await refreshWorkspace()
       } else {
         notifyError(result.reason ?? 'Could not send payslip.')
       }
@@ -634,6 +645,9 @@ export function PayrollRunsSection({
                 </span>
                 <span>
                   <strong>{rosterSummary.ready}</strong> ready ({money(rosterSummary.net_ready)})
+                </span>
+                <span>
+                  <strong>{rosterSummary.emailed}</strong> email sent ({money(rosterSummary.net_emailed)})
                 </span>
                 <span>
                   <strong>{rosterSummary.paid}</strong> paid ({money(rosterSummary.net_paid)})
@@ -921,7 +935,8 @@ export function PayrollRunsSection({
                             )}
                           </td>
                           <td>
-                            {p.payment_status === 'paid' && (
+                            {p.payment_status &&
+                            ['ready', 'emailed', 'paid'].includes(p.payment_status) ? (
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-sm"
@@ -931,9 +946,9 @@ export function PayrollRunsSection({
                                   onSendOnePayslip(p.id)
                                 }}
                               >
-                                Email
+                                {p.payment_status === 'ready' ? 'Email' : 'Resend'}
                               </button>
-                            )}
+                            ) : null}
                             <button
                               type="button"
                               className="btn btn-ghost btn-sm"

@@ -433,7 +433,7 @@ CREATE TABLE payslips (
     net_pay            NUMERIC(12, 2) NOT NULL DEFAULT 0,
     generated_at       TIMESTAMPTZ,
     payment_status     VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (payment_status IN ('pending', 'ready', 'paid', 'deferred')),
+        CHECK (payment_status IN ('pending', 'ready', 'emailed', 'paid', 'deferred')),
     paid_at            TIMESTAMPTZ,
     UNIQUE (payroll_run_id, employee_id)
 );
