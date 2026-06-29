@@ -5791,26 +5791,8 @@ tr.row-clickable:hover td {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: var(--surface-2, rgba(0, 0, 0, 0.02));
-}
-
-/* Keep the employee name column pinned while swiping through the week. */
-.schedule-grid-name-col,
-.schedule-grid-name {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  /* Solid (non-transparent) so day cells don't show through when pinned. */
-  background: color-mix(in srgb, var(--surface) 92%, #ffffff 8%);
-  box-shadow: 1px 0 0 var(--border);
-}
-
-.schedule-grid-name-col {
-  z-index: 3;
-}
-
-.schedule-grid-row--self .schedule-grid-name {
-  background: color-mix(in srgb, var(--surface) 84%, var(--accent) 16%);
+  /* Opaque so day cells never show through when this column is pinned. */
+  background: #232f42;
 }
 
 .schedule-grid-day-head {
@@ -5852,7 +5834,25 @@ tr.row-clickable:hover td {
   font-weight: 500;
   padding-left: 0.75rem;
   white-space: nowrap;
-  background: var(--surface-2, rgba(0, 0, 0, 0.02));
+  /* Opaque so day cells never show through when this column is pinned. */
+  background: #1f2a3b;
+}
+
+/* Pin the employee name column so it stays visible while swiping the week. */
+.schedule-grid-name-col,
+.schedule-grid-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.schedule-grid-name-col {
+  z-index: 3;
+}
+
+.schedule-grid-row--self .schedule-grid-name {
+  background: #33283a;
 }
 
 .schedule-grid-cell--off {
@@ -6657,24 +6657,34 @@ tr.row-clickable:hover td {
     min-width: 0;
   }
 
-  .schedule-grid-wrap--self-mobile .schedule-grid {
-    min-width: 0;
+  /* Full team grid on mobile: keep a compact, readable name column that wraps
+     long names instead of forcing the whole row wider. */
+  .schedule-grid-name-col,
+  .schedule-grid-name {
+    width: 92px;
+    max-width: 92px;
+    white-space: normal;
+    word-break: break-word;
+    padding-left: 0.5rem;
+    padding-right: 0.4rem;
+    font-size: 0.78rem;
+    line-height: 1.15;
   }
 
-  .schedule-grid-wrap--self-mobile .schedule-grid-day-head {
-    min-width: 2.5rem;
+  .schedule-grid-day-head {
+    min-width: 58px;
   }
 
-  .schedule-grid-wrap--self-mobile .schedule-grid th,
-  .schedule-grid-wrap--self-mobile .schedule-grid td {
-    padding: 0.65rem 0.35rem;
-    font-size: 0.85rem;
+  .schedule-grid th,
+  .schedule-grid td {
+    padding: 0.55rem 0.3rem;
+    font-size: 0.82rem;
   }
 
-  .schedule-grid-wrap--self-mobile .schedule-swap-btn {
-    min-height: 44px;
-    padding: 0.5rem 0.35rem;
-    font-size: 0.8rem;
+  .schedule-swap-btn {
+    min-height: 40px;
+    padding: 0.4rem 0.3rem;
+    font-size: 0.78rem;
   }
 
   .schedule-grid-card {
