@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { BrandLogo } from '../components/BrandLogo'
-import tiltedLogo from '../assets/HG_logo tilted.png'
+import hgLogo from '../assets/HG_logo.png'
 
 export function AuthLayout() {
   const location = useLocation()
@@ -9,7 +9,7 @@ export function AuthLayout() {
 
   return (
     <div className="auth-layout">
-      <img src={tiltedLogo} alt="" aria-hidden className="auth-bg-logo" />
+      <img src={hgLogo} alt="" aria-hidden className="auth-bg-logo" />
       <div className="auth-layout-inner">
         {!hideStandaloneLogo && <BrandLogo size="lg" className="auth-layout-logo" />}
         <Outlet />
