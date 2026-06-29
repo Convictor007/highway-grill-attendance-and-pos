@@ -129,12 +129,12 @@ export function HrFieldWorkPage() {
                 {s.address && <span>{s.address}</span>}
                 {canManage && (
                   <div className="geofence-list-actions">
-                    <button type="button" className="text-link" onClick={() => openEdit(s)}>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>
                       Edit area
                     </button>
                     <button
                       type="button"
-                      className="text-link text-link--danger"
+                      className="btn btn-danger btn-sm"
                       disabled={deleting}
                       onClick={() => removeZone(s.id)}
                     >

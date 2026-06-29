@@ -2974,8 +2974,8 @@ th {
 
 .geofence-list-actions {
   display: flex;
-  gap: 1rem;
-  margin-top: 0.35rem;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
 }
 
 .text-link--danger {
