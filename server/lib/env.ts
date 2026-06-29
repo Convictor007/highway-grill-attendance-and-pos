@@ -32,6 +32,12 @@ export const config = {
   mailFrom: env('MAIL_FROM', 'noreply@highwaygrill.local'),
   mailFromName: env('MAIL_FROM_NAME', 'Highway Grill HR'),
   appUrl: env('APP_URL', 'http://localhost:5173'),
+  // @sparticuz/chromium-min does not bundle the Chromium binary; it must be
+  // downloaded at runtime from a hosted pack URL matching the installed version.
+  chromiumPackUrl: env(
+    'CHROMIUM_PACK_URL',
+    'https://github.com/Sparticuz/chromium/releases/download/v133.0.0/chromium-v133.0.0-pack.tar',
+  ),
   smtpHost: env('SMTP_HOST', ''),
   smtpPort: envInt('SMTP_PORT', 587),
   smtpUser: env('SMTP_USER', ''),
