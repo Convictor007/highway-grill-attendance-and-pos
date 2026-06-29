@@ -36,3 +36,9 @@ export function requireActiveEmployeeAccount(user: AuthUser): void {
     throw new ForbiddenError('No employee record linked to your account.')
   }
 }
+
+/** Compare employee ids safely — Postgres may return numbers at runtime. */
+export function isOwnEmployee(user: AuthUser, employeeId: unknown): boolean {
+  if (!user.employee_id || employeeId == null || employeeId === '') return false
+  return String(user.employee_id) === String(employeeId)
+}

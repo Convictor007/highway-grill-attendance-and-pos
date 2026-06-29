@@ -1,4 +1,5 @@
 import { requireUser } from '@/lib/auth'
+import { isOwnEmployee } from '@/lib/auth-guard'
 import { hasPermission } from '@/lib/permissions'
 import { jsonError } from '@/lib/api-response'
 import { getPayslip, isPayslipVisibleToEmployee } from '@/lib/payroll'
@@ -20,8 +21,7 @@ export async function GET(request: Request, { params }: Params) {
     if (!row) return jsonError('Payslip not found', 404)
 
     const canManage = hasPermission(user, 'payroll.view')
-    const canSelf =
-      hasPermission(user, 'payroll.view.self') && user.employee_id === String(row.employee_id)
+    const canSelf = hasPermission(user, 'payroll.view.self') && isOwnEmployee(user, row.employee_id)
     if (!canManage && !canSelf) throw new ForbiddenError()
 
     // Employees may only download their payslip once HR has emailed (or paid) it.

@@ -599,7 +599,7 @@ export async function payslipsForEmployee(employeeId: string) {
      INNER JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
      WHERE ps.employee_id = $1 AND ps.payment_status IN ('emailed', 'paid')
      ORDER BY pr.pay_date DESC`,
-    [employeeId],
+    [String(employeeId)],
   )
 }
 

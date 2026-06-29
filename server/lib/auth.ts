@@ -13,6 +13,11 @@ export class UnauthorizedError extends Error {
   }
 }
 
+function normalizeEmployeeId(value: unknown): string | null {
+  if (value == null || value === '') return null
+  return String(value)
+}
+
 export type AuthUser = {
   id: string
   email: string
@@ -94,7 +99,7 @@ export async function login(email: string, password: string) {
     id: row.id,
     email: row.email,
     role_id: row.role_id,
-    employee_id: row.employee_id,
+    employee_id: normalizeEmployeeId(row.employee_id),
     is_active: row.is_active,
     account_status: row.account_status,
     role_slug: row.role_slug,
@@ -128,6 +133,7 @@ export async function userFromToken(token: string | null): Promise<AuthUser | nu
   `
   const user = rows[0]
   if (!user) return null
+  user.employee_id = normalizeEmployeeId(user.employee_id)
   user.permissions = await permissionsForUser(user.role_id, user.id)
   return user
 }
