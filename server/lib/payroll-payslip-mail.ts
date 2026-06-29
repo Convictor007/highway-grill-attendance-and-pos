@@ -4,7 +4,6 @@ import { mailLastError, sendMail } from './mail'
 import { createNotification, userIdForEmployee } from './notifications'
 import { generatePayslipPdf } from './payslip-pdf'
 import { payslipPdfFilename, payslipPeriodLabel } from './payslip-renderer'
-import { savePublicFile } from './storage'
 
 type MailResult = Record<string, unknown>
 
@@ -25,27 +24,6 @@ async function resolveEmployeeEmail(employeeId: string): Promise<string | null> 
   const email = String(rows[0]?.email ?? '').trim()
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null
   return email
-}
-
-async function archivePayslipPdf(
-  row: Record<string, unknown>,
-  pdf: Buffer,
-  actorUserId?: string | null,
-): Promise<number | null> {
-  const employeeId = String(row.employee_id)
-  const periodLabel = payslipPeriodLabel(String(row.period_start ?? ''), String(row.period_end ?? ''))
-  const title = `Payslip ${periodLabel}`
-  const filename = `payslip-${String(row.id)}.pdf`
-  const url = await savePublicFile('documents', filename, pdf, 'application/pdf')
-  const sizeKb = Math.max(1, Math.ceil(pdf.length / 1024))
-
-  const db = getDb()
-  const [doc] = await db`
-    INSERT INTO documents (employee_id, category, title, file_url, file_type, file_size_kb, is_confidential, uploaded_by)
-    VALUES (${employeeId}, 'payslip', ${title}, ${url}, 'application/pdf', ${sizeKb}, false, ${actorUserId ?? null})
-    RETURNING id
-  `
-  return doc?.id ? Number(doc.id) : null
 }
 
 function buildEmailBodies(
@@ -163,8 +141,10 @@ export async function sendPayslip(payslipId: string, actorUserId?: string | null
   }
 
   try {
+    // PDF is generated on the fly and emailed as an attachment only. The payslip
+    // data is already recorded in payroll/payslips, so we do not persist the file
+    // to Blob storage.
     const pdf = await generatePayslipPdf(row)
-    await archivePayslipPdf(row, pdf, actorUserId)
 
     const filename = payslipPdfFilename(name, periodLabel)
     const netPay = Number(row.net_pay ?? 0)
