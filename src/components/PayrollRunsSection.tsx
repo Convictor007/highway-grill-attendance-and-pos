@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { formatDateShort, formatPayrollPeriod } from '../lib/datetime'
-import { api } from '../lib/api'
+import { api, apiDownload } from '../lib/api'
 import { useNotification } from '../hooks/useNotification'
 import { buildQuery, DEFAULT_PAGE_SIZE } from '../lib/pagination'
 import { PaginationBar } from './PaginationBar'
@@ -326,6 +326,14 @@ export function PayrollRunsSection({
       notifyError(err instanceof Error ? err.message : 'Could not update payroll run')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const onDownloadPayslip = async (payslipId: string) => {
+    try {
+      await apiDownload(`/payroll/payslip/${payslipId}/pdf`, 'payslip.pdf')
+    } catch (err) {
+      notifyError(err instanceof Error ? err.message : 'Could not download payslip')
     }
   }
 
@@ -947,6 +955,19 @@ export function PayrollRunsSection({
                                 }}
                               >
                                 {p.payment_status === 'ready' ? 'Email' : 'Resend'}
+                              </button>
+                            ) : null}
+                            {p.payment_status &&
+                            ['ready', 'emailed', 'paid'].includes(p.payment_status) ? (
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onDownloadPayslip(p.id)
+                                }}
+                              >
+                                Download
                               </button>
                             ) : null}
                             <button
