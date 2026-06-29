@@ -1,4 +1,4 @@
-export const MIN_ZONE_RADIUS_M = 75
+export const MIN_ZONE_RADIUS_M = 50
 export const MAX_ZONE_RADIUS_M = 800
 export const DEFAULT_ZONE_RADIUS_M = 100
 export const ZONE_RADIUS_STEP_M = 25
