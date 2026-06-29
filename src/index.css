@@ -6957,6 +6957,28 @@ svg:not(.nav-icon):not(.picker-trigger-icon):not(.clock-hand-svg) {
     -webkit-overflow-scrolling: touch;
   }
 
+  /* DTR / attendance: shrink text and padding so more of the table fits the
+     phone screen (matches the compact scheduling grid). */
+  .dtr-table th,
+  .dtr-table td,
+  .dtr-table .badge {
+    font-size: 0.68rem;
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+    line-height: 1.2;
+  }
+
+  .dtr-table .btn-sm {
+    font-size: 0.66rem;
+    padding: 0.3rem 0.45rem;
+  }
+
+  .dtr-table .badge {
+    padding: 0.05rem 0.3rem;
+  }
+
   /* Filter bars wrap their fields instead of overflowing off-screen. */
   .filter-bar {
     flex-wrap: wrap;
