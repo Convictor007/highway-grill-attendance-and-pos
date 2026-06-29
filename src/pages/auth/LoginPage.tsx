@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Spinner } from '../../components/Spinner'
+import { BrandLogo } from '../../components/BrandLogo'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { ApiError } from '../../lib/api'
@@ -36,9 +37,14 @@ export function LoginPage() {
   return (
     <div className="login-card card">
       <div className="login-head">
-        <span className="login-badge">HRMS Portal</span>
-        <h1>Welcome back</h1>
-        <p className="login-sub">Sign in to manage your team at Highway Grill</p>
+        <div className="login-head-text">
+          <span className="login-badge">HRMS Portal</span>
+          <h1>Welcome back</h1>
+          <p className="login-sub">Sign in to manage your team at Highway Grill</p>
+        </div>
+        <span className="login-logo-badge">
+          <BrandLogo size="md" />
+        </span>
       </div>
 
       <form onSubmit={onSubmit} className="login-form">
