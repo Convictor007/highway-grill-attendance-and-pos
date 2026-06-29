@@ -176,7 +176,6 @@ export function MyShiftsPage() {
       {departmentFilter !== '' && (
         <p className="muted-block schedule-context-line">
           Showing <strong>{departmentLabel}</strong> schedule for this week.
-          {isMobile && ' Swipe sideways to see the full week.'}
         </p>
       )}
 

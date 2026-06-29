@@ -155,9 +155,6 @@ export function ScheduleGrid({
                     <span className="schedule-grid-name-short">
                       {row.last_name || row.display_name}
                     </span>
-                    {highlightEmployeeId === row.employee_id && (
-                      <span className="schedule-grid-you">You</span>
-                    )}
                   </th>
                 )}
                 {row.cells.map((cell, idx) => {

@@ -6662,7 +6662,19 @@ tr.row-clickable:hover td {
     min-width: 0;
   }
 
-  /* Full team grid on mobile: surname-only keeps the name column narrow. */
+  /* Mobile: fit the whole week (name + 7 days) into one screen — no sideways
+     scroll. Fixed layout shares the width evenly; tiny text keeps it readable. */
+  .schedule-grid-scroll {
+    overflow-x: hidden;
+  }
+
+  .schedule-grid {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  /* Surname only, and the name column is no longer pinned while scrolling. */
   .schedule-grid-name-full {
     display: none;
   }
@@ -6673,34 +6685,57 @@ tr.row-clickable:hover td {
 
   .schedule-grid-name-col,
   .schedule-grid-name {
-    width: 76px;
-    max-width: 76px;
+    position: static;
+    box-shadow: none;
+    width: 15%;
+    max-width: none;
     white-space: normal;
     word-break: break-word;
-    padding-left: 0.5rem;
-    padding-right: 0.4rem;
-    font-size: 0.78rem;
-    line-height: 1.15;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.6rem;
+    line-height: 1.1;
   }
 
   .schedule-grid-day-head {
-    min-width: 58px;
+    min-width: 0;
   }
 
   .schedule-grid th,
   .schedule-grid td {
-    padding: 0.55rem 0.3rem;
-    font-size: 0.82rem;
+    padding: 0.4rem 0.15rem;
+    font-size: 0.6rem;
+  }
+
+  .schedule-grid-day-label {
+    font-size: 0.6rem;
+  }
+
+  .schedule-grid-day-date {
+    font-size: 0.55rem;
+  }
+
+  .schedule-grid-day-tag {
+    font-size: 0.52rem;
+    min-height: 0.9rem;
+  }
+
+  .schedule-grid-day-tag--today {
+    padding: 0.05rem 0.2rem;
+  }
+
+  .schedule-cell-hours,
+  .schedule-cell-rest {
+    font-size: 0.6rem;
   }
 
   .schedule-swap-btn {
-    min-height: 40px;
-    padding: 0.4rem 0.3rem;
-    font-size: 0.78rem;
+    min-height: 0;
+    padding: 0.25rem 0.15rem;
+    font-size: 0.55rem;
   }
 
   .schedule-grid-card {
-    padding: 0.5rem;
+    padding: 0.4rem;
   }
 }
 
