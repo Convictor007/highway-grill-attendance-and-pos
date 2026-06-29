@@ -64,6 +64,7 @@ export const hrMenuEntries: NavEntry[] = [
     icon: 'clock',
     items: [
       { to: '/attendance', label: 'Attendance register', icon: 'clock', perm: 'attendance.view' },
+      { to: '/hr/attendance-corrections', label: 'Corrections', icon: 'memo', perm: 'attendance.correct.approve' },
       { to: '/hr/attendance-stats', label: 'Attendance stats', icon: 'overtime', perm: 'attendance.view' },
       { to: '/hr/dtr-export', label: 'Export DTR', icon: 'folder', perm: 'attendance.view' },
     ],

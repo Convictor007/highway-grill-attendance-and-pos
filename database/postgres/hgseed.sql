@@ -44,7 +44,8 @@ INSERT INTO permissions (permission_id, permission_key, permission_name, module,
 (23, 'settings.branches.manage',      'Manage branches',            'settings',    'Branch settings'),
 (24, 'settings.departments.manage', 'Manage departments',         'settings',    'Departments & positions'),
 (25, 'compliance.view',             'View compliance',            'compliance',  'Checklists and audit'),
-(26, 'overtime.apply',              'Apply for overtime',         'attendance',  'Employee OT requests')
+(26, 'overtime.apply',              'Apply for overtime',         'attendance',  'Employee OT requests'),
+(27, 'attendance.correct.approve',  'Approve attendance corrections', 'attendance', 'Review crew time-in/out correction requests')
 ON CONFLICT (permission_key) DO NOTHING;
 
 INSERT INTO role_permissions (role_id, permission_id)

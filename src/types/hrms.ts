@@ -395,6 +395,30 @@ export interface AttendanceRecord {
   last_name?: string
 }
 
+export type AttendanceCorrectionType = 'missing_in' | 'missing_out' | 'wrong_time' | 'missing_both'
+export type AttendanceCorrectionStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+export interface AttendanceCorrectionRequest {
+  id: string
+  employee_id: string
+  attendance_id: string | null
+  request_type: AttendanceCorrectionType
+  requested_clock_in: string | null
+  requested_clock_out: string | null
+  reason: string
+  status: AttendanceCorrectionStatus
+  reviewed_by?: string | null
+  reviewed_at?: string | null
+  review_note?: string | null
+  resolved_attendance_id?: string | null
+  created_at: string
+  first_name?: string
+  last_name?: string
+  emp_number?: string
+  current_clock_in?: string | null
+  current_clock_out?: string | null
+}
+
 export interface PaginatedResult<T> {
   items: T[]
   total: number

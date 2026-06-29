@@ -18,9 +18,10 @@ import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
 import { ClockHelpButton } from '../../components/ClockHelpButton'
 import { useClockGeofence } from '../../hooks/useClockGeofence'
 import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
-import type { AttendanceRecord } from '../../types/hrms'
+import type { AttendanceRecord, AttendanceCorrectionRequest } from '../../types/hrms'
 import { resolveClockOpenState } from '../../lib/clockState'
 import { DtrExportForm } from '../../components/DtrExportForm'
+import { AttendanceCorrectionModal } from '../../components/AttendanceCorrectionModal'
 
 interface HoursSummary {
   from: string
@@ -62,8 +63,16 @@ export function DtrPage() {
   const [busy, setBusy] = useState(false)
   const [pending, setPending] = useState<'in' | 'out' | null>(null)
   const [shiftCtx, setShiftCtx] = useState<ShiftClockContext | null>(null)
+  const [corrections, setCorrections] = useState<AttendanceCorrectionRequest[]>([])
+  const [correctionOpen, setCorrectionOpen] = useState(false)
+  const [correctionRecord, setCorrectionRecord] = useState<AttendanceRecord | null>(null)
   const geofence = useClockGeofence(geofenceRequired, { sessionActive: open && canClock })
   const showEndShift = open && !!shiftCtx?.show_end_shift
+
+  const openCorrection = (record: AttendanceRecord | null) => {
+    setCorrectionRecord(record)
+    setCorrectionOpen(true)
+  }
 
   const load = async (options?: LoadOptions) => {
     const { showLoading, finish } = resolveLoadBehavior(options)
@@ -73,7 +82,7 @@ export function DtrPage() {
       const fromDate = new Date()
       fromDate.setDate(fromDate.getDate() - 13)
       const from = fromDate.toISOString().slice(0, 10)
-      const [status, weekSum, history] = await Promise.all([
+      const [status, weekSum, history, myCorrections] = await Promise.all([
         api<{
           open: boolean
           on_break?: boolean
@@ -91,6 +100,7 @@ export function DtrPage() {
         })),
         api<HoursSummary>('/attendance/summary'),
         api<AttendanceRecord[]>(`/attendance/history?from=${from}&to=${to}`),
+        api<AttendanceCorrectionRequest[]>('/attendance/corrections').catch(() => []),
       ])
       const clock = resolveClockOpenState(status, history)
       setOpen(clock.open)
@@ -102,6 +112,7 @@ export function DtrPage() {
       setShiftCtx(status.shift ?? null)
       setSummary(weekSum)
       setRecords(history)
+      setCorrections(myCorrections)
     } finally {
       setLoading(false)
       finish()
@@ -191,7 +202,17 @@ export function DtrPage() {
 
   return (
     <div>
-      <PageHeader title="DTR" subtitle="In, out, and hours worked" />
+      <PageHeader
+        title="DTR"
+        subtitle="In, out, and hours worked"
+        actions={
+          canClock ? (
+            <button type="button" className="btn btn-ghost" onClick={() => openCorrection(null)}>
+              Request correction
+            </button>
+          ) : undefined
+        }
+      />
 
       <div className="card dtr-summary-bar">
         <div className="dtr-summary-week">
@@ -288,6 +309,7 @@ export function DtrPage() {
                 <th>Hours</th>
                 <th>OT</th>
                 <th>Location (in)</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -320,12 +342,58 @@ export function DtrPage() {
                         address={r.clock_in_address}
                       />
                     </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => openCorrection(r)}
+                      >
+                        Request fix
+                      </button>
+                    </td>
                   </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {corrections.length > 0 && (
+        <div className="card table-wrap" style={{ marginTop: '1rem' }}>
+          <h3 className="section-title">My correction requests</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Submitted</th>
+                <th>Type</th>
+                <th>Requested in</th>
+                <th>Requested out</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {corrections.map((c) => (
+                <tr key={c.id}>
+                  <td>{formatDateLabel(c.created_at.slice(0, 10))}</td>
+                  <td>{c.request_type.replace(/_/g, ' ')}</td>
+                  <td>{formatTime(c.requested_clock_in)}</td>
+                  <td>{formatTime(c.requested_clock_out)}</td>
+                  <td>
+                    <span className={`badge badge-${c.status}`}>{c.status}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <AttendanceCorrectionModal
+        open={correctionOpen}
+        record={correctionRecord}
+        onClose={() => setCorrectionOpen(false)}
+        onSaved={() => load({ silent: true })}
+      />
     </div>
   )
 }

@@ -30,6 +30,7 @@ import { ServiceRecordsPage } from '../pages/employee/ServiceRecordsPage'
 import { HrLoansPage } from '../pages/hr/HrLoansPage'
 import { HrContentPage } from '../pages/hr/HrContentPage'
 import { AttendanceStatsPage } from '../pages/attendance/AttendanceStatsPage'
+import { HrAttendanceCorrectionsPage } from '../pages/hr/HrAttendanceCorrectionsPage'
 import { HrFieldWorkPage } from '../pages/hr/HrFieldWorkPage'
 import { HrTipsPage } from '../pages/hr/HrTipsPage'
 import { HrReportsPage } from '../pages/hr/HrReportsPage'
@@ -136,6 +137,16 @@ export function AppRoutes() {
             <RequireHr>
               <RequirePermission permission="attendance.view">
                 <AttendanceStatsPage />
+              </RequirePermission>
+            </RequireHr>
+          }
+        />
+        <Route
+          path="hr/attendance-corrections"
+          element={
+            <RequireHr>
+              <RequirePermission permission="attendance.correct.approve">
+                <HrAttendanceCorrectionsPage />
               </RequirePermission>
             </RequireHr>
           }

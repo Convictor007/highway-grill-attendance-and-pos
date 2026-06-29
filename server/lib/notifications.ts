@@ -11,6 +11,50 @@ export async function userIdForEmployee(employeeId: string): Promise<string | nu
   return rows[0]?.id ? String(rows[0].id) : null
 }
 
+/** Active user ids whose role (or per-user override) grants a permission key. */
+export async function userIdsWithPermission(permissionKey: string): Promise<string[]> {
+  const db = getDb()
+  const rows = await db<{ id: number }[]>`
+    SELECT DISTINCT u.id
+    FROM users u
+    WHERE u.is_active = true
+      AND u.account_status = 'active'
+      AND (
+        EXISTS (
+          SELECT 1 FROM role_permissions rp
+          INNER JOIN permissions p ON p.permission_id = rp.permission_id
+          WHERE rp.role_id = u.role_id AND p.permission_key = ${permissionKey}
+        )
+        OR EXISTS (
+          SELECT 1 FROM user_permissions up
+          INNER JOIN permissions p ON p.permission_id = up.permission_id
+          WHERE up.user_id = u.id AND up.grant_type = 'grant' AND p.permission_key = ${permissionKey}
+        )
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM user_permissions up
+        INNER JOIN permissions p ON p.permission_id = up.permission_id
+        WHERE up.user_id = u.id AND up.grant_type = 'deny' AND p.permission_key = ${permissionKey}
+      )
+  `
+  return rows.map((r) => String(r.id))
+}
+
+/** Send the same notification to every user holding a permission. */
+export async function notifyUsersWithPermission(
+  permissionKey: string,
+  type: string,
+  title: string,
+  body?: string | null,
+  relatedId?: string | null,
+  link?: string | null,
+) {
+  const ids = await userIdsWithPermission(permissionKey)
+  for (const uid of ids) {
+    await createNotification(uid, type, title, body, relatedId, link)
+  }
+}
+
 export async function existsForRelated(userId: string, type: string, relatedId: string): Promise<boolean> {
   const db = getDb()
   const rows = await db`

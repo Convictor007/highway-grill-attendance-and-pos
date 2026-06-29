@@ -321,6 +321,30 @@ export async function updateAttendance(id: string, data: Record<string, unknown>
   return auto.recalculateForRecord(id)
 }
 
+/**
+ * Create an attendance record manually (HR-approved correction for a forgotten
+ * punch). Leaves shift_assignment_id NULL so hours resolve against the shift for
+ * the record's own date, then recomputes hours when a clock-out is supplied.
+ */
+export async function createManualAttendance(
+  employeeId: string,
+  clockIn: string,
+  clockOut: string | null,
+  approverUserId: string,
+) {
+  const db = getDb()
+  const [row] = await db`
+    INSERT INTO attendance (employee_id, clock_in, clock_out, method, approved_by, approved_at, clock_out_type)
+    VALUES (${employeeId}, ${clockIn}, ${clockOut}, 'manual', ${approverUserId}, NOW(), ${clockOut ? 'manual' : null})
+    RETURNING id
+  `
+  const id = String(row.id)
+  if (clockOut) {
+    await auto.recalculateForRecord(id)
+  }
+  return getAttendance(id)
+}
+
 export function defaultHistoryFrom() {
   const d = new Date()
   d.setDate(d.getDate() - 13)
