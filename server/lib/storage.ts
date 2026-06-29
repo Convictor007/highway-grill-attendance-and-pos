@@ -18,6 +18,10 @@ export async function savePublicFile(
       access: 'public',
       token: blobToken,
       contentType,
+      // Filenames are deterministic (e.g. payslip-<id>.pdf, employee photos), so
+      // re-saving should replace the existing blob instead of failing with
+      // "This blob already exists" when a payslip is regenerated or re-emailed.
+      allowOverwrite: true,
     })
     return blob.url
   }
