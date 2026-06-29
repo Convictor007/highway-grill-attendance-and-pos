@@ -449,6 +449,7 @@ export async function rosterGrid(
     return {
       employee_id: String(emp.id),
       display_name: `${emp.first_name} ${emp.last_name}`.trim(),
+      last_name: String(emp.last_name ?? '').trim(),
       emp_number: emp.emp_number,
       department_name: dept || null,
       section_divider: sectionDivider,

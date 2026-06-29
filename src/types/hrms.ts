@@ -583,6 +583,7 @@ export interface RosterGridCell {
 export interface RosterGridRow {
   employee_id: string
   display_name: string
+  last_name?: string
   emp_number?: string
   department_name?: string | null
   section_divider: boolean

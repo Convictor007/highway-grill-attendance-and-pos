@@ -151,7 +151,10 @@ export function ScheduleGrid({
               >
                 {!mobileSelfOnly && (
                   <th scope="row" className="schedule-grid-name">
-                    {row.display_name}
+                    <span className="schedule-grid-name-full">{row.display_name}</span>
+                    <span className="schedule-grid-name-short">
+                      {row.last_name || row.display_name}
+                    </span>
                     {highlightEmployeeId === row.employee_id && (
                       <span className="schedule-grid-you">You</span>
                     )}

@@ -5855,6 +5855,11 @@ tr.row-clickable:hover td {
   background: #33283a;
 }
 
+/* Desktop shows the full name; the surname-only variant is mobile-only. */
+.schedule-grid-name-short {
+  display: none;
+}
+
 .schedule-grid-cell--off {
   color: var(--muted);
   background: rgba(0, 0, 0, 0.04);
@@ -6657,12 +6662,19 @@ tr.row-clickable:hover td {
     min-width: 0;
   }
 
-  /* Full team grid on mobile: keep a compact, readable name column that wraps
-     long names instead of forcing the whole row wider. */
+  /* Full team grid on mobile: surname-only keeps the name column narrow. */
+  .schedule-grid-name-full {
+    display: none;
+  }
+
+  .schedule-grid-name-short {
+    display: inline;
+  }
+
   .schedule-grid-name-col,
   .schedule-grid-name {
-    width: 92px;
-    max-width: 92px;
+    width: 76px;
+    max-width: 76px;
     white-space: normal;
     word-break: break-word;
     padding-left: 0.5rem;
