@@ -15,11 +15,18 @@ interface MyPayslip {
   gross_pay: string
   net_pay: string
   run_status: string
+  payment_status?: 'emailed' | 'paid'
 }
 
 function money(value: string | number | undefined | null) {
   if (value == null || value === '') return '—'
   return `₱${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function statusLabel(status: MyPayslip['payment_status']) {
+  if (status === 'paid') return 'Paid'
+  if (status === 'emailed') return 'Sent'
+  return '—'
 }
 
 export function MyPayslipsPage() {
@@ -40,7 +47,10 @@ export function MyPayslipsPage() {
         {loading ? (
           <LoadingBlock />
         ) : rows.length === 0 ? (
-          <EmptyState title="No payslips yet" description="Payslips appear after HR runs payroll." />
+          <EmptyState
+            title="No payslips yet"
+            description="Your payslip will appear here once HR emails it to you."
+          />
         ) : (
           <table>
             <thead>
@@ -50,6 +60,7 @@ export function MyPayslipsPage() {
                 <th>Hours</th>
                 <th>Gross</th>
                 <th>Net</th>
+                <th>Status</th>
                 <th />
               </tr>
             </thead>
@@ -65,6 +76,15 @@ export function MyPayslipsPage() {
                   <td>{p.regular_hours}</td>
                   <td>{money(p.gross_pay)}</td>
                   <td className="payroll-my-net">{money(p.net_pay)}</td>
+                  <td>
+                    {p.payment_status ? (
+                      <span className={`badge badge-${p.payment_status}`}>
+                        {statusLabel(p.payment_status)}
+                      </span>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                   <td>
                     <button
                       type="button"

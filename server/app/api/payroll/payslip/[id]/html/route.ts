@@ -1,7 +1,7 @@
 import { requireUser } from '@/lib/auth'
 import { hasPermission } from '@/lib/permissions'
 import { jsonError, jsonOk } from '@/lib/api-response'
-import { getPayslip } from '@/lib/payroll'
+import { getPayslip, isPayslipVisibleToEmployee } from '@/lib/payroll'
 import { payslipHtml } from '@/lib/payslip-renderer'
 import { ForbiddenError } from '@/lib/errors'
 import { handleRoute } from '@/lib/route-handler'
@@ -20,6 +20,11 @@ export async function GET(request: Request, { params }: Params) {
     const canSelf =
       hasPermission(user, 'payroll.view.self') && user.employee_id === String(row.employee_id)
     if (!canManage && !canSelf) throw new ForbiddenError()
+
+    // Employees may only view their payslip once HR has emailed (or paid) it.
+    if (!canManage && !isPayslipVisibleToEmployee(row.payment_status)) {
+      throw new ForbiddenError('This payslip is not available yet')
+    }
 
     // Same template that powers the emailed PDF, so the on-screen view matches exactly.
     return jsonOk({ html: payslipHtml(row, true) })

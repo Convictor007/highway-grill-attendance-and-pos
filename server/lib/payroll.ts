@@ -581,12 +581,23 @@ export async function createRun(data: Record<string, unknown>, userId: string) {
   return rows[0]
 }
 
+// Statuses a payslip must reach before an employee may see it in self-service.
+// A payslip becomes visible once HR emails it ('emailed') and stays visible
+// after it is paid ('paid'). Earlier states (pending/ready/deferred) are hidden.
+export const EMPLOYEE_VISIBLE_PAYSLIP_STATUSES = ['emailed', 'paid'] as const
+
+export function isPayslipVisibleToEmployee(paymentStatus: unknown): boolean {
+  return (EMPLOYEE_VISIBLE_PAYSLIP_STATUSES as readonly string[]).includes(
+    String(paymentStatus ?? ''),
+  )
+}
+
 export async function payslipsForEmployee(employeeId: string) {
   return unsafe<Record<string, unknown>>(
     `SELECT ps.*, pr.period_start, pr.period_end, pr.pay_date, pr.status AS run_status
      FROM payslips ps
      INNER JOIN payroll_runs pr ON pr.id = ps.payroll_run_id
-     WHERE ps.employee_id = $1 AND ps.payment_status = 'paid'
+     WHERE ps.employee_id = $1 AND ps.payment_status IN ('emailed', 'paid')
      ORDER BY pr.pay_date DESC`,
     [employeeId],
   )

@@ -1,7 +1,7 @@
 import { requireUser } from '@/lib/auth'
 import { hasPermission } from '@/lib/permissions'
 import { jsonError } from '@/lib/api-response'
-import { getPayslip } from '@/lib/payroll'
+import { getPayslip, isPayslipVisibleToEmployee } from '@/lib/payroll'
 import { generatePayslipPdf } from '@/lib/payslip-pdf'
 import { payslipPdfFilename, payslipPeriodLabel } from '@/lib/payslip-renderer'
 import { ForbiddenError } from '@/lib/errors'
@@ -23,6 +23,11 @@ export async function GET(request: Request, { params }: Params) {
     const canSelf =
       hasPermission(user, 'payroll.view.self') && user.employee_id === String(row.employee_id)
     if (!canManage && !canSelf) throw new ForbiddenError()
+
+    // Employees may only download their payslip once HR has emailed (or paid) it.
+    if (!canManage && !isPayslipVisibleToEmployee(row.payment_status)) {
+      throw new ForbiddenError('This payslip is not available yet')
+    }
 
     // Same PDF used for the email attachment, generated on demand (not stored).
     const pdf = await generatePayslipPdf(row)
