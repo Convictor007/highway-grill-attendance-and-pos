@@ -212,16 +212,19 @@ function overtimeReasons(
 }
 
 export function computeHourSplit(record: Record<string, unknown>, shift: ShiftAssignment | null): HourSplit {
-  const clockIn = String(record.clock_in)
-  const clockOut = record.clock_out ? String(record.clock_out) : ''
   const timing = resolveShiftTiming(record, shift)
+  const hasClockOut = record.clock_out != null && record.clock_out !== ''
 
-  if (!clockOut) {
+  if (!hasClockOut) {
     return { worked: 0, regular: 0, overtime: 0, reason: '', timing }
   }
 
-  const clockInTs = parseTs(clockIn)
-  const clockOutTs = parseTs(clockOut)
+  const clockInTs = parseTs(record.clock_in)
+  const clockOutTs = parseTs(record.clock_out)
+  // Canonical UTC strings so downstream helpers parse identically on any server TZ
+  // (String(Date) is locale/TZ-dependent and corrupts hours off-UTC).
+  const clockIn = tsToDbString(clockInTs)
+  const clockOut = tsToDbString(clockOutTs)
 
   // Hours follow the registered schedule when a shift is assigned.
   if (

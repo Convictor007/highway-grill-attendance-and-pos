@@ -27,6 +27,42 @@ export function shiftWallClockToUtcMs(dateYmd: string, timeHms: string, offsetMs
   return Date.UTC(y, m - 1, d, hh, mm, ss) - offsetMs
 }
 
+/**
+ * Manually-entered attendance time (branch wall-clock) → UTC ISO instant string.
+ *
+ * HR/employee correction forms send naive "YYYY-MM-DD[ T]HH:mm[:ss]" strings that
+ * represent branch-local (Manila) wall-clock time. Stored straight into a
+ * TIMESTAMPTZ column they would be read back as UTC (an 8h error vs. the schedule,
+ * which is converted with the Manila offset), zeroing out hours and inflating
+ * late/early minutes. Convert here so manual entries become real UTC instants,
+ * matching `NOW()` clock-ins and `shiftWallClockToUtcMs` schedules.
+ *
+ * Values that already carry an explicit timezone (trailing `Z` or `±HH:MM`) or are
+ * Date objects are treated as real instants and passed through, so calling this
+ * more than once is safe (idempotent).
+ */
+export function branchWallClockToUtcIso(value: unknown, offsetMs = MANILA_OFFSET_MS): string | null {
+  if (value == null || value === '') return null
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString()
+  }
+  const s = String(value).trim()
+  if (!s) return null
+  // Already an absolute instant (explicit timezone) — keep as-is.
+  if (/[zZ]$/.test(s) || /[+-]\d{2}:\d{2}$/.test(s)) {
+    const d = new Date(s)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  }
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/)
+  if (!match) {
+    const d = new Date(s)
+    return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  }
+  const time = `${match[2]}:${match[3]}:${match[4] ?? '00'}`
+  const ms = shiftWallClockToUtcMs(match[1], time, offsetMs)
+  return Number.isNaN(ms) ? null : new Date(ms).toISOString()
+}
+
 /** Today's calendar date in branch timezone (YYYY-MM-DD). */
 export function todayInBranchTz(offsetMs = MANILA_OFFSET_MS): string {
   const d = new Date(Date.now() + offsetMs)

@@ -1,4 +1,5 @@
 import { getDb } from './db'
+import { branchWallClockToUtcIso } from './branch-time'
 import { ValidationError } from './errors'
 import { createManualAttendance, getAttendance, updateAttendance } from './attendance'
 import { createNotification, notifyUsersWithPermission, userIdForEmployee } from './notifications'
@@ -59,12 +60,10 @@ export async function createCorrectionRequest(employeeId: string, payload: Recor
   const reason = String(payload.reason ?? '').trim()
   if (!reason) throw new ValidationError('A reason is required')
 
-  const rawIn = payload.requested_clock_in != null && payload.requested_clock_in !== ''
-    ? String(payload.requested_clock_in)
-    : null
-  const rawOut = payload.requested_clock_out != null && payload.requested_clock_out !== ''
-    ? String(payload.requested_clock_out)
-    : null
+  // Forms send branch-local wall-clock — normalize to true UTC instants up front so
+  // both validation and storage operate on unambiguous values.
+  const rawIn = branchWallClockToUtcIso(payload.requested_clock_in)
+  const rawOut = branchWallClockToUtcIso(payload.requested_clock_out)
   const requestedIn = parseTs(rawIn)
   const requestedOut = parseTs(rawOut)
   const attendanceId = payload.attendance_id != null && payload.attendance_id !== ''
@@ -183,8 +182,9 @@ export async function approveRequest(id: string, reviewerUserId: string, note?: 
   }
 
   const employeeId = String(req.employee_id)
-  const requestedIn = req.requested_clock_in ? String(req.requested_clock_in) : null
-  const requestedOut = req.requested_clock_out ? String(req.requested_clock_out) : null
+  // Stored as true instants; emit clean ISO so the persistence layer keeps them as-is.
+  const requestedIn = req.requested_clock_in ? new Date(req.requested_clock_in as string).toISOString() : null
+  const requestedOut = req.requested_clock_out ? new Date(req.requested_clock_out as string).toISOString() : null
 
   let resolvedAttendanceId: string | null = null
 

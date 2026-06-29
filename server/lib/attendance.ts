@@ -1,4 +1,5 @@
 import { getDb } from './db'
+import { branchWallClockToUtcIso } from './branch-time'
 import { ValidationError } from './errors'
 import * as fieldWork from './field-work'
 import * as auto from './attendance-auto'
@@ -302,6 +303,9 @@ export async function updateAttendance(id: string, data: Record<string, unknown>
   for (const f of fields) {
     if (f in data) updates[f] = data[f]
   }
+  // Manual time edits arrive as branch-local wall-clock — store true UTC instants.
+  if ('clock_in' in updates) updates.clock_in = branchWallClockToUtcIso(updates.clock_in)
+  if ('clock_out' in updates) updates.clock_out = branchWallClockToUtcIso(updates.clock_out)
   if (Object.keys(updates).length === 0) return existing
   if (approverUserId) {
     updates.approved_by = approverUserId
@@ -333,13 +337,16 @@ export async function createManualAttendance(
   approverUserId: string,
 ) {
   const db = getDb()
+  // Branch-local wall-clock from correction forms → true UTC instants.
+  const clockInIso = branchWallClockToUtcIso(clockIn)
+  const clockOutIso = branchWallClockToUtcIso(clockOut)
   const [row] = await db`
     INSERT INTO attendance (employee_id, clock_in, clock_out, method, approved_by, approved_at, clock_out_type)
-    VALUES (${employeeId}, ${clockIn}, ${clockOut}, 'manual', ${approverUserId}, NOW(), ${clockOut ? 'manual' : null})
+    VALUES (${employeeId}, ${clockInIso}, ${clockOutIso}, 'manual', ${approverUserId}, NOW(), ${clockOutIso ? 'manual' : null})
     RETURNING id
   `
   const id = String(row.id)
-  if (clockOut) {
+  if (clockOutIso) {
     await auto.recalculateForRecord(id)
   }
   return getAttendance(id)
