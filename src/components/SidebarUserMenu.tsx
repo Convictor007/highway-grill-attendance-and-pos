@@ -48,7 +48,11 @@ export function SidebarUserMenu({ primary, secondary, onLogout }: Props) {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
+        title={primary}
       >
+        <span className="sidebar-user-avatar" aria-hidden>
+          {primary?.trim()?.charAt(0)?.toUpperCase() || '?'}
+        </span>
         <span className="sidebar-user-trigger-text">
           <span className="sidebar-user-primary">{primary}</span>
           {secondary && <span className="sidebar-user-secondary">{secondary}</span>}

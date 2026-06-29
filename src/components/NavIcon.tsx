@@ -21,10 +21,12 @@ export function NavIcon({ name, className = 'nav-icon' }: Props) {
     key: <path d="M8 11a4 4 0 118 0 4 4 0 01-8 0v2h2v4H6v-6z" fill="currentColor" />,
     settings: <path d="M12 15a3 3 0 100-6 3 3 0 000 6zm8-3a8 8 0 11-16 0 8 8 0 0116 0z" stroke="currentColor" strokeWidth="2" fill="none" />,
     shield: <path d="M12 3l8 4v6c0 5-3.5 8-8 8s-8-3-8-8V7l8-4z" stroke="currentColor" strokeWidth="2" fill="none" />,
+    'chevron-left': <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />,
+    'chevron-right': <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />,
   }
 
   const content = paths[name] ?? paths.home
-  const isStroke = ['clock', 'calendar', 'wallet', 'schedule', 'loan', 'benefit', 'folder', 'memo', 'map', 'overtime', 'users', 'settings', 'shield', 'menu'].includes(name)
+  const isStroke = ['clock', 'calendar', 'wallet', 'schedule', 'loan', 'benefit', 'folder', 'memo', 'map', 'overtime', 'users', 'settings', 'shield', 'menu', 'chevron-left', 'chevron-right'].includes(name)
 
   return (
     <svg className={className} viewBox="0 0 24 24" aria-hidden width="22" height="22">

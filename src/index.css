@@ -1881,6 +1881,112 @@ th {
   }
 }
 
+/* —— Admin sidebar collapse / expand (desktop) —— */
+.sidebar-collapse-btn {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .admin-shell .admin-sidebar {
+    transition: width 0.18s ease, padding 0.18s ease;
+  }
+
+  .admin-shell .admin-main {
+    transition: margin-left 0.18s ease;
+  }
+
+  .sidebar-collapse-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    margin-left: auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .sidebar-collapse-btn:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  /* Collapsed icon rail */
+  .admin-shell--collapsed .admin-sidebar {
+    width: 76px;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  .admin-shell--collapsed .admin-main {
+    margin-left: 76px;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .admin-sidebar-brand {
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .admin-shell--collapsed .admin-sidebar-brand-text {
+    display: none;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .sidebar-collapse-btn {
+    margin-left: 0;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .sidebar-section-label {
+    display: none;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .nav span,
+  .admin-shell--collapsed .admin-sidebar .sidebar-nav-group-label,
+  .admin-shell--collapsed .admin-sidebar .sidebar-nav-chevron {
+    display: none;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .nav,
+  .admin-shell--collapsed .admin-sidebar .sidebar-nav-group-toggle {
+    justify-content: center;
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .sidebar-user-trigger-text,
+  .admin-shell--collapsed .admin-sidebar .sidebar-user-chevron {
+    display: none;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .sidebar-user-trigger {
+    justify-content: center;
+  }
+
+  .admin-shell--collapsed .admin-sidebar .sidebar-user-avatar {
+    display: inline-flex;
+  }
+}
+
+.sidebar-user-avatar {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(232, 93, 4, 0.15);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
 /* —— Employee portal (mobile-first HRMS) —— */
 :root {
   --nav-height: 64px;

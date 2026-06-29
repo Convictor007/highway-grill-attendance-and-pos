@@ -14,6 +14,7 @@ export function AdminLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('hg_admin_sidebar_collapsed') === '1')
   const sections = staffMenuSections(user)
   const portalLabel = isSystemAdmin(user) ? 'System Admin' : 'HR Portal'
 
@@ -28,8 +29,21 @@ export function AdminLayout() {
 
   const closeDrawer = () => setDrawerOpen(false)
 
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem('hg_admin_sidebar_collapsed', next ? '1' : '0')
+      return next
+    })
+  }
+
+  const expandSidebar = () => {
+    setCollapsed(false)
+    localStorage.setItem('hg_admin_sidebar_collapsed', '0')
+  }
+
   return (
-    <div className="dash admin-shell">
+    <div className={`dash admin-shell${collapsed ? ' admin-shell--collapsed' : ''}`}>
       <header className="app-header admin-app-header">
         <div className="app-header-brand">
           <BrandLogo size="sm" />
@@ -60,16 +74,32 @@ export function AdminLayout() {
         </div>
         <div className="brand admin-sidebar-brand">
           <BrandLogo size="md" />
-          <div>
+          <div className="admin-sidebar-brand-text">
             <strong>Highway Grill</strong>
             <small>{portalLabel}</small>
           </div>
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={toggleCollapsed}
+          >
+            <NavIcon name={collapsed ? 'chevron-right' : 'chevron-left'} />
+          </button>
         </div>
         <nav>
           {sections.map((section) => (
             <div key={section.label ?? 'main'} className="sidebar-section">
               {section.label && <div className="sidebar-section-label">{section.label}</div>}
-              <SidebarNav entries={section.items} user={user} onNavigate={closeDrawer} />
+              <SidebarNav
+                entries={section.items}
+                user={user}
+                onNavigate={closeDrawer}
+                collapsed={collapsed}
+                onExpand={expandSidebar}
+              />
             </div>
           ))}
         </nav>

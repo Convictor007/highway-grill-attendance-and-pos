@@ -8,19 +8,30 @@ type Props = {
   entries: NavEntry[]
   user: AuthUser | null
   onNavigate?: () => void
+  collapsed?: boolean
+  onExpand?: () => void
 }
 
 function groupStorageKey(id: string) {
   return `hg_sidebar_group_${id}`
 }
 
-function NavLinkItem({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+function NavLinkItem({
+  item,
+  onNavigate,
+  collapsed,
+}: {
+  item: NavItem
+  onNavigate?: () => void
+  collapsed?: boolean
+}) {
   return (
     <NavLink
       to={item.to}
       end={item.end}
       className={({ isActive }) => (isActive ? 'nav active' : 'nav')}
       onClick={() => onNavigate?.()}
+      title={collapsed ? item.label : undefined}
     >
       <NavIcon name={item.icon} />
       <span>{item.label}</span>
@@ -32,10 +43,14 @@ function NavGroupBlock({
   group,
   user,
   onNavigate,
+  collapsed,
+  onExpand,
 }: {
   group: Extract<NavEntry, { type: 'group' }>
   user: AuthUser | null
   onNavigate?: () => void
+  collapsed?: boolean
+  onExpand?: () => void
 }) {
   const location = useLocation()
   const items = filterNav(group.items, user)
@@ -53,6 +68,14 @@ function NavGroupBlock({
   }, [childActive, location.pathname])
 
   const toggle = () => {
+    // In the collapsed icon rail the sub-items are hidden, so a click expands
+    // the rail first and reveals this group instead of toggling it shut.
+    if (collapsed) {
+      onExpand?.()
+      setOpen(true)
+      localStorage.setItem(groupStorageKey(group.id), '1')
+      return
+    }
     setOpen((prev) => {
       const next = !prev
       localStorage.setItem(groupStorageKey(group.id), next ? '1' : '0')
@@ -64,14 +87,20 @@ function NavGroupBlock({
 
   return (
     <div className={`sidebar-nav-group${open ? ' sidebar-nav-group--open' : ''}`}>
-      <button type="button" className="sidebar-nav-group-toggle nav" onClick={toggle} aria-expanded={open}>
+      <button
+        type="button"
+        className="sidebar-nav-group-toggle nav"
+        onClick={toggle}
+        aria-expanded={open}
+        title={collapsed ? group.label : undefined}
+      >
         <NavIcon name={group.icon} />
         <span className="sidebar-nav-group-label">{group.label}</span>
         <span className="sidebar-nav-chevron" aria-hidden>
           ›
         </span>
       </button>
-      {open && (
+      {open && !collapsed && (
         <div className="sidebar-nav-sub">
           {items.map((item) => (
             <NavLink
@@ -90,14 +119,21 @@ function NavGroupBlock({
   )
 }
 
-export function SidebarNav({ entries, user, onNavigate }: Props) {
+export function SidebarNav({ entries, user, onNavigate, collapsed, onExpand }: Props) {
   return (
     <>
       {entries.map((entry) =>
         isNavGroup(entry) ? (
-          <NavGroupBlock key={entry.id} group={entry} user={user} onNavigate={onNavigate} />
+          <NavGroupBlock
+            key={entry.id}
+            group={entry}
+            user={user}
+            onNavigate={onNavigate}
+            collapsed={collapsed}
+            onExpand={onExpand}
+          />
         ) : (
-          <NavLinkItem key={entry.to} item={entry} onNavigate={onNavigate} />
+          <NavLinkItem key={entry.to} item={entry} onNavigate={onNavigate} collapsed={collapsed} />
         ),
       )}
     </>
