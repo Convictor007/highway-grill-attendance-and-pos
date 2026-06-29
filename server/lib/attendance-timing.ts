@@ -6,6 +6,10 @@ import {
 } from './branch-time'
 
 export const MAX_REGULAR_HOURS = 9
+/** Automatic unpaid meal break deducted from regular hours when duty is long enough. */
+export const UNPAID_BREAK_HOURS = 1
+/** Days with regular duty below this threshold keep full hours (no auto break). */
+export const BREAK_EXEMPT_BELOW_HOURS = 4
 
 const MINUTE_MS = 60_000
 /** Clock in up to this early = on time (no "early in"); pay still starts at shift start. */
@@ -76,6 +80,30 @@ function shiftEndTimestamp(date: string, startTime: string, endTime: string): nu
     endTs += 24 * 60 * 60 * 1000
   }
   return endTs
+}
+
+function explicitBreakHours(record: Record<string, unknown>): number {
+  if (record.break_start && record.break_end) {
+    const breakMins = Math.round(
+      (parseTs(record.break_end) - parseTs(record.break_start)) / 60_000,
+    )
+    return Math.round((Math.max(0, breakMins) / 60) * 100) / 100
+  }
+  return 0
+}
+
+/** Deduct automatic unpaid break from regular hours only (never overtime). */
+export function applyUnpaidBreakToRegular(
+  regular: number,
+  record: Record<string, unknown>,
+): { regular: number; breakDeducted: number } {
+  if (regular < BREAK_EXEMPT_BELOW_HOURS) {
+    return { regular, breakDeducted: 0 }
+  }
+  const autoBreak = Math.max(0, UNPAID_BREAK_HOURS - explicitBreakHours(record))
+  const breakDeducted = Math.round(autoBreak * 100) / 100
+  const netRegular = Math.max(0, Math.round((regular - breakDeducted) * 100) / 100)
+  return { regular: netRegular, breakDeducted }
 }
 
 export function workedHours(clockIn: unknown, clockOut: unknown, record: Record<string, unknown>): number {
@@ -223,6 +251,8 @@ export function computeHourSplit(record: Record<string, unknown>, shift: ShiftAs
     }
     overtime = Math.round(overtime * 100) / 100
 
+    const breakApplied = applyUnpaidBreakToRegular(regular, record)
+    regular = breakApplied.regular
     const worked = Math.round((regular + overtime) * 100) / 100
 
     return {
@@ -235,9 +265,12 @@ export function computeHourSplit(record: Record<string, unknown>, shift: ShiftAs
   }
 
   // No schedule: use actual elapsed time capped at 9 regular hours.
-  const worked = workedHours(clockIn, clockOut, record)
-  const regular = Math.round(Math.min(worked, MAX_REGULAR_HOURS) * 100) / 100
-  const overtime = Math.round(Math.max(0, worked - regular) * 100) / 100
+  const workedRaw = workedHours(clockIn, clockOut, record)
+  const regularPre = Math.round(Math.min(workedRaw, MAX_REGULAR_HOURS) * 100) / 100
+  const overtime = Math.round(Math.max(0, workedRaw - regularPre) * 100) / 100
+  const breakApplied = applyUnpaidBreakToRegular(regularPre, record)
+  const regular = breakApplied.regular
+  const worked = Math.round((regular + overtime) * 100) / 100
   const expectedEndTs = clockInTs + MAX_REGULAR_HOURS * 3_600_000
 
   return {

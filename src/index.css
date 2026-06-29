@@ -4480,9 +4480,14 @@ tr.row-clickable:hover td {
 
 .payroll-prepare-attendance {
   overflow-x: auto;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+
+.payroll-prepare-attendance-note {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
 }
 
 /* Excel-like grid for the attendance table */

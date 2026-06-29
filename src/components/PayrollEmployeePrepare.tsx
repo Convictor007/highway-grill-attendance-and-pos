@@ -332,6 +332,11 @@ export function PayrollEmployeePrepare({
                 </table>
               </div>
 
+              <p className="form-hint payroll-prepare-attendance-note">
+                Hours shown are net of a 1-hour unpaid break per day (days under 4 hours of duty are
+                exempt). Overtime is not reduced. Regenerate payslips after attendance changes.
+              </p>
+
               <p className="muted-block payroll-prepare-count">
                 Pay basis: <strong>{counted}</strong> {unit} selected
                 {' · '}

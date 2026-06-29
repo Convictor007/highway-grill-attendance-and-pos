@@ -217,6 +217,43 @@ export async function recalculateForRecord(attendanceId: string) {
   return getRecord(attendanceId)
 }
 
+export async function recomputeAttendanceBatch(options: {
+  branchId?: string | null
+  from?: string | null
+  to?: string | null
+} = {}) {
+  const params: (string | number)[] = []
+  let sql = `SELECT a.id FROM attendance a
+    INNER JOIN employees e ON e.id = a.employee_id
+    WHERE a.clock_out IS NOT NULL`
+  if (options.branchId) {
+    params.push(options.branchId)
+    sql += ` AND e.branch_id = $${params.length}`
+  }
+  if (options.from) {
+    params.push(options.from)
+    sql += ` AND DATE(a.clock_in) >= $${params.length}::date`
+  }
+  if (options.to) {
+    params.push(options.to)
+    sql += ` AND DATE(a.clock_in) <= $${params.length}::date`
+  }
+  sql += ' ORDER BY a.clock_in ASC'
+
+  const rows = await unsafe<{ id: string }>(sql, params)
+  let updated = 0
+  let failed = 0
+  for (const row of rows) {
+    try {
+      await recalculateForRecord(String(row.id))
+      updated++
+    } catch {
+      failed++
+    }
+  }
+  return { total: rows.length, updated, failed }
+}
+
 /** Hours a forgotten session is allowed to stay open before the sweep closes it. */
 const STALE_SESSION_HOURS = 18
 
