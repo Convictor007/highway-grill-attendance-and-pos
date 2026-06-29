@@ -5794,6 +5794,25 @@ tr.row-clickable:hover td {
   background: var(--surface-2, rgba(0, 0, 0, 0.02));
 }
 
+/* Keep the employee name column pinned while swiping through the week. */
+.schedule-grid-name-col,
+.schedule-grid-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  /* Solid (non-transparent) so day cells don't show through when pinned. */
+  background: color-mix(in srgb, var(--surface) 92%, #ffffff 8%);
+  box-shadow: 1px 0 0 var(--border);
+}
+
+.schedule-grid-name-col {
+  z-index: 3;
+}
+
+.schedule-grid-row--self .schedule-grid-name {
+  background: color-mix(in srgb, var(--surface) 84%, var(--accent) 16%);
+}
+
 .schedule-grid-day-head {
   background: var(--surface-2, rgba(0, 0, 0, 0.02));
   font-weight: 600;

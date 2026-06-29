@@ -173,9 +173,10 @@ export function MyShiftsPage() {
         </div>
       </ScheduleWeekNav>
 
-      {!isMobile && departmentFilter !== '' && (
+      {departmentFilter !== '' && (
         <p className="muted-block schedule-context-line">
           Showing <strong>{departmentLabel}</strong> schedule for this week.
+          {isMobile && ' Swipe sideways to see the full week.'}
         </p>
       )}
 
@@ -190,7 +191,6 @@ export function MyShiftsPage() {
           data={roster}
           loading={loading || !filtersReady}
           employeeView
-          mobileSelfOnly={isMobile}
           showSwapButtons={swapMode}
           highlightEmployeeId={user?.employee_id ?? null}
           onSwapRequest={setSwapCell}
