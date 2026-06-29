@@ -1872,7 +1872,7 @@ th {
     display: none !important;
   }
 
-  .admin-sidebar-panel-head {
+  .admin-shell .admin-sidebar-panel-head {
     display: none;
   }
 
