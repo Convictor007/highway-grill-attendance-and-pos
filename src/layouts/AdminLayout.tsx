@@ -69,7 +69,7 @@ export function AdminLayout() {
         <div className="sidebar-panel-head admin-sidebar-panel-head">
           <strong>Menu</strong>
           <button type="button" className="btn-icon" aria-label="Close menu" onClick={closeDrawer}>
-            ×
+            <NavIcon name="chevron-left" />
           </button>
         </div>
         <div className="brand admin-sidebar-brand">
