@@ -1,8 +1,8 @@
 import type { AttendanceRecord } from '../types/hrms'
-import { formatDurationMinutes } from './timeFormat'
+import { formatDurationMinutesShort } from './timeFormat'
 
 export function formatTimingMinutes(minutes: number | string | null | undefined): string {
-  return formatDurationMinutes(minutes)
+  return formatDurationMinutesShort(minutes)
 }
 
 export type DtrTimingFlags = {
@@ -32,10 +32,26 @@ export function DtrTimingBadges({ record }: { record: AttendanceRecord }) {
   if (!f.hasAny) return null
   return (
     <span className="dtr-timing-badges">
-      {f.earlyIn && <span className="dtr-badge dtr-badge--early">Early in {f.earlyIn}</span>}
-      {f.lateIn && <span className="dtr-badge dtr-badge--late">Late in {f.lateIn}</span>}
-      {f.earlyOut && <span className="dtr-badge dtr-badge--early">Early out {f.earlyOut}</span>}
-      {f.lateOut && <span className="dtr-badge dtr-badge--late">Late out {f.lateOut}</span>}
+      {f.earlyIn && (
+        <span className="dtr-badge dtr-badge--early" title="Early in">
+          early: {f.earlyIn}
+        </span>
+      )}
+      {f.lateIn && (
+        <span className="dtr-badge dtr-badge--late" title="Late in">
+          late: {f.lateIn}
+        </span>
+      )}
+      {f.earlyOut && (
+        <span className="dtr-badge dtr-badge--early" title="Early out">
+          early: {f.earlyOut}
+        </span>
+      )}
+      {f.lateOut && (
+        <span className="dtr-badge dtr-badge--late" title="Late out">
+          late: {f.lateOut}
+        </span>
+      )}
     </span>
   )
 }

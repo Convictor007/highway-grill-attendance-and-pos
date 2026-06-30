@@ -12,7 +12,6 @@ import { useAuth } from '../../context/AuthContext'
 import { PageHeader } from '../../components/PageHeader'
 import { LoadingBlock } from '../../components/LoadingBlock'
 import { EmptyState } from '../../components/EmptyState'
-import { DtrLocationLink } from '../../components/DtrLocationLink'
 import { DtrTimingBadges, dtrTimingFlags } from '../../lib/dtrTiming'
 import { ClockGeofenceBanner } from '../../components/ClockGeofenceBanner'
 import { ClockHelpButton } from '../../components/ClockHelpButton'
@@ -308,7 +307,6 @@ export function DtrPage() {
                 <th>Timing</th>
                 <th>Hours</th>
                 <th>OT</th>
-                <th>Location (in)</th>
                 <th />
               </tr>
             </thead>
@@ -334,13 +332,6 @@ export function DtrPage() {
                       {r.overtime_hours != null && Number(r.overtime_hours) > 0
                         ? Number(r.overtime_hours).toFixed(2)
                         : '—'}
-                    </td>
-                    <td>
-                      <DtrLocationLink
-                        latitude={r.latitude}
-                        longitude={r.longitude}
-                        address={r.clock_in_address}
-                      />
                     </td>
                     <td>
                       <button

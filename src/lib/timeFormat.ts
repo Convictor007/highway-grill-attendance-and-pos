@@ -11,6 +11,17 @@ export function formatDurationMinutes(minutes: number | string | null | undefine
   return `${hourPart} ${minPart}`
 }
 
+/** Compact duration for tables — e.g. 3 → "3m", 303 → "5h 3m" */
+export function formatDurationMinutesShort(minutes: number | string | null | undefined): string {
+  const n = Math.round(Number(minutes ?? 0))
+  if (!Number.isFinite(n) || n <= 0) return ''
+  const h = Math.floor(n / 60)
+  const m = n % 60
+  if (h === 0) return `${m}m`
+  if (m === 0) return `${h}h`
+  return `${h}h ${m}m`
+}
+
 /** e.g. "15:00" → "3:00 PM", ISO datetime → localized time */
 export function formatClockTime(value: string | null | undefined): string {
   if (!value) return ''

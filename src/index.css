@@ -6979,6 +6979,21 @@ svg:not(.nav-icon):not(.picker-trigger-icon):not(.clock-hand-svg) {
     padding: 0.05rem 0.3rem;
   }
 
+  .dtr-table {
+    table-layout: fixed;
+  }
+
+  .dtr-timing-badges {
+    gap: 0.15rem;
+  }
+
+  .dtr-badge {
+    font-size: 0.58rem;
+    padding: 0.08rem 0.25rem;
+    white-space: normal;
+    line-height: 1.15;
+  }
+
   /* Filter bars wrap their fields instead of overflowing off-screen. */
   .filter-bar {
     flex-wrap: wrap;
