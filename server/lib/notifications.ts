@@ -1,5 +1,34 @@
 import { getDb } from './db'
 
+/**
+ * In-app notification links must be relative paths (/payroll, /dtr, …).
+ * Full URLs (especially http://localhost from dev) break when opened in the
+ * SPA notification bell on production.
+ */
+export function normalizeNotificationLink(link: string | null | undefined): string | null {
+  if (link == null) return null
+  const trimmed = link.trim()
+  if (!trimmed) return null
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return trimmed
+  try {
+    const url = new URL(trimmed)
+    const path = `${url.pathname}${url.search}${url.hash}`
+    return path.startsWith('/') ? path : `/${path}`
+  } catch {
+    if (!trimmed.includes('://')) {
+      return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+    }
+    return null
+  }
+}
+
+function withNormalizedLink<T extends Record<string, unknown>>(row: T): T {
+  if ('link' in row) {
+    return { ...row, link: normalizeNotificationLink(row.link as string | null) }
+  }
+  return row
+}
+
 export async function userIdForEmployee(employeeId: string): Promise<string | null> {
   const db = getDb()
   const rows = await db`
@@ -74,32 +103,33 @@ export async function createNotification(
   link?: string | null,
 ) {
   const db = getDb()
+  const safeLink = normalizeNotificationLink(link)
   const [row] = await db`
     INSERT INTO notifications (user_id, type, title, body, link, related_id)
-    VALUES (${userId}, ${type}, ${title}, ${body ?? null}, ${link ?? null}, ${relatedId ?? null})
+    VALUES (${userId}, ${type}, ${title}, ${body ?? null}, ${safeLink}, ${relatedId ?? null})
     RETURNING id
   `
   const rows = await db`SELECT * FROM notifications WHERE id = ${row.id}`
-  return rows[0]
+  return withNormalizedLink(rows[0] as Record<string, unknown>)
 }
 
 export async function listForUser(userId: string, unreadOnly?: boolean | null, limit = 50) {
   const lim = Math.max(1, Math.min(limit, 100))
   const db = getDb()
-  if (unreadOnly) {
-    return db`
-      SELECT * FROM notifications
-      WHERE user_id = ${userId} AND is_read = false
-      ORDER BY created_at DESC
-      LIMIT ${lim}
-    `
-  }
-  return db`
-    SELECT * FROM notifications
-    WHERE user_id = ${userId}
-    ORDER BY created_at DESC
-    LIMIT ${lim}
-  `
+  const rows = unreadOnly
+    ? await db`
+        SELECT * FROM notifications
+        WHERE user_id = ${userId} AND is_read = false
+        ORDER BY created_at DESC
+        LIMIT ${lim}
+      `
+    : await db`
+        SELECT * FROM notifications
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT ${lim}
+      `
+  return rows.map((row) => withNormalizedLink(row as Record<string, unknown>))
 }
 
 export async function unreadCount(userId: string): Promise<number> {

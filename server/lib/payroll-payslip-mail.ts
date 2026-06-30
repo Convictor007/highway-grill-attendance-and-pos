@@ -74,14 +74,13 @@ async function notifyEmployee(
 ): Promise<void> {
   const userId = await userIdForEmployee(employeeId)
   if (!userId) return
-  const appUrl = config.appUrl.replace(/\/$/, '')
   await createNotification(
     userId,
     'payslip',
     `Payslip ready — ${periodLabel}`,
     'Your payslip was emailed and is available in My Payroll.',
     payslipId,
-    appUrl ? `${appUrl}/payroll` : '/payroll',
+    '/payroll',
   )
 }
 

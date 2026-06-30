@@ -23,6 +23,14 @@ function defaultCorsOrigin(): string {
   return 'http://localhost:5173'
 }
 
+function defaultAppUrl(): string {
+  const explicit = process.env.APP_URL?.trim()
+  if (explicit) return explicit.replace(/\/$/, '')
+  const vercel = process.env.VERCEL_URL?.trim()
+  if (vercel) return `https://${vercel}`
+  return 'http://localhost:5173'
+}
+
 export const config = {
   corsOrigin: defaultCorsOrigin(),
   sessionTtlHours: envInt('SESSION_TTL_HOURS', 24),
@@ -31,7 +39,7 @@ export const config = {
   mailEnabled: envBool('MAIL_ENABLED', false),
   mailFrom: env('MAIL_FROM', 'noreply@highwaygrill.local'),
   mailFromName: env('MAIL_FROM_NAME', 'Highway Grill HR'),
-  appUrl: env('APP_URL', 'http://localhost:5173'),
+  appUrl: defaultAppUrl(),
   // @sparticuz/chromium-min does not bundle the Chromium binary; it must be
   // downloaded at runtime from a hosted pack URL matching the installed version.
   chromiumPackUrl: env(

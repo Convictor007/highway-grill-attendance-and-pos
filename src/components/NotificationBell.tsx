@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
+import { resolveNotificationLink } from '../lib/notificationLink'
 
 type NotificationItem = {
   id: string
@@ -92,7 +93,9 @@ export function NotificationBell() {
             <p className="muted-block">No notifications yet.</p>
           ) : (
             <ul className="notification-list">
-              {data.items.map((n) => (
+              {data.items.map((n) => {
+                const viewPath = resolveNotificationLink(n.link)
+                return (
                 <li key={n.id} className={n.is_read ? '' : 'notification-item--unread'}>
                   <div className="notification-item-body">
                     <strong>{n.title}</strong>
@@ -102,8 +105,15 @@ export function NotificationBell() {
                     </time>
                   </div>
                   <div className="notification-item-actions">
-                    {n.link && (
-                      <Link to={n.link} className="text-link" onClick={() => markRead(n.id)}>
+                    {viewPath && (
+                      <Link
+                        to={viewPath}
+                        className="text-link"
+                        onClick={() => {
+                          void markRead(n.id)
+                          setOpen(false)
+                        }}
+                      >
                         View
                       </Link>
                     )}
@@ -114,7 +124,7 @@ export function NotificationBell() {
                     )}
                   </div>
                 </li>
-              ))}
+              )})}
             </ul>
           )}
         </div>
