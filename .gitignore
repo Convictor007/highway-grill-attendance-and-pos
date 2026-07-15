@@ -32,3 +32,4 @@ server/tsconfig.tsbuildinfo
 
 # Utility scripts (local dev only, not deployed)
 scripts/
+.cursor/ 
