@@ -181,7 +181,7 @@ export async function activateEmployee(userId: string, hrUserId: string) {
     `
   })
 
-  await ensureBalancesForEmployee(employeeId, new Date().getFullYear())
+  await ensureBalancesForEmployee(employeeId, new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear())
 
   const name = `${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()
   await notifyApplicant(

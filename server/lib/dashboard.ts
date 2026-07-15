@@ -1,9 +1,6 @@
 import { getDb } from './db'
 import { unsafe, type SqlValue } from './sql'
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10)
-}
+import { todayIso } from '../lib/date-utils'
 
 export async function summary(branchId?: string | null) {
   const today = todayIso()

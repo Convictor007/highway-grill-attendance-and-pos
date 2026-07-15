@@ -1,5 +1,5 @@
 import { getDb } from './db'
-import { branchWallClockToUtcIso } from './branch-time'
+import { branchWallClockToUtcIso, MANILA_OFFSET_MS } from './branch-time'
 import { ValidationError } from './errors'
 import { createManualAttendance, getAttendance, updateAttendance } from './attendance'
 import { createNotification, notifyUsersWithPermission, userIdForEmployee } from './notifications'
@@ -94,10 +94,13 @@ export async function createCorrectionRequest(employeeId: string, payload: Recor
 
   // 14-day window — measured from the corrected date.
   const target = requestedIn ?? requestedOut!
-  const earliest = new Date()
-  earliest.setHours(0, 0, 0, 0)
-  earliest.setDate(earliest.getDate() - CORRECTION_WINDOW_DAYS)
-  if (target.getTime() < earliest.getTime()) {
+  const todayMs = Date.now() + MANILA_OFFSET_MS
+  const todayDate = new Date(todayMs)
+  const earliestMs = Date.UTC(
+    todayDate.getUTCFullYear(), todayDate.getUTCMonth(), todayDate.getUTCDate() - CORRECTION_WINDOW_DAYS,
+    0, 0, 0,
+  ) - MANILA_OFFSET_MS
+  if (target.getTime() < earliestMs) {
     throw new ValidationError(`Corrections can only be requested for the last ${CORRECTION_WINDOW_DAYS} days`)
   }
 

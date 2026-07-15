@@ -1,4 +1,4 @@
-import { normalizeCalendarDate, parseClockInstant, DEFAULT_BRANCH_TZ } from './branch-time'
+import { normalizeCalendarDate, parseClockInstant, DEFAULT_BRANCH_TZ, MANILA_OFFSET_MS } from './branch-time'
 import { toIsoDateString, addDays } from './date-utils'
 import { periodDateList } from './payroll'
 import { resolveAssignmentShiftName } from './shifts'
@@ -92,7 +92,7 @@ function formatWallTime(hms: string | null | undefined): string {
 function formatClockInstant(value: unknown): string {
   const ms = parseClockInstant(value)
   if (!Number.isFinite(ms)) return ''
-  const d = new Date(ms + 8 * 60 * 60 * 1000)
+  const d = new Date(ms + MANILA_OFFSET_MS)
   const h = d.getUTCHours()
   const m = d.getUTCMinutes()
   const ampm = h >= 12 ? 'PM' : 'AM'

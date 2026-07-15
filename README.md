@@ -1,85 +1,110 @@
 # Highway Grill HRMS
 
-Restaurant HRMS for Highway Grill — employees, attendance, leave, and payroll.
+Human Resource Management System for Highway Grill — attendance tracking, scheduling, payroll, DTR reports, and more.
 
-## Stack
+## Tech Stack
 
-- **Frontend:** React + Vite + TypeScript (`src/`)
-- **API:** Node / Next.js (`server/`) — Vercel in production, port 3001 locally
-- **Database:** Postgres (Neon on Vercel) · MySQL optional for local legacy seeds only
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Next.js (API routes) + TypeScript
+- **Database**: PostgreSQL (Neon)
+- **Deploy**: Vercel
 
-The UI calls `/api/*` only — no direct database access from the browser.
+## Prerequisites
 
-## Setup
+- Node.js 18+
+- npm
+- A Neon PostgreSQL database (free tier works)
 
-### 1. Environment
+## Local Setup
 
-Create `server/.env.local` with at least:
-
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | Postgres connection string (Neon) |
-| `CORS_ORIGIN` | Allowed origin (default `http://localhost:5173`) |
-| `AUTH_HASH_PASSWORDS` | `false` = plain passwords in dev seeds |
-
-Optional root `.env` for Vite:
-
-| Variable | Purpose |
-|----------|---------|
-| `VITE_API_BASE` | API prefix (default `/api`) |
-| `VITE_PROXY_TARGET` | Dev proxy target (default `http://localhost:3001`) |
-
-### 2. Database
-
-**Production (Neon):** apply `database/postgres/hg.sql` and patches under `database/postgres/`.
-
-**Local MySQL (optional):** only if you still use XAMPP for schema experiments:
-
-```powershell
-.\scripts\setup-database.ps1
-```
-
-See `database/README.md` for patch scripts.
-
-### 3. Run app
-
-Terminal 1 — API:
+### 1. Clone the repo
 
 ```bash
-npm run dev:api
+git clone https://github.com/Convictor007/highway-grill-attendance-and-pos.git
+cd highway-grill-attendance-and-pos
 ```
 
-Terminal 2 — frontend:
+### 2. Install dependencies
 
 ```bash
 npm install
-npm run dev
+cd server && npm install && cd ..
 ```
 
-Open http://localhost:5173 — Vite proxies `/api` and `/uploads` to the Node server.
+### 3. Set up environment variables
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@highwaygrill.local | dsadsadsa |
-| HR | hr@highwaygrill.local | dsadsadsa |
-| Employee | employee@highwaygrill.local | dsadsadsa |
-
-## Deploy
-
-Production: https://highwaygrill.vercel.app
+Copy the example env file and fill in your values:
 
 ```bash
-git push origin main
-npx vercel deploy --prod
+cp .env.example .env
+cp .env.example server/.env.local
 ```
 
-## Docs
+Edit `.env` and `server/.env.local` with the same values. At minimum you need:
 
-| File | Purpose |
-|------|---------|
-| `docs/API.md` | REST endpoint reference (Node) |
-| `database/README.md` | SQL schema and patches |
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | Neon PostgreSQL connection string |
+| `CORS_ORIGIN` | `http://localhost:5173` |
+| `SMTP_*` | Gmail SMTP for payslip emails (optional) |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob token for file uploads (optional) |
 
-## Modules
+### 4. Set up the database
 
-Dashboard, employees, users, shifts, attendance, leave, payroll, benefits, loans, compliance, memos, field work, tips.
+Option A — Import the Neon dump:
+
+```bash
+# Using pg_restore or psql
+psql "your-database-url" < database/neon/hg_web.sql
+```
+
+Option B — Run patches on an existing Neon database:
+
+```bash
+node scripts/run-neon-patches.mjs
+node scripts/run-neon-seed-benefits.mjs
+```
+
+### 5. Start the dev servers
+
+Open two terminals:
+
+```bash
+# Terminal 1 — Frontend (Vite, port 5173)
+npm run dev
+
+# Terminal 2 — API (Next.js, port 3001)
+npm run dev:api
+```
+
+The frontend runs at `http://localhost:5173` and proxies API calls to `http://localhost:3001`.
+
+### 6. Build for production
+
+```bash
+npm run build
+```
+
+## Project Structure
+
+```
+├── src/                  # React frontend
+├── server/               # Next.js API
+│   ├── app/api/          # API routes
+│   └── lib/              # Server logic (auth, attendance, payroll, etc.)
+├── database/
+│   └── neon/             # Neon database dump
+├── scripts/              # Dev utility scripts (not deployed)
+├── .env.example          # Environment variable template
+└── package.json
+```
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start Vite frontend |
+| `npm run dev:api` | Start Next.js API server |
+| `npm run build` | Build frontend |
+| `npm run build:api` | Build API server |
+| `npm run lint` | Run ESLint |

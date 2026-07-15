@@ -1,10 +1,18 @@
+import { MANILA_OFFSET_MS } from './branch-time'
+
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-/** Calendar date in local timezone (YYYY-MM-DD). */
+/** Convert an epoch-ms instant to a Manila calendar date (YYYY-MM-DD). */
+function msToManilaDate(ms: number): string {
+  const d = new Date(ms + MANILA_OFFSET_MS)
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`
+}
+
+/** Calendar date in Manila timezone (YYYY-MM-DD). */
 export function toLocalIsoDate(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+  return msToManilaDate(d.getTime())
 }
 
 /** Normalize Postgres DATE, JS Date, or string to YYYY-MM-DD. */
@@ -22,35 +30,36 @@ export function toIsoDateString(value: unknown): string {
 }
 
 export function todayIso(): string {
-  return toLocalIsoDate(new Date())
+  return msToManilaDate(Date.now())
 }
 
 export function addDays(isoDate: string, days: number): string {
   const normalized = toIsoDateString(isoDate)
   const [y, m, d] = normalized.split('-').map(Number)
-  const dt = new Date(y, m - 1, d)
-  dt.setDate(dt.getDate() + days)
-  return toLocalIsoDate(dt)
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+  const resultMs = dt.getTime() + days * 86_400_000
+  return msToManilaDate(resultMs)
 }
 
 /** Sunday-based week start (matches PHP roster). */
 export function normalizeWeekStartSunday(weekStart?: string | null): string {
-  const base = weekStart?.trim()
-    ? new Date(toIsoDateString(weekStart) + 'T12:00:00')
-    : new Date()
-  if (!weekStart?.trim()) {
-    base.setDate(base.getDate() - base.getDay())
-    return toLocalIsoDate(base)
+  if (weekStart?.trim()) {
+    const d = new Date(toIsoDateString(weekStart) + 'T12:00:00Z')
+    const dow = d.getUTCDay()
+    if (dow !== 0) d.setUTCDate(d.getUTCDate() - dow)
+    return msToManilaDate(d.getTime())
   }
-  const dow = base.getDay()
-  if (dow !== 0) base.setDate(base.getDate() - dow)
-  return toLocalIsoDate(base)
+  const nowMs = Date.now()
+  const d = new Date(nowMs + MANILA_OFFSET_MS)
+  const dow = d.getUTCDay()
+  const offset = dow === 0 ? 0 : -dow
+  return msToManilaDate(nowMs + offset * 86_400_000)
 }
 
 export function mondayThisWeek(): string {
-  const d = new Date()
-  const day = d.getDay()
+  const nowMs = Date.now()
+  const d = new Date(nowMs + MANILA_OFFSET_MS)
+  const day = d.getUTCDay()
   const diff = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diff)
-  return toLocalIsoDate(d)
+  return msToManilaDate(nowMs + diff * 86_400_000)
 }

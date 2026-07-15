@@ -268,7 +268,7 @@ export async function contributionHistory(employeeId: string) {
         amount: Number(r[field]),
       }))
 
-  const ytdYear = new Date().getFullYear()
+  const ytdYear = new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear()
   const sumYtd = (field: string) =>
     rows
       .filter((r) => String(r.pay_date).startsWith(String(ytdYear)))

@@ -1,6 +1,6 @@
 /** Branch wall-clock times (schedule) vs UTC instants (Postgres TIMESTAMPTZ). */
 export const DEFAULT_BRANCH_TZ = 'Asia/Manila'
-const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000
+export const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0')

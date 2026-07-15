@@ -2,6 +2,7 @@ import { getDb, nullableInt } from './db'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
 import { ValidationError } from './errors'
 import { ensureBalancesForEmployee, seedRegularLeaveBalances, type WorkerClass } from './leave'
+import { todayIso } from './date-utils'
 
 const EMPLOYEE_SELECT = `
   SELECT e.*, b.name AS branch_name, d.name AS department_name, p.title AS position_title,
@@ -76,7 +77,7 @@ export async function createEmployee(data: Record<string, unknown>) {
       ${nullableInt(data.branch_id)}, ${nullableInt(data.department_id)}, ${nullableInt(data.position_id)},
       ${String(data.emp_number)}, ${String(data.first_name)}, ${String(data.last_name)},
       ${nullableStr(data.email)}, ${nullableStr(data.phone)},
-      ${String(data.hire_date ?? new Date().toISOString().slice(0, 10))},
+      ${String(data.hire_date ?? todayIso())},
       ${normalizeEmploymentType(String(data.employment_type ?? 'full_time'))},
       ${workerClass},
       ${normalizePayBasis(String(data.pay_basis ?? 'hourly'))},
@@ -97,7 +98,7 @@ export async function createEmployee(data: Record<string, unknown>) {
   `
   const id = String(row.id)
   if (status === 'active') {
-    await ensureBalancesForEmployee(id, new Date().getFullYear())
+    await ensureBalancesForEmployee(id, new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear())
   }
   return (await getEmployee(id))!
 }
@@ -151,7 +152,7 @@ export async function updateEmployee(id: string, data: Record<string, unknown>) 
   const prevClass = String(existing.worker_class ?? 'regular')
   const nextClass = String(updates.worker_class ?? prevClass)
   if (prevClass === 'on_call' && nextClass === 'regular') {
-    await seedRegularLeaveBalances(id, new Date().getFullYear(), true)
+    await seedRegularLeaveBalances(id, new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear(), true)
   }
 
   return getEmployee(id)
@@ -165,7 +166,7 @@ export async function promoteToRegular(id: string) {
   }
   const db = getDb()
   await db`UPDATE employees SET worker_class = 'regular' WHERE id = ${id}`
-  await seedRegularLeaveBalances(id, new Date().getFullYear(), true)
+  await seedRegularLeaveBalances(id, new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear(), true)
   return getEmployee(id)
 }
 

@@ -1,5 +1,5 @@
 import { getDb } from './db'
-import { branchWallClockToUtcIso } from './branch-time'
+import { branchWallClockToUtcIso, MANILA_OFFSET_MS } from './branch-time'
 import { ValidationError } from './errors'
 import * as fieldWork from './field-work'
 import * as auto from './attendance-auto'
@@ -353,9 +353,9 @@ export async function createManualAttendance(
 }
 
 export function defaultHistoryFrom() {
-  const d = new Date()
-  d.setDate(d.getDate() - 13)
-  return d.toISOString().slice(0, 10)
+  const resultMs = Date.now() - 13 * 86_400_000
+  const d = new Date(resultMs + MANILA_OFFSET_MS)
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
 }
 
 export function defaultSummaryFrom() {

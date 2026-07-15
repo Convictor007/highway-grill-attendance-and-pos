@@ -2,6 +2,7 @@ import { getDb } from './db'
 import { ValidationError } from './errors'
 import { createNotification, userIdForEmployee } from './notifications'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
+import { todayIso, toIsoDateString } from './date-utils'
 
 export type WorkerClass = 'regular' | 'on_call'
 
@@ -11,9 +12,9 @@ export async function getWorkerClass(employeeId: string): Promise<WorkerClass> {
   return String(rows[0]?.worker_class ?? 'regular') === 'on_call' ? 'on_call' : 'regular'
 }
 
-function proRatedDays(daysPerYear: number, asOf = new Date()): number {
+function proRatedDays(daysPerYear: number, asOf: Date): number {
   if (daysPerYear <= 0) return 0
-  const monthsLeft = 12 - asOf.getMonth()
+  const monthsLeft = 12 - (asOf.getUTCMonth() + 1)
   return Math.round((daysPerYear * monthsLeft) / 12 * 10) / 10
 }
 
@@ -28,7 +29,8 @@ export async function seedRegularLeaveBalances(
 ): Promise<void> {
   const db = getDb()
   const types = await db`SELECT id, days_per_year FROM leave_types WHERE paid = true`
-  const now = new Date()
+  const nowMs = Date.now()
+  const now = new Date(nowMs + 8 * 60 * 60 * 1000) // Manila
   for (const type of types) {
     const existing = await db`
       SELECT id FROM leave_balances
@@ -83,7 +85,7 @@ export async function types(includeAll = false, employeeId?: string | null) {
 }
 
 export async function balances(employeeId?: string | null, year?: number | null) {
-  const yr = year ?? new Date().getFullYear()
+  const yr = year ?? new Date(Date.now() + 8 * 60 * 60 * 1000).getUTCFullYear()
   if (employeeId) await ensureBalancesForEmployee(employeeId, yr)
   const params: SqlValue[] = [yr]
   let sql = `SELECT lb.*, lt.name AS leave_type_name, lt.paid AS leave_type_paid,
