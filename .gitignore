@@ -12,8 +12,6 @@ server/.next
 server/public
 server/node_modules
 server/tsconfig.tsbuildinfo
-dist
-dist-ssr
 *.local
 .env
 !.env.example
@@ -28,8 +26,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-.cursor/ (keep folder only)
 
 .vercel
 .env*

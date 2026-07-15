@@ -3,11 +3,9 @@ import { api } from '../lib/api'
 import { Modal } from './Modal'
 import { MapCenterPin } from './MapCenterPin'
 import {
-  emptyParts,
   reverseGeocode,
   searchAddress,
   useDebouncedGeocode,
-  type AddressParts,
   type GeocodeResult,
 } from '../lib/geocode'
 import { branchMapCenter } from '../lib/branchMapCenter'
@@ -48,7 +46,6 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
   const [isActive, setIsActive] = useState(true)
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
   const [flyTo, setFlyTo] = useState<[number, number] | null>(null)
-  const [parts, setParts] = useState<AddressParts>(emptyParts())
   const [formatted, setFormatted] = useState('')
   const [addressLoading, setAddressLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -65,7 +62,6 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
 
   const applyGeocode = useCallback((r: GeocodeResult) => {
     const display = r.formatted || r.short
-    setParts(r.parts ?? emptyParts())
     setFormatted(display)
     if (!addressEditedRef.current) {
       setAddress(display)
@@ -107,7 +103,6 @@ export function BranchEditModal({ open, branch, onClose, onSaved }: Props) {
     panCenterRef.current = coords
     setFlyTo(coords)
     setFormatted('')
-    setParts(emptyParts())
     setSearchQuery('')
     setSearchResults([])
     setShowResults(false)

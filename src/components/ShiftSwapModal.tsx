@@ -42,7 +42,7 @@ export function ShiftSwapModal({ open, cell, coworkers, onClose, onSubmitted }: 
       }
       setTargetShifts(
         row.cells
-          .filter((c) => !c.off && c.assignment_id && c.date === cell.date)
+          .filter((c) => !c.off && c.assignment_id && cell && c.date === cell.date)
           .map((c) => ({
             id: c.assignment_id!,
             shift_date: c.date,

@@ -291,9 +291,6 @@ export function GeofenceZoneModal({
     [circleCenter[0], circleCenter[1], radiusM, zoneName]
   )
 
-  const fullAddress =
-    formatted || [parts.street_line, parts.region_line, parts.postal_code].filter(Boolean).join(', ')
-
   const resolveGeocodeForSave = async (lat: number, lng: number): Promise<GeocodeResult | null> => {
     try {
       return await reverseGeocode(lat, lng)
