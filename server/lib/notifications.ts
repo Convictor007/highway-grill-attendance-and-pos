@@ -1,4 +1,5 @@
 import { getDb } from './db'
+import { pushToUser } from './push'
 
 /**
  * In-app notification links must be relative paths (/payroll, /dtr, …).
@@ -110,7 +111,12 @@ export async function createNotification(
     RETURNING id
   `
   const rows = await db`SELECT * FROM notifications WHERE id = ${row.id}`
-  return withNormalizedLink(rows[0] as Record<string, unknown>)
+  const notification = withNormalizedLink(rows[0] as Record<string, unknown>)
+
+  // Send push notification in background (fire-and-forget)
+  pushToUser(userId, title, body ?? '', { type, relatedId: relatedId ?? null }).catch(() => {})
+
+  return notification
 }
 
 export async function listForUser(userId: string, unreadOnly?: boolean | null, limit = 50) {

@@ -6,6 +6,7 @@ import { create, forBranch, listAll } from '@/lib/announcements'
 import { getDb } from '@/lib/db'
 import { ForbiddenError } from '@/lib/errors'
 import { handleRoute } from '@/lib/route-handler'
+import { pushToAllUsers } from '@/lib/push'
 
 export async function GET(request: Request) {
   return handleRoute(async () => {
@@ -33,6 +34,17 @@ export async function POST(request: Request) {
     requirePermission(user, 'employees.manage')
     const body = (await request.json()) as Record<string, unknown>
     if (!body.title || !body.body) return jsonError('title and body required', 422)
-    return jsonOk(await create(body, user.id), 201)
+    const announcement = await create(body, user.id)
+
+    // Send push notification to all employees
+    const priority = String(body.priority ?? 'normal')
+    const prefix = priority === 'urgent' ? 'URGENT: ' : ''
+    pushToAllUsers(
+      `${prefix}${String(body.title).trim()}`,
+      String(body.body ?? '').trim().slice(0, 200),
+      { type: 'memo' },
+    ).catch(() => {})
+
+    return jsonOk(announcement, 201)
   })
 }
