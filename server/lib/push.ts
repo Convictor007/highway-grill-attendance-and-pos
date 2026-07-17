@@ -1,11 +1,22 @@
-import { Expo, type ExpoPushMessage } from 'expo-server-sdk'
+import { Expo, type ExpoPushMessage, type ExpoPushTicket } from 'expo-server-sdk'
 import { getDb } from './db'
 
 const expo = new Expo()
 
 /**
+ * Clean up tokens that Expo reports as DeviceNotRegistered.
+ */
+async function cleanupDeadTokens(deadTokens: string[]) {
+  if (deadTokens.length === 0) return
+  const db = getDb()
+  for (const token of deadTokens) {
+    await db`UPDATE users SET push_token = NULL WHERE push_token = ${token}`
+  }
+}
+
+/**
  * Send push notifications to one or more Expo push tokens.
- * Invalid tokens are silently ignored (DeviceNotRegistered).
+ * Handles ticket results and cleans up dead tokens.
  */
 export async function sendPush(tokens: string[], title: string, body: string, data?: Record<string, unknown>) {
   const valid = tokens.filter((t) => Expo.isExpoPushToken(t))
@@ -20,12 +31,25 @@ export async function sendPush(tokens: string[], title: string, body: string, da
   }))
 
   const chunks = expo.chunkPushNotifications(messages)
+  const deadTokens: string[] = []
+
   for (const chunk of chunks) {
     try {
-      await expo.sendPushNotificationsAsync(chunk)
+      const tickets = await expo.sendPushNotificationsAsync(chunk)
+      for (let i = 0; i < tickets.length; i++) {
+        const ticket = tickets[i]
+        if (ticket.status === 'error' && ticket.details?.error === 'DeviceNotRegistered') {
+          deadTokens.push(chunk[i].to as string)
+        }
+      }
     } catch {
-      // transient error — ignore
+      // transient network error — skip this chunk
     }
+  }
+
+  // Clean up dead tokens in background
+  if (deadTokens.length > 0) {
+    cleanupDeadTokens(deadTokens).catch(() => {})
   }
 }
 
@@ -89,6 +113,7 @@ export async function pushToUsersWithPermission(
 
 /**
  * Send a push notification to all active users.
+ * Uses DISTINCT to avoid duplicate tokens.
  */
 export async function pushToAllUsers(
   title: string,
@@ -97,7 +122,7 @@ export async function pushToAllUsers(
 ) {
   const db = getDb()
   const rows = await db<{ push_token: string | null }[]>`
-    SELECT push_token FROM users
+    SELECT DISTINCT push_token FROM users
     WHERE is_active = true AND account_status = 'active' AND push_token IS NOT NULL
   `
   const tokens = rows.map((r) => r.push_token).filter(Boolean) as string[]

@@ -4,7 +4,7 @@ import { ValidationError } from './errors'
 import { unsafe } from './sql'
 import { normalizeCalendarDate, todayInBranchTz } from './branch-time'
 import { pushToUser } from './push'
-import { userIdForEmployee } from './notifications'
+import { createNotification, userIdForEmployee } from './notifications'
 
 // Postgres returns SERIAL ids and DATE columns as numbers/Date objects. The
 // frontend compares these against the string `user.employee_id`, so coerce the
@@ -104,10 +104,12 @@ export async function createSwap(data: Record<string, unknown>, userId: string, 
   `
   const swap = await getSwap(String(row.id))
 
-  // Notify target coworker
+  // Notify target coworker (in-app + push)
   const targetUid = await userIdForEmployee(targetEmployeeId)
   if (targetUid) {
     const dateStr = String(assignment.shift_date ?? '')
+    const requesterName = `${String(swap.requester_first ?? '')} ${String(swap.requester_last ?? '')}`.trim()
+    createNotification(targetUid, 'shift_swap_request', 'Shift swap request', `${requesterName} wants to swap their shift on ${dateStr}.`, String(row.id), '/my-shifts').catch(() => {})
     pushToUser(targetUid, 'Shift Swap Request', `You have a new shift swap request for ${dateStr}.`, { type: 'shift' }).catch(() => {})
   }
 
@@ -137,10 +139,12 @@ export async function respondSwap(id: string, action: string, responderEmployeeI
   const db = getDb()
   if (action === 'reject') {
     await db`UPDATE shift_swap_requests SET status = 'rejected', responded_at = NOW() WHERE id = ${id}`
-    // Notify requester
+    // Notify requester (in-app + push)
     const requesterUid = await userIdForEmployee(String(swap.requester_employee_id))
     if (requesterUid) {
-      pushToUser(requesterUid, 'Shift Swap Declined', `${String(swap.target_first ?? 'Coworker')} declined your shift swap request.`, { type: 'shift' }).catch(() => {})
+      const targetName = `${String(swap.target_first ?? '')} ${String(swap.target_last ?? '')}`.trim() || 'Coworker'
+      createNotification(requesterUid, 'shift_swap_declined', 'Shift swap declined', `${targetName} declined your shift swap request.`, String(id), '/my-shifts').catch(() => {})
+      pushToUser(requesterUid, 'Shift Swap Declined', `${targetName} declined your shift swap request.`, { type: 'shift' }).catch(() => {})
     }
     return getSwap(id)
   }
@@ -148,10 +152,12 @@ export async function respondSwap(id: string, action: string, responderEmployeeI
     await executeSwap(swap, tx)
     await tx`UPDATE shift_swap_requests SET status = 'accepted', responded_at = NOW() WHERE id = ${id}`
   })
-  // Notify requester
+  // Notify requester (in-app + push)
   const requesterUid = await userIdForEmployee(String(swap.requester_employee_id))
   if (requesterUid) {
-    pushToUser(requesterUid, 'Shift Swap Accepted', `${String(swap.target_first ?? 'Coworker')} accepted your shift swap request.`, { type: 'shift' }).catch(() => {})
+    const targetName = `${String(swap.target_first ?? '')} ${String(swap.target_last ?? '')}`.trim() || 'Coworker'
+    createNotification(requesterUid, 'shift_swap_accepted', 'Shift swap accepted', `${targetName} accepted your shift swap request.`, String(id), '/my-shifts').catch(() => {})
+    pushToUser(requesterUid, 'Shift Swap Accepted', `${targetName} accepted your shift swap request.`, { type: 'shift' }).catch(() => {})
   }
   return getSwap(id)
 }
@@ -164,10 +170,12 @@ export async function cancelSwap(id: string, employeeId: string) {
     WHERE id = ${id} AND requester_employee_id = ${employeeId} AND status = 'pending'
   `
   if (result.count > 0 && swap) {
-    // Notify target coworker
+    // Notify target coworker (in-app + push)
     const targetUid = await userIdForEmployee(String(swap.target_employee_id))
     if (targetUid) {
-      pushToUser(targetUid, 'Shift Swap Cancelled', `${String(swap.requester_first ?? 'Coworker')} cancelled the shift swap request.`, { type: 'shift' }).catch(() => {})
+      const requesterName = `${String(swap.requester_first ?? '')} ${String(swap.requester_last ?? '')}`.trim() || 'Coworker'
+      createNotification(targetUid, 'shift_swap_cancelled', 'Shift swap cancelled', `${requesterName} cancelled the shift swap request.`, String(id), '/my-shifts').catch(() => {})
+      pushToUser(targetUid, 'Shift Swap Cancelled', `${requesterName} cancelled the shift swap request.`, { type: 'shift' }).catch(() => {})
     }
   }
   return result.count > 0
