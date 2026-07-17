@@ -1,8 +1,9 @@
 import { getDb } from './db'
 import { ValidationError } from './errors'
-import { createNotification, userIdForEmployee } from './notifications'
+import { createNotification, notifyUsersWithPermission, userIdForEmployee } from './notifications'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
 import { todayIso, toIsoDateString } from './date-utils'
+import { pushToUsersWithPermission } from './push'
 
 export type WorkerClass = 'regular' | 'on_call'
 
@@ -212,7 +213,32 @@ export async function createRequest(data: Record<string, unknown>) {
     }
   })
   const rows = await db`SELECT * FROM leave_requests WHERE id = ${requestId!}`
-  return rows[0]
+  const result = rows[0]
+
+  // Notify HR/Managers about new leave request
+  if (result) {
+    const empRows = await db`SELECT first_name, last_name FROM employees WHERE id = ${employeeId} LIMIT 1`
+    const empName = `${String(empRows[0]?.first_name ?? '')} ${String(empRows[0]?.last_name ?? '')}`.trim()
+    const typeRows = await db`SELECT name FROM leave_types WHERE id = ${leaveTypeId} LIMIT 1`
+    const typeName = typeRows[0]?.name ? String(typeRows[0].name) : 'Leave'
+    const range = `${startDate} – ${endDate}`
+    notifyUsersWithPermission(
+      'leave.approve',
+      'leave_request',
+      'New leave request',
+      `${empName} requested ${typeName} (${range}).`,
+      String(requestId),
+      '/leaves',
+    ).catch(() => {})
+    pushToUsersWithPermission(
+      'leave.approve',
+      'New Leave Request',
+      `${empName} requested ${typeName} for ${range}.`,
+      { type: 'leave' },
+    ).catch(() => {})
+  }
+
+  return result
 }
 
 async function notifyLeaveDecision(row: Record<string, unknown>, status: string) {

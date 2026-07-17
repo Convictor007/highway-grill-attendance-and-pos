@@ -1,7 +1,8 @@
 import { getDb } from './db'
 import { ValidationError } from './errors'
-import { createNotification, userIdForEmployee } from './notifications'
+import { createNotification, notifyUsersWithPermission, userIdForEmployee } from './notifications'
 import { unsafe, type SqlValue } from './sql'
+import { pushToUsersWithPermission } from './push'
 
 const MIN_PRINCIPAL = 100
 
@@ -69,7 +70,30 @@ export async function apply(data: Record<string, unknown>) {
       ${monthly}, ${data.purpose ? String(data.purpose).trim() : null}, 'pending')
     RETURNING id
   `
-  return get(String(row.id))
+  const loan = await get(String(row.id))
+
+  // Notify HR/Finance about new loan application
+  if (loan) {
+    const empRows = await db`SELECT first_name, last_name FROM employees WHERE id = ${String(data.employee_id)} LIMIT 1`
+    const empName = `${String(empRows[0]?.first_name ?? '')} ${String(empRows[0]?.last_name ?? '')}`.trim()
+    const loanLabel = loanType === 'salary' ? 'Salary Loan' : 'Cash Advance'
+    notifyUsersWithPermission(
+      'loans.manage',
+      'loan_request',
+      'New loan application',
+      `${empName} applied for ${loanLabel} of ₱${principal.toFixed(2)}.`,
+      String(row.id),
+      '/loans',
+    ).catch(() => {})
+    pushToUsersWithPermission(
+      'loans.manage',
+      'New Loan Application',
+      `${empName} applied for ${loanLabel} of ₱${principal.toFixed(2)}.`,
+      { type: 'loan' },
+    ).catch(() => {})
+  }
+
+  return loan
 }
 
 async function notifyLoanDecision(loan: Record<string, unknown>, status: string) {
