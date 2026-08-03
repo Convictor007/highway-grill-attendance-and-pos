@@ -15,7 +15,13 @@ import { AttendancePage } from '../pages/attendance/AttendancePage'
 import { LeavePage } from '../pages/leave/LeavePage'
 import { UsersPage } from '../pages/users/UsersPage'
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage'
+import { SecurityDashboardPage } from '../pages/security/SecurityDashboardPage'
+import { SecurityAuthLogsPage } from '../pages/security/SecurityAuthLogsPage'
+import { SecurityRegistrationLogsPage } from '../pages/security/SecurityRegistrationLogsPage'
+import { SecurityThreatsPage } from '../pages/security/SecurityThreatsPage'
+import { SecurityEmployeeMapPage } from '../pages/security/SecurityEmployeeMapPage'
 import { RequireAdmin } from '../components/RequireAdmin'
+import { RequireSecurity } from '../components/RequireSecurity'
 import { RequireHr } from '../components/RequireHr'
 import { ShiftsPage } from '../pages/shifts/ShiftsPage'
 import { SettingsPage } from '../pages/settings/SettingsPage'
@@ -250,6 +256,46 @@ export function AppRoutes() {
                 <ShiftsPage />
               </RequirePermission>
             </RequireHr>
+          }
+        />
+        <Route
+          path="security"
+          element={
+            <RequireSecurity>
+              <SecurityDashboardPage />
+            </RequireSecurity>
+          }
+        />
+        <Route
+          path="security/auth-logs"
+          element={
+            <RequireSecurity>
+              <SecurityAuthLogsPage />
+            </RequireSecurity>
+          }
+        />
+        <Route
+          path="security/registration-logs"
+          element={
+            <RequireSecurity>
+              <SecurityRegistrationLogsPage />
+            </RequireSecurity>
+          }
+        />
+        <Route
+          path="security/threats"
+          element={
+            <RequireSecurity>
+              <SecurityThreatsPage />
+            </RequireSecurity>
+          }
+        />
+        <Route
+          path="security/map"
+          element={
+            <RequireSecurity>
+              <SecurityEmployeeMapPage />
+            </RequireSecurity>
           }
         />
         <Route

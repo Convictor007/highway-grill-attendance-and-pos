@@ -16,6 +16,7 @@ import { useVicinityMonitor } from '../../hooks/useVicinityMonitor'
 import { todayLocalIsoDate } from '../../lib/datetime'
 import type { AttendanceRecord } from '../../types/hrms'
 import { DtrTimingBadges, dtrTimingFlags } from '../../lib/dtrTiming'
+import { formatClockTime, formatClockOutTime } from '../../lib/timeFormat'
 
 export function AttendancePage() {
   const { user } = useAuth()
@@ -223,8 +224,8 @@ export function AttendancePage() {
                       {r.first_name} {r.last_name}
                     </td>
                   )}
-                  <td>{new Date(r.clock_in).toLocaleString()}</td>
-                  <td>{r.clock_out ? new Date(r.clock_out).toLocaleString() : '—'}</td>
+                  <td>{formatClockTime(r.clock_in) || '—'}</td>
+                  <td>{formatClockOutTime(r.clock_in, r.clock_out)}</td>
                   <td>
                     <DtrTimingBadges record={r} />
                     {!dtrTimingFlags(r).hasAny && '—'}

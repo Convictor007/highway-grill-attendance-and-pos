@@ -6,7 +6,7 @@ import { SidebarUserMenu } from '../components/SidebarUserMenu'
 import { BrandLogo } from '../components/BrandLogo'
 import { NavIcon } from '../components/NavIcon'
 import { staffMenuSections } from '../config/navigation'
-import { isSystemAdmin } from '../lib/roles'
+import { isSuperAdmin, isSystemAdmin } from '../lib/roles'
 import { NotificationBell } from '../components/NotificationBell'
 
 export function AdminLayout() {
@@ -16,7 +16,11 @@ export function AdminLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('hg_admin_sidebar_collapsed') === '1')
   const sections = staffMenuSections(user)
-  const portalLabel = isSystemAdmin(user) ? 'System Admin' : 'HR Portal'
+  const portalLabel = isSuperAdmin(user)
+    ? 'Super Admin'
+    : isSystemAdmin(user)
+      ? 'System Admin'
+      : 'HR Portal'
 
   useEffect(() => {
     setDrawerOpen(false)

@@ -2,6 +2,15 @@
 export const DEFAULT_BRANCH_TZ = 'Asia/Manila'
 export const MANILA_OFFSET_MS = 8 * 60 * 60 * 1000
 
+/**
+ * SQL expression: calendar date of a TIMESTAMPTZ column in the branch timezone.
+ * Use for work-day attribution (overnight clock-outs stay on the clock-in day).
+ * Pass alias-qualified column, e.g. `a.clock_in` or `clock_in`.
+ */
+export function sqlBranchDate(columnSql: string): string {
+  return `(${columnSql} AT TIME ZONE '${DEFAULT_BRANCH_TZ}')::date`
+}
+
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }

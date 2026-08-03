@@ -1,5 +1,7 @@
 import { requireUser } from '@/lib/auth'
 import { requireCrewApproval } from '@/lib/auth-guard'
+import { logAuthEvent } from '@/lib/auth-events'
+import { clientIp, userAgent } from '@/lib/client-ip'
 import { jsonOk } from '@/lib/api-response'
 import { rejectRegistration } from '@/lib/users'
 import { handleRoute } from '@/lib/route-handler'
@@ -13,6 +15,15 @@ export async function POST(request: Request, { params }: Params) {
     const { id } = await params
     const body = (await request.json().catch(() => ({}))) as { reason?: string }
     const reason = body.reason?.trim() || null
-    return jsonOk(await rejectRegistration(id, user.id, reason))
+    const updated = await rejectRegistration(id, user.id, reason)
+    await logAuthEvent({
+      eventType: 'register_rejected',
+      userId: updated.id,
+      email: updated.email,
+      ipAddress: clientIp(request),
+      userAgent: userAgent(request),
+      meta: { rejected_by: user.id, reason },
+    })
+    return jsonOk(updated)
   })
 }

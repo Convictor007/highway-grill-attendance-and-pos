@@ -21,6 +21,7 @@ import type { AttendanceRecord, AttendanceCorrectionRequest } from '../../types/
 import { resolveClockOpenState } from '../../lib/clockState'
 import { DtrExportForm } from '../../components/DtrExportForm'
 import { AttendanceCorrectionModal } from '../../components/AttendanceCorrectionModal'
+import { formatClockTime, formatClockOutTime, workDateManila } from '../../lib/timeFormat'
 
 interface HoursSummary {
   from: string
@@ -31,7 +32,7 @@ interface HoursSummary {
 
 function formatTime(iso: string | null) {
   if (!iso) return '—'
-  return new Date(iso.replace(' ', 'T')).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return formatClockTime(iso) || '—'
 }
 
 function formatDateLabel(iso: string) {
@@ -44,7 +45,7 @@ function formatDateLabel(iso: string) {
 }
 
 function workDateFromClockIn(clockIn: string) {
-  return clockIn.slice(0, 10)
+  return workDateManila(clockIn) || clockIn.slice(0, 10)
 }
 
 export function DtrPage() {
@@ -316,7 +317,7 @@ export function DtrPage() {
                     <td>{formatDateLabel(workDateFromClockIn(r.clock_in))}</td>
                     <td>{formatTime(r.clock_in)}</td>
                     <td>
-                      {formatTime(r.clock_out)}
+                      {formatClockOutTime(r.clock_in, r.clock_out)}
                       {r.clock_out_type && r.clock_out_type !== 'manual' && (
                         <span className="badge badge-processing" style={{ marginLeft: '0.35rem' }}>
                           {r.clock_out_type.replace(/_/g, ' ')}

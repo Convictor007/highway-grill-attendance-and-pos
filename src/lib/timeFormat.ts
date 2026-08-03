@@ -26,7 +26,7 @@ export function formatDurationMinutesShort(minutes: number | string | null | und
 export function formatClockTime(value: string | null | undefined): string {
   if (!value) return ''
   const trimmed = value.trim()
-  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/)
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/)
   if (match) {
     const d = new Date()
     d.setHours(parseInt(match[1], 10), parseInt(match[2], 10), 0, 0)
@@ -35,9 +35,41 @@ export function formatClockTime(value: string | null | undefined): string {
   const normalized = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T')
   const d = new Date(normalized)
   if (!Number.isNaN(d.getTime())) {
-    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    return d.toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone: 'Asia/Manila',
+    })
   }
   return trimmed
+}
+
+/** Manila YYYY-MM-DD for a clock instant. */
+export function workDateManila(value: string | null | undefined): string {
+  if (!value) return ''
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(value.includes('T') ? value : value.replace(' ', 'T')))
+  } catch {
+    return String(value).slice(0, 10)
+  }
+}
+
+/** Clock-out time; appends (+1) when it falls on the next Manila day after clock-in. */
+export function formatClockOutTime(
+  clockIn: string | null | undefined,
+  clockOut: string | null | undefined,
+): string {
+  if (!clockOut) return '—'
+  const time = formatClockTime(clockOut) || '—'
+  const inDay = workDateManila(clockIn)
+  const outDay = workDateManila(clockOut)
+  if (inDay && outDay && outDay > inDay) return `${time} (+1)`
+  return time
 }
 
 /** e.g. "15:00–00:00" → "3:00 PM–12:00 AM" */

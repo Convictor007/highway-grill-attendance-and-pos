@@ -32,4 +32,11 @@ server/tsconfig.tsbuildinfo
 
 # Utility scripts (local dev only, not deployed)
 scripts/
-.cursor/ 
+
+# AI tool directories
+.cursor/
+.mimocode/
+.claude/
+.opencode/
+.codex/
+.agents/

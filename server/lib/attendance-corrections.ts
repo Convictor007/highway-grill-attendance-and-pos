@@ -1,5 +1,5 @@
 import { getDb } from './db'
-import { branchWallClockToUtcIso, MANILA_OFFSET_MS } from './branch-time'
+import { branchWallClockToUtcIso } from './branch-time'
 import { ValidationError } from './errors'
 import { createManualAttendance, getAttendance, updateAttendance } from './attendance'
 import { createNotification, notifyUsersWithPermission, userIdForEmployee } from './notifications'
@@ -51,7 +51,11 @@ export async function getRequest(id: string) {
   return rows[0] ?? null
 }
 
-export async function createCorrectionRequest(employeeId: string, payload: Record<string, unknown>) {
+export async function createCorrectionRequest(
+  employeeId: string,
+  payload: Record<string, unknown>,
+  actorUserId?: string | null,
+) {
   const requestType = String(payload.request_type ?? '') as RequestType
   if (!REQUEST_TYPES.includes(requestType)) {
     throw new ValidationError('Invalid request type')
@@ -94,13 +98,10 @@ export async function createCorrectionRequest(employeeId: string, payload: Recor
 
   // 14-day window — measured from the corrected date.
   const target = requestedIn ?? requestedOut!
-  const todayMs = Date.now() + MANILA_OFFSET_MS
-  const todayDate = new Date(todayMs)
-  const earliestMs = Date.UTC(
-    todayDate.getUTCFullYear(), todayDate.getUTCMonth(), todayDate.getUTCDate() - CORRECTION_WINDOW_DAYS,
-    0, 0, 0,
-  ) - MANILA_OFFSET_MS
-  if (target.getTime() < earliestMs) {
+  const earliest = new Date()
+  earliest.setHours(0, 0, 0, 0)
+  earliest.setDate(earliest.getDate() - CORRECTION_WINDOW_DAYS)
+  if (target.getTime() < earliest.getTime()) {
     throw new ValidationError(`Corrections can only be requested for the last ${CORRECTION_WINDOW_DAYS} days`)
   }
 
@@ -145,7 +146,36 @@ export async function createCorrectionRequest(employeeId: string, payload: Recor
     'Attendance correction request',
     `${name} requested a time correction for ${dayKey(target)}.`,
     id,
-    '/hr/attendance-corrections',
+    '/attendance',
+  )
+
+  let beforeClock: Record<string, unknown> | null = null
+  if (attendanceId) {
+    const att = await getAttendance(attendanceId)
+    if (att) {
+      beforeClock = {
+        clock_in: att.clock_in,
+        clock_out: att.clock_out,
+        actual_hours: att.actual_hours,
+      }
+    }
+  }
+
+  await writeAuditLog(
+    actorUserId ?? null,
+    'attendance_correction_requested',
+    'attendance_correction_requests',
+    id,
+    beforeClock,
+    {
+      employee_id: employeeId,
+      attendance_id: attendanceId,
+      request_type: requestType,
+      requested_clock_in: rawIn,
+      requested_clock_out: rawOut,
+      reason,
+      status: 'pending',
+    },
   )
 
   return getRequest(id)
@@ -189,6 +219,21 @@ export async function approveRequest(id: string, reviewerUserId: string, note?: 
   const requestedIn = req.requested_clock_in ? new Date(req.requested_clock_in as string).toISOString() : null
   const requestedOut = req.requested_clock_out ? new Date(req.requested_clock_out as string).toISOString() : null
 
+  let before: Record<string, unknown> | null = null
+  if (req.attendance_id) {
+    const existing = await getAttendance(String(req.attendance_id))
+    if (existing) {
+      before = {
+        clock_in: existing.clock_in,
+        clock_out: existing.clock_out,
+        actual_hours: existing.actual_hours,
+        regular_hours: existing.regular_hours,
+        overtime_hours: existing.overtime_hours,
+        method: existing.method,
+      }
+    }
+  }
+
   let resolvedAttendanceId: string | null = null
 
   if (req.attendance_id) {
@@ -196,12 +241,27 @@ export async function approveRequest(id: string, reviewerUserId: string, note?: 
     const updates: Record<string, unknown> = { method: 'manual' }
     if (requestedIn) updates.clock_in = requestedIn
     if (requestedOut) updates.clock_out = requestedOut
-    const updated = await updateAttendance(String(req.attendance_id), updates, reviewerUserId)
-    resolvedAttendanceId = updated ? String(updated.id) : String(req.attendance_id)
+    const updated = await updateAttendance(String(req.attendance_id), updates, reviewerUserId, {
+      skipAudit: true,
+    })
+    if (updated) {
+      resolvedAttendanceId = String(updated.id)
+    } else if (requestedIn) {
+      // Linked row gone — create a replacement instead of approving a dead id
+      const created = await createManualAttendance(employeeId, requestedIn, requestedOut, reviewerUserId, {
+        skipAudit: true,
+      })
+      resolvedAttendanceId = created ? String(created.id) : null
+      before = null
+    } else {
+      throw new ValidationError('Linked attendance record no longer exists')
+    }
   } else {
     // Create the missing record (forgot to time in entirely).
     if (!requestedIn) throw new ValidationError('A corrected time-in is required to create the record')
-    const created = await createManualAttendance(employeeId, requestedIn, requestedOut, reviewerUserId)
+    const created = await createManualAttendance(employeeId, requestedIn, requestedOut, reviewerUserId, {
+      skipAudit: true,
+    })
     resolvedAttendanceId = created ? String(created.id) : null
   }
 
@@ -218,9 +278,37 @@ export async function approveRequest(id: string, reviewerUserId: string, note?: 
     'attendance_correction_approved',
     'attendance_correction_requests',
     id,
-    { status: 'pending' },
-    { status: 'approved', resolved_attendance_id: resolvedAttendanceId, request_type: req.request_type },
+    { status: 'pending', ...before },
+    {
+      status: 'approved',
+      resolved_attendance_id: resolvedAttendanceId,
+      request_type: req.request_type,
+      employee_id: employeeId,
+      clock_in: requestedIn,
+      clock_out: requestedOut,
+      review_note: note ?? null,
+      reason: req.reason,
+    },
   )
+
+  // Also log the attendance row change for Daily/audit views
+  if (resolvedAttendanceId) {
+    await writeAuditLog(
+      reviewerUserId,
+      before ? 'attendance_corrected' : 'attendance_created_via_correction',
+      'attendance',
+      resolvedAttendanceId,
+      before,
+      {
+        clock_in: requestedIn,
+        clock_out: requestedOut,
+        method: 'manual',
+        via: 'correction_request',
+        correction_request_id: id,
+        employee_id: employeeId,
+      },
+    )
+  }
 
   const out = await getRequest(id)
   if (out) await notifyDecision(out, 'approved', note)
@@ -244,8 +332,13 @@ export async function rejectRequest(id: string, reviewerUserId: string, note?: s
     'attendance_correction_rejected',
     'attendance_correction_requests',
     id,
-    { status: 'pending' },
-    { status: 'rejected' },
+    { status: 'pending', employee_id: req.employee_id, request_type: req.request_type },
+    {
+      status: 'rejected',
+      review_note: note ?? null,
+      requested_clock_in: req.requested_clock_in,
+      requested_clock_out: req.requested_clock_out,
+    },
   )
   const out = await getRequest(id)
   if (out) await notifyDecision(out, 'rejected', note)
@@ -261,5 +354,13 @@ export async function cancelRequest(id: string, employeeId: string) {
     throw new ValidationError('Only pending requests can be cancelled')
   }
   await db`UPDATE attendance_correction_requests SET status = 'cancelled', reviewed_at = NOW() WHERE id = ${id}`
+  await writeAuditLog(
+    null,
+    'attendance_correction_cancelled',
+    'attendance_correction_requests',
+    id,
+    { status: 'pending', employee_id: employeeId },
+    { status: 'cancelled' },
+  )
   return getRequest(id)
 }

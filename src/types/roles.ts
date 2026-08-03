@@ -1,5 +1,6 @@
 export const RoleSlug = {
   Admin: 'admin',
+  SuperAdmin: 'super_admin',
   Hr: 'hr',
   Employee: 'employee',
 } as const

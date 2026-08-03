@@ -1,5 +1,8 @@
 import { getDb } from './db'
 import { unsafe, unsafeExec, type SqlValue } from './sql'
+import { sqlBranchDate } from './branch-time'
+
+const CLOCK_IN_WORK_DATE = sqlBranchDate('a.clock_in')
 
 export async function list(branchId?: string | null, year?: number | null) {
   const params: SqlValue[] = []
@@ -58,8 +61,8 @@ export async function holidayHoursInPeriod(
 ): Promise<number> {
   const params: SqlValue[] = [employeeId, from, to]
   let sql = `SELECT COALESCE(SUM(a.actual_hours), 0) AS h FROM attendance a
-    WHERE a.employee_id = $1 AND DATE(a.clock_in) BETWEEN $2 AND $3
-    AND EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = DATE(a.clock_in)`
+    WHERE a.employee_id = $1 AND ${CLOCK_IN_WORK_DATE} BETWEEN $2::date AND $3::date
+    AND EXISTS (SELECT 1 FROM holidays h WHERE h.holiday_date = ${CLOCK_IN_WORK_DATE}`
   if (branchId) {
     params.push(branchId)
     sql += ` AND (h.branch_id IS NULL OR h.branch_id = $${params.length})`
@@ -81,9 +84,9 @@ export async function holidayPremiumPay(
   const params: SqlValue[] = [employeeId, from, to, branchId ?? '']
   const rows = await unsafe<{ actual_hours: string; pay_multiplier: string }>(
     `SELECT a.actual_hours, h.pay_multiplier FROM attendance a
-     INNER JOIN holidays h ON h.holiday_date = DATE(a.clock_in)
+     INNER JOIN holidays h ON h.holiday_date = ${CLOCK_IN_WORK_DATE}
        AND (h.branch_id IS NULL OR h.branch_id = $4)
-     WHERE a.employee_id = $1 AND DATE(a.clock_in) BETWEEN $2 AND $3`,
+     WHERE a.employee_id = $1 AND ${CLOCK_IN_WORK_DATE} BETWEEN $2::date AND $3::date`,
     params,
   )
   let premium = 0

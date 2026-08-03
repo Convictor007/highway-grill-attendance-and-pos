@@ -22,7 +22,7 @@ const TYPE_OPTIONS: { value: AttendanceCorrectionType; label: string }[] = [
 ]
 
 export function AttendanceCorrectionModal({ open, record, onClose, onSaved }: Props) {
-  const { success } = useNotification()
+  const { success, error: notifyError } = useNotification()
   const [requestType, setRequestType] = useState<AttendanceCorrectionType>('missing_both')
   const [clockIn, setClockIn] = useState('')
   const [clockOut, setClockOut] = useState('')

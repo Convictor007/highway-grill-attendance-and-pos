@@ -1,4 +1,4 @@
-import { normalizeCalendarDate, parseClockInstant, DEFAULT_BRANCH_TZ, MANILA_OFFSET_MS } from './branch-time'
+import { normalizeCalendarDate, parseClockInstant, clockInstantToBranchDate, MANILA_OFFSET_MS, sqlBranchDate } from './branch-time'
 import { toIsoDateString, addDays } from './date-utils'
 import { periodDateList } from './payroll'
 import { resolveAssignmentShiftName } from './shifts'
@@ -160,13 +160,14 @@ export async function buildDtrReport(employeeId: string, from: string, to: strin
 
   const attendanceRows = await unsafe<Record<string, unknown>>(
     `SELECT * FROM attendance
-     WHERE employee_id = $1 AND DATE(clock_in) BETWEEN $2 AND $3
+     WHERE employee_id = $1 AND ${sqlBranchDate('clock_in')} BETWEEN $2::date AND $3::date
      ORDER BY clock_in`,
     [employeeId, range.from, range.to],
   )
   const attByDate: Record<string, Record<string, unknown>[]> = {}
   for (const row of attendanceRows) {
-    const d = normalizeCalendarDate(row.clock_in)
+    const d = clockInstantToBranchDate(row.clock_in)
+    if (!d) continue
     if (!attByDate[d]) attByDate[d] = []
     attByDate[d].push(row)
   }

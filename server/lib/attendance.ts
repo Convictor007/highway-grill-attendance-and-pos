@@ -1,5 +1,5 @@
 import { getDb } from './db'
-import { branchWallClockToUtcIso, MANILA_OFFSET_MS } from './branch-time'
+import { branchWallClockToUtcIso, sqlBranchDate } from './branch-time'
 import { ValidationError } from './errors'
 import * as fieldWork from './field-work'
 import * as auto from './attendance-auto'
@@ -14,13 +14,18 @@ const ATT_LIST = `SELECT a.*, e.emp_number, e.first_name, e.last_name, e.branch_
 const ATT_ONE = `SELECT a.*, e.emp_number, e.first_name, e.last_name
   FROM attendance a INNER JOIN employees e ON e.id = a.employee_id`
 
+/** Work day = Manila calendar date of clock_in (not clock_out). */
+const CLOCK_IN_WORK_DATE = sqlBranchDate('a.clock_in')
+const CLOCK_IN_WORK_DATE_BARE = sqlBranchDate('clock_in')
+
+/**
+ * Daily attendance for a calendar date.
+ * Overnight shifts (clock out after midnight) appear only on the clock-in work day.
+ */
 export async function listAttendance(date?: string | null, branchId?: string | null, employeeId?: string | null) {
   const d = date ?? todayIso()
-  const params: SqlValue[] = [d, d, d, d]
-  let sql = `${ATT_LIST} WHERE (
-    DATE(a.clock_in) = $1 OR (a.clock_out IS NOT NULL AND DATE(a.clock_out) = $2)
-    OR (a.clock_in < ($3::date + INTERVAL '1 day') AND (a.clock_out IS NULL OR a.clock_out >= $4))
-  )`
+  const params: SqlValue[] = [d]
+  let sql = `${ATT_LIST} WHERE ${CLOCK_IN_WORK_DATE} = $1::date`
   if (employeeId) {
     params.push(employeeId)
     sql += ` AND a.employee_id = $${params.length}`
@@ -191,12 +196,14 @@ export async function breakEnd(employeeId: string) {
 }
 
 export async function hoursSummary(employeeId: string, from: string, to: string) {
-  const db = getDb()
-  const rows = await db`
-    SELECT COALESCE(SUM(actual_hours), 0) AS total_hours, COUNT(*) AS shift_count
-    FROM attendance
-    WHERE employee_id = ${employeeId} AND DATE(clock_in) BETWEEN ${from} AND ${to} AND clock_out IS NOT NULL
-  `
+  const rows = await unsafe<{ total_hours: string | number; shift_count: string | number }>(
+    `SELECT COALESCE(SUM(actual_hours), 0) AS total_hours, COUNT(*) AS shift_count
+     FROM attendance
+     WHERE employee_id = $1
+       AND ${CLOCK_IN_WORK_DATE_BARE} BETWEEN $2::date AND $3::date
+       AND clock_out IS NOT NULL`,
+    [employeeId, from, to],
+  )
   return {
     from,
     to,
@@ -207,7 +214,7 @@ export async function hoursSummary(employeeId: string, from: string, to: string)
 
 export async function employeeHistory(employeeId: string, from: string, to: string) {
   return unsafe(
-    `${ATT_LIST} WHERE a.employee_id = $1 AND DATE(a.clock_in) BETWEEN $2 AND $3 ORDER BY a.clock_in DESC`,
+    `${ATT_LIST} WHERE a.employee_id = $1 AND ${CLOCK_IN_WORK_DATE} BETWEEN $2::date AND $3::date ORDER BY a.clock_in DESC`,
     [employeeId, from, to],
   )
 }
@@ -263,9 +270,9 @@ export async function statistics(branchId: string | null, from: string, to: stri
   const attParams: SqlValue[] = [from, to]
   let attSql = `SELECT e.id, e.emp_number, e.first_name, e.last_name,
     COALESCE(SUM(a.actual_hours), 0) AS total_hours,
-    COUNT(DISTINCT DATE(a.clock_in))::int AS days_present
+    COUNT(DISTINCT ${CLOCK_IN_WORK_DATE})::int AS days_present
     FROM employees e
-    LEFT JOIN attendance a ON a.employee_id = e.id AND DATE(a.clock_in) BETWEEN $1 AND $2 AND a.clock_out IS NOT NULL
+    LEFT JOIN attendance a ON a.employee_id = e.id AND ${CLOCK_IN_WORK_DATE} BETWEEN $1::date AND $2::date AND a.clock_out IS NOT NULL
     WHERE e.status = 'active'`
   if (branchId) {
     attParams.push(branchId)
@@ -295,7 +302,12 @@ export async function statistics(branchId: string | null, from: string, to: stri
   }
 }
 
-export async function updateAttendance(id: string, data: Record<string, unknown>, approverUserId?: string | null) {
+export async function updateAttendance(
+  id: string,
+  data: Record<string, unknown>,
+  approverUserId?: string | null,
+  options?: { skipAudit?: boolean },
+) {
   const existing = await getAttendance(id)
   if (!existing) return null
   const fields = ['clock_in', 'clock_out', 'actual_hours', 'regular_hours', 'overtime_hours', 'method', 'clock_in_address', 'clock_out_address', 'shift_assignment_id']
@@ -311,18 +323,51 @@ export async function updateAttendance(id: string, data: Record<string, unknown>
     updates.approved_by = approverUserId
     updates.approved_at = new Date().toISOString()
   }
+  const before = {
+    clock_in: existing.clock_in,
+    clock_out: existing.clock_out,
+    actual_hours: existing.actual_hours,
+    regular_hours: existing.regular_hours,
+    overtime_hours: existing.overtime_hours,
+    method: existing.method,
+  }
   const sets = Object.keys(updates).map((k, i) => `${k} = $${i + 2}`).join(', ')
   await unsafeExec(`UPDATE attendance SET ${sets} WHERE id = $1`, [id, ...Object.values(updates) as SqlValue[]])
+
+  let row
   if ('regular_hours' in data || 'overtime_hours' in data) {
-    const row = await getAttendance(id)
+    row = await getAttendance(id)
     if (row) {
       // Sync auto OT: write the corrected hours, or clear the row when set to 0.
       const ot = Number(row.overtime_hours ?? 0)
       await upsertAutoFromAttendance(id, String(row.employee_id), String(row.clock_in).slice(0, 10), ot, 'HR attendance correction')
     }
-    return row
+  } else {
+    row = await auto.recalculateForRecord(id)
   }
-  return auto.recalculateForRecord(id)
+
+  if (!options?.skipAudit && approverUserId) {
+    const { writeAuditLog } = await import('./audit-log')
+    await writeAuditLog(
+      approverUserId,
+      'attendance_updated',
+      'attendance',
+      id,
+      before,
+      {
+        clock_in: row?.clock_in ?? updates.clock_in,
+        clock_out: row?.clock_out ?? updates.clock_out,
+        actual_hours: row?.actual_hours,
+        regular_hours: row?.regular_hours,
+        overtime_hours: row?.overtime_hours,
+        method: row?.method ?? updates.method,
+        via: 'hr_direct_edit',
+        employee_id: existing.employee_id,
+      },
+    )
+  }
+
+  return row
 }
 
 /**
@@ -335,6 +380,7 @@ export async function createManualAttendance(
   clockIn: string,
   clockOut: string | null,
   approverUserId: string,
+  options?: { skipAudit?: boolean },
 ) {
   const db = getDb()
   // Branch-local wall-clock from correction forms → true UTC instants.
@@ -349,13 +395,31 @@ export async function createManualAttendance(
   if (clockOutIso) {
     await auto.recalculateForRecord(id)
   }
-  return getAttendance(id)
+  const created = await getAttendance(id)
+  if (!options?.skipAudit) {
+    const { writeAuditLog } = await import('./audit-log')
+    await writeAuditLog(
+      approverUserId,
+      'attendance_created',
+      'attendance',
+      id,
+      null,
+      {
+        employee_id: employeeId,
+        clock_in: clockInIso,
+        clock_out: clockOutIso,
+        method: 'manual',
+        via: 'hr_manual',
+      },
+    )
+  }
+  return created
 }
 
 export function defaultHistoryFrom() {
-  const resultMs = Date.now() - 13 * 86_400_000
-  const d = new Date(resultMs + MANILA_OFFSET_MS)
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+  const d = new Date()
+  d.setDate(d.getDate() - 13)
+  return d.toISOString().slice(0, 10)
 }
 
 export function defaultSummaryFrom() {

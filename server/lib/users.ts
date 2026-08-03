@@ -5,6 +5,9 @@ import { ValidationError } from './errors'
 import { ensureBalancesForEmployee } from './leave'
 import { createNotification } from './notifications'
 
+import { isPlatformOwnerRoleSlug } from './role-slugs'
+
+/** @deprecated Use ADMIN_ROLE_SLUG */
 export const SYSTEM_ADMIN_ROLE_SLUG = 'admin'
 
 const USER_SELECT = `
@@ -23,12 +26,12 @@ const USER_SELECT = `
   LEFT JOIN positions p ON p.id = e.position_id
 `
 
-/** Staff logins managed from Admin → Users (excludes the system owner account). */
-const MANAGEABLE_USERS_WHERE = `WHERE r.role_slug <> '${SYSTEM_ADMIN_ROLE_SLUG}'`
+/** Staff logins managed from Admin → Users (excludes platform owner accounts). */
+const MANAGEABLE_USERS_WHERE = `WHERE r.role_slug NOT IN ('admin', 'super_admin')`
 
 function assertManageableUser(user: { role_slug?: string }) {
-  if (user.role_slug === SYSTEM_ADMIN_ROLE_SLUG) {
-    throw new Error('System admin account cannot be changed from user management')
+  if (isPlatformOwnerRoleSlug(user.role_slug)) {
+    throw new Error('Platform owner account cannot be changed from user management')
   }
 }
 
@@ -64,8 +67,8 @@ export async function createUser(data: Record<string, unknown>) {
 
   const db = getDb()
   const [role] = await db`SELECT role_slug FROM roles WHERE role_id = ${roleId} LIMIT 1`
-  if (role?.role_slug === SYSTEM_ADMIN_ROLE_SLUG) {
-    throw new ValidationError('System admin accounts cannot be created here')
+  if (isPlatformOwnerRoleSlug(role?.role_slug)) {
+    throw new ValidationError('Platform owner accounts cannot be created here')
   }
 
   const existing = await db`SELECT id FROM users WHERE email = ${email} LIMIT 1`
@@ -97,8 +100,8 @@ export async function updateUser(id: string, data: Record<string, unknown>) {
   const db = getDb()
   if (data.role_id != null) {
     const [role] = await db`SELECT role_slug FROM roles WHERE role_id = ${Number(data.role_id)} LIMIT 1`
-    if (role?.role_slug === SYSTEM_ADMIN_ROLE_SLUG) {
-      throw new ValidationError('Cannot assign the system admin role from user management')
+    if (isPlatformOwnerRoleSlug(role?.role_slug)) {
+      throw new ValidationError('Cannot assign platform owner roles from user management')
     }
   }
   if (data.email != null) {

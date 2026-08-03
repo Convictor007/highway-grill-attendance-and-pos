@@ -1,6 +1,9 @@
 import { getDb } from './db'
 import { unsafe, type SqlValue } from './sql'
 import { todayIso } from '../lib/date-utils'
+import { sqlBranchDate } from './branch-time'
+
+const CLOCK_IN_WORK_DATE = sqlBranchDate('a.clock_in')
 
 export async function summary(branchId?: string | null) {
   const today = todayIso()
@@ -18,7 +21,7 @@ export async function summary(branchId?: string | null) {
 
   const attParams: SqlValue[] = [today]
   let attSql = `SELECT COUNT(DISTINCT a.employee_id)::int AS c FROM attendance a
-    INNER JOIN employees e ON e.id = a.employee_id WHERE DATE(a.clock_in) = $1`
+    INNER JOIN employees e ON e.id = a.employee_id WHERE ${CLOCK_IN_WORK_DATE} = $1::date`
   if (branchId) {
     attParams.push(branchId)
     attSql += ` AND e.branch_id = $${attParams.length}`
@@ -51,7 +54,7 @@ export async function summary(branchId?: string | null) {
   const hrsParams: SqlValue[] = [monthStart, today]
   let hrsSql = `SELECT COALESCE(SUM(a.actual_hours), 0) AS h FROM attendance a
     INNER JOIN employees e ON e.id = a.employee_id
-    WHERE DATE(a.clock_in) BETWEEN $1 AND $2`
+    WHERE ${CLOCK_IN_WORK_DATE} BETWEEN $1::date AND $2::date`
   if (branchId) {
     hrsParams.push(branchId)
     hrsSql += ` AND e.branch_id = $${hrsParams.length}`

@@ -1,0 +1,1 @@
+-- See patch_security_super_admin.sql (admin vs super_admin security role split).

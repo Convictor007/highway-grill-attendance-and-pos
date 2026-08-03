@@ -3,6 +3,7 @@ import {
   crossedBranchMidnight,
   parseClockInstant,
   todayInBranchTz,
+  sqlBranchDate,
 } from './branch-time'
 import { getDb } from './db'
 import * as fieldWork from './field-work'
@@ -232,11 +233,11 @@ export async function recomputeAttendanceBatch(options: {
   }
   if (options.from) {
     params.push(options.from)
-    sql += ` AND DATE(a.clock_in) >= $${params.length}::date`
+    sql += ` AND ${sqlBranchDate('a.clock_in')} >= $${params.length}::date`
   }
   if (options.to) {
     params.push(options.to)
-    sql += ` AND DATE(a.clock_in) <= $${params.length}::date`
+    sql += ` AND ${sqlBranchDate('a.clock_in')} <= $${params.length}::date`
   }
   sql += ' ORDER BY a.clock_in ASC'
 

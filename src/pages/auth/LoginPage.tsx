@@ -5,7 +5,7 @@ import { BrandLogo } from '../../components/BrandLogo'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../hooks/useNotification'
 import { ApiError } from '../../lib/api'
-import { RoleSlug } from '../../types/roles'
+import { isSuperAdminRoleSlug, isSystemAdminRoleSlug } from '../../lib/role-slugs'
 
 export function LoginPage() {
   const { user, loading, login } = useAuth()
@@ -17,7 +17,12 @@ export function LoginPage() {
   const [submitting, setSubmitting] = useState(false)
 
   if (!loading && user) {
-    return <Navigate to={user.role_slug === RoleSlug.Admin ? '/admin' : '/'} replace />
+    const dest = isSuperAdminRoleSlug(user.role_slug)
+      ? '/security'
+      : isSystemAdminRoleSlug(user.role_slug)
+        ? '/admin'
+        : '/'
+    return <Navigate to={dest} replace />
   }
 
   const onSubmit = async (e: FormEvent) => {
@@ -25,7 +30,11 @@ export function LoginPage() {
     setSubmitting(true)
     try {
       const loggedIn = await login(email, password)
-      const dest = loggedIn.role_slug === RoleSlug.Admin ? '/admin' : '/'
+      const dest = isSuperAdminRoleSlug(loggedIn.role_slug)
+        ? '/security'
+        : isSystemAdminRoleSlug(loggedIn.role_slug)
+          ? '/admin'
+          : '/'
       navigate(dest)
     } catch (err) {
       notifyError(err instanceof ApiError ? err.message : 'Login failed')

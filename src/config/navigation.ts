@@ -1,7 +1,7 @@
 import type { AuthUser } from '../types/roles'
 import { hasPermission } from '../lib/auth'
 import { canUseEmployeeFeatures } from '../lib/accountStatus'
-import { isSystemAdmin } from '../lib/roles'
+import { isSuperAdmin, isSystemAdmin } from '../lib/roles'
 
 export type NavItem = {
   to: string
@@ -87,7 +87,19 @@ export const adminSystemItems: NavItem[] = [
   { to: '/admin/users', label: 'Staff logins', icon: 'key', perm: 'users.manage' },
 ]
 
+/** Super Admin security portal */
+export const securitySystemItems: NavItem[] = [
+  { to: '/security', label: 'Overview', icon: 'shield', end: true, perm: 'security.view' },
+  { to: '/security/auth-logs', label: 'Auth logs', icon: 'key', perm: 'security.view' },
+  { to: '/security/registration-logs', label: 'Registration logs', icon: 'users', perm: 'security.view' },
+  { to: '/security/threats', label: 'Threats', icon: 'memo', perm: 'security.view' },
+  { to: '/security/map', label: 'Employee map', icon: 'map', perm: 'security.view' },
+]
+
 export function staffMenuSections(user: AuthUser | null): NavSection[] {
+  if (isSuperAdmin(user)) {
+    return [{ items: filterNav(securitySystemItems, user) }]
+  }
   if (isSystemAdmin(user)) {
     return [{ items: filterNav(adminSystemItems, user) }]
   }

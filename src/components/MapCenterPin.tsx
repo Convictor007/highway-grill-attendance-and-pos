@@ -38,6 +38,8 @@ type Props = {
   /** When true, does not fire onCenterChange on first map mount (avoids wrong default geocode). */
   skipInitialCenterEmit?: boolean
   onFlyToComplete?: () => void
+  /** Fit map bounds to markers when provided. */
+  fitMarkers?: boolean
 }
 
 function drawCircle(layer: L.LayerGroup, g: GeofenceCircle, dashed: boolean) {
@@ -55,6 +57,20 @@ function drawCircle(layer: L.LayerGroup, g: GeofenceCircle, dashed: boolean) {
 
 const siteIcon = L.divIcon({
   className: 'leaflet-site-marker-light',
+  html: '<span></span>',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+})
+
+const liveIcon = L.divIcon({
+  className: 'leaflet-live-marker',
+  html: '<span></span>',
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+})
+
+const staleIcon = L.divIcon({
+  className: 'leaflet-stale-marker',
   html: '<span></span>',
   iconSize: [14, 14],
   iconAnchor: [7, 7],
@@ -80,6 +96,7 @@ export const MapCenterPin = forwardRef<MapCenterPinHandle, Props>(function MapCe
     zoomControl = true,
     skipInitialCenterEmit = false,
     onFlyToComplete,
+    fitMarkers = false,
   },
   ref
 ) {
@@ -236,11 +253,27 @@ export const MapCenterPin = forwardRef<MapCenterPinHandle, Props>(function MapCe
 
     layer.clearLayers()
     markers.forEach((m) => {
-      if (m.kind === 'site') {
-        L.marker([m.lat, m.lng], { icon: siteIcon }).bindPopup(m.label).addTo(layer)
-      }
+      const icon =
+        m.kind === 'you' ? liveIcon : m.kind === 'checkin' ? staleIcon : siteIcon
+      L.marker([m.lat, m.lng], { icon }).bindPopup(m.label).addTo(layer)
     })
-  }, [markers])
+    if (fitMarkers && markers.length > 1) {
+      const bounds = L.latLngBounds(markers.map((m) => [m.lat, m.lng] as [number, number]))
+      if (bounds.isValid()) {
+        suppressEventsRef.current = true
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 })
+        setTimeout(() => {
+          suppressEventsRef.current = false
+        }, 120)
+      }
+    } else if (fitMarkers && markers.length === 1) {
+      suppressEventsRef.current = true
+      map.setView([markers[0].lat, markers[0].lng], clampMapZoom(Math.max(zoom, 14), basemapId))
+      setTimeout(() => {
+        suppressEventsRef.current = false
+      }, 120)
+    }
+  }, [markers, fitMarkers, zoom, basemapId])
 
   return (
     <div className={`${className}${light ? ' map-center-pin-wrap--light' : ''}`}>

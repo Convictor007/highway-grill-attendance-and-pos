@@ -28,6 +28,6 @@ export async function POST(request: Request) {
     if (!user.employee_id) return jsonError('No employee linked', 422)
     checkRateLimit(`att-correction:${user.id}`, 10, 24 * 60 * 60 * 1000)
     const body = (await request.json()) as Record<string, unknown>
-    return jsonOk(await createCorrectionRequest(user.employee_id, body), 201)
+    return jsonOk(await createCorrectionRequest(user.employee_id, body, user.id), 201)
   })
 }

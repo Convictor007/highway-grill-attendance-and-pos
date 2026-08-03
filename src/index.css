@@ -4319,6 +4319,49 @@ th {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
+.leaflet-live-marker span {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: #2d9e75;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.leaflet-stale-marker span {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: #f87171;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.security-live-map .map-center-pin-map {
+  height: 420px;
+}
+
+.badge.threat-low {
+  background: rgba(46, 158, 117, 0.18);
+  color: #1d9e75;
+}
+
+.badge.threat-medium {
+  background: rgba(240, 198, 116, 0.22);
+  color: #ba7517;
+}
+
+.badge.threat-high {
+  background: rgba(248, 113, 113, 0.2);
+  color: #d4537e;
+}
+
+.text-capitalize {
+  text-transform: capitalize;
+}
+
 .map-locate-btn {
   position: absolute;
   right: 12px;

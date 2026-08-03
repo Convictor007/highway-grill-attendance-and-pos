@@ -57,7 +57,11 @@ export function hashPassword(plain: string): string {
   return plain
 }
 
-export async function login(email: string, password: string) {
+export async function login(
+  email: string,
+  password: string,
+  sessionMeta?: { ip?: string | null; userAgent?: string | null },
+) {
   const db = getDb()
   const rows = await db<AuthUser[]>`
     SELECT u.id, u.email, u.password_hash, u.role_id, u.employee_id, u.is_active, u.account_status,
@@ -89,8 +93,12 @@ export async function login(email: string, password: string) {
   const expiresAt = new Date(Date.now() + hours * 3600 * 1000).toISOString()
 
   await db`
-    INSERT INTO user_sessions (user_id, token_hash, expires_at)
-    VALUES (${row.id}, ${tokenHash}, ${expiresAt}::timestamptz)
+    INSERT INTO user_sessions (user_id, token_hash, expires_at, ip_address, user_agent)
+    VALUES (
+      ${row.id}, ${tokenHash}, ${expiresAt}::timestamptz,
+      ${sessionMeta?.ip?.slice(0, 45) ?? null},
+      ${sessionMeta?.userAgent?.slice(0, 500) ?? null}
+    )
   `
   await db`UPDATE users SET last_login_at = NOW() WHERE id = ${row.id}`
 

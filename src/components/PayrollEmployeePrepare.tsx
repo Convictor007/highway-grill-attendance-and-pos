@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { formatPayrollPeriod } from '../lib/datetime'
 import { api } from '../lib/api'
+import { formatClockTime, formatClockOutTime } from '../lib/timeFormat'
 import { type LoadOptions, resolveLoadBehavior } from '../lib/scroll'
 import { useNotification } from '../hooks/useNotification'
 import { LoadingBlock } from './LoadingBlock'
@@ -51,7 +52,7 @@ function money(value: number | string | undefined | null) {
 
 function formatTime(iso: string | null) {
   if (!iso) return '—'
-  return new Date(iso.replace(' ', 'T')).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return formatClockTime(iso) || '—'
 }
 
 function formatDay(iso: string) {
@@ -298,7 +299,7 @@ export function PayrollEmployeePrepare({
                         <td>{formatDay(day.date)}</td>
                         <td>{day.present ? 'Present' : 'No record'}</td>
                         <td>{formatTime(day.clock_in)}</td>
-                        <td>{formatTime(day.clock_out)}</td>
+                        <td>{formatClockOutTime(day.clock_in, day.clock_out)}</td>
                         <td>{day.present ? Number(day.actual_hours).toFixed(2) : '—'}</td>
                       </tr>
                     ))}

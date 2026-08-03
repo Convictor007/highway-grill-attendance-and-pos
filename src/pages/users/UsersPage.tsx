@@ -67,7 +67,9 @@ export function UsersPage({ fullAdmin = false }: Props) {
     setUsers(u)
     setEmployees(e.filter((x) => x.status === 'active'))
     setRoles(r)
-    const defaultRole = r.find((x) => x.role_slug === 'hr') ?? r.find((x) => x.role_slug !== 'admin')
+    const defaultRole =
+      r.find((x) => x.role_slug === 'hr') ??
+      r.find((x) => x.role_slug !== 'admin' && x.role_slug !== 'super_admin')
     if (defaultRole && !form.role_id) setForm((f) => ({ ...f, role_id: defaultRole.role_id }))
   }
 

@@ -10,7 +10,7 @@ import {
   type ShiftClockContext,
 } from '../../lib/clock'
 import { resolveClockOpenState } from '../../lib/clockState'
-import { formatClockTime } from '../../lib/timeFormat'
+import { formatClockTime, formatClockOutTime, workDateManila } from '../../lib/timeFormat'
 import { todayLocalIsoDate, toLocalIsoDate, normalizeShiftDate } from '../../lib/datetime'
 import { ShiftEndBanner } from '../../components/ShiftEndBanner'
 import { reverseGeocode } from '../../lib/geocode'
@@ -49,8 +49,7 @@ interface TodayScheduledShift {
 
 function formatTime(iso: string | null) {
   if (!iso) return '—'
-  const d = new Date(iso.replace(' ', 'T'))
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  return formatClockTime(iso) || '—'
 }
 
 function formatDate(iso: string) {
@@ -65,7 +64,7 @@ function formatDateNumeric(iso: string) {
 }
 
 function workDateFromClockIn(clockIn: string) {
-  return clockIn.slice(0, 10)
+  return workDateManila(clockIn) || clockIn.slice(0, 10)
 }
 
 export function EmployeeHomePage() {
@@ -409,7 +408,7 @@ export function EmployeeHomePage() {
                   <tr key={r.id}>
                     <td>{formatDateNumeric(workDateFromClockIn(r.clock_in))}</td>
                     <td>{formatTime(r.clock_in)}</td>
-                    <td>{formatTime(r.clock_out)}</td>
+                    <td>{formatClockOutTime(r.clock_in, r.clock_out)}</td>
                     <td>
                       {r.actual_hours != null
                         ? `${Number(r.actual_hours).toFixed(1)}h`

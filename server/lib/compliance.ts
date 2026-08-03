@@ -51,6 +51,29 @@ export async function auditLogs(limit = 100) {
   )
 }
 
+/** Attendance + correction audit trail for HR review. */
+export async function attendanceAuditLogs(limit = 100, action?: string | null) {
+  const parsed = Number(limit)
+  const lim = Number.isFinite(parsed) ? Math.max(1, Math.min(parsed, 500)) : 100
+  const params: SqlValue[] = []
+  let sql = `SELECT al.*, u.email AS user_email,
+      e.first_name AS actor_first_name,
+      e.last_name AS actor_last_name
+    FROM audit_logs al
+    LEFT JOIN users u ON u.id = al.user_id
+    LEFT JOIN employees e ON e.id = u.employee_id
+    WHERE (
+      al.table_name IN ('attendance', 'attendance_correction_requests')
+      OR al.action LIKE 'attendance_%'
+    )`
+  if (action && action !== 'all') {
+    params.push(action)
+    sql += ` AND al.action = $${params.length}`
+  }
+  sql += ` ORDER BY al.created_at DESC LIMIT ${lim}`
+  return unsafe(sql, params)
+}
+
 const CHECKLIST_TYPES = new Set(['food_safety', 'labor', 'fire_safety', 'health_permit'])
 const FREQUENCIES = new Set(['daily', 'weekly', 'monthly', 'annual'])
 
